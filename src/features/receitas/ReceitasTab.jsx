@@ -41,7 +41,7 @@ export default function ReceitasTab({ month, setMonth }) {
 
   const ReceitaEditForm = ({ r }) => (
     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-      <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-5 sm:gap-2">
+      <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
         {month.config.incomeSources.length > 0
           ? <Select value={editDraft.source} onChange={(v) => setEditDraft({ ...editDraft, source: v })} options={month.config.incomeSources} className="w-full sm:col-span-2" placeholder="Fonte de receita" />
           : <input value={editDraft.source} onChange={(e) => setEditDraft({ ...editDraft, source: e.target.value })} placeholder="Fonte de receita"
@@ -90,7 +90,7 @@ export default function ReceitasTab({ month, setMonth }) {
 
         {adding && (
           <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
-            <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-5 sm:gap-2">
+            <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
               {month.config.incomeSources.length > 0
                 ? <Select value={draft.source} onChange={(v) => setDraft({ ...draft, source: v })} options={month.config.incomeSources} className="w-full sm:col-span-2" placeholder="Fonte de receita" />
                 : <input value={draft.source} onChange={(e) => setDraft({ ...draft, source: e.target.value })} placeholder="Fonte de receita"
