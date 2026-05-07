@@ -5,7 +5,7 @@ import {
   X, Plus,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard } from '../../components/ui'
-import { accents, hashAccent } from '../../lib/constants'
+import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 import { fmtBRL, todayDay, isMineFor, uid } from '../../lib/utils'
 
 // ---------- aggregations ----------
@@ -30,7 +30,7 @@ function useMonthAggregates(month) {
       aReceberByPessoa[k].total += Number(d.amount || 0)
       aReceberByPessoa[k].items.push(d)
     })
-    const aReceberList = Object.values(aReceberByPessoa).sort((a, b) => b.total - a.total)
+    const aReceberList = Object.values(aReceberByPessoa).map((p) => ({ ...p, accent: attrAccentKey(p.name, cfg.attributedTo) })).sort((a, b) => b.total - a.total)
 
     const byPayment = {}
     cfg.paymentMethods.forEach((pm) => { byPayment[pm] = 0 })
@@ -52,7 +52,7 @@ function useMonthAggregates(month) {
     const byAttributed = {}
     myAttributed.forEach((a) => { byAttributed[a.name] = 0 })
     minhas.forEach((d) => { const k = d.attributedTo || '—'; byAttributed[k] = (byAttributed[k] || 0) + Number(d.amount || 0) })
-    const attributedList = Object.entries(byAttributed).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total)
+    const attributedList = Object.entries(byAttributed).map(([name, total]) => ({ name, total, accent: attrAccentKey(name, cfg.attributedTo) })).sort((a, b) => b.total - a.total)
 
     const byCategory = {}
     cfg.categories.forEach((c) => { byCategory[c.name] = 0 })
@@ -213,7 +213,7 @@ function AReceberPanel({ list, total, setMonth }) {
       <SectionTitle icon={Users} title="A receber de terceiros" subtitle={`${fmtBRL(total)} adiantado · marque como recebido quando te pagarem`} accent="amber" />
       <div className="space-y-3">
         {list.map((p) => {
-          const a = accents[hashAccent(p.name)]
+          const a = accents[p.accent] || accents.gold
           return (
             <div key={p.name} className="p-3 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
               <div className="flex items-center justify-between mb-2">
@@ -256,7 +256,7 @@ function AttributedPanel({ list, total }) {
       {visible.length === 0 ? <Empty text="Nenhuma despesa lançada" /> : (
         <div className="space-y-2.5">
           {visible.map((x) => {
-            const a = accents[hashAccent(x.name)]
+            const a = accents[x.accent] || accents.gold
             const pct = total > 0 ? (x.total / total) * 100 : 0
             return (
               <div key={x.name} className="flex items-center gap-3">

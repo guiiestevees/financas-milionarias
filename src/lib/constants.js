@@ -11,6 +11,8 @@ export const accents = {
   violet:  { hex: '#8b5cf6', soft: 'rgba(139,92,246,0.12)',  glow: 'rgba(139,92,246,0.35)' },
   sky:     { hex: '#0ea5e9', soft: 'rgba(14,165,233,0.12)',  glow: 'rgba(14,165,233,0.35)' },
   fuchsia: { hex: '#d946ef', soft: 'rgba(217,70,239,0.12)',  glow: 'rgba(217,70,239,0.35)' },
+  lime:    { hex: '#84cc16', soft: 'rgba(132,204,22,0.12)',  glow: 'rgba(132,204,22,0.35)' },
+  orange:  { hex: '#f97316', soft: 'rgba(249,115,22,0.12)',  glow: 'rgba(249,115,22,0.35)' },
 }
 
 export const accentKeys = Object.keys(accents)
@@ -19,6 +21,12 @@ export const hashAccent = (str) => {
   let h = 0
   for (let i = 0; i < (str || '').length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0
   return accentKeys[Math.abs(h) % accentKeys.length]
+}
+
+export const attrAccentKey = (name, attrList = []) => {
+  const idx = attrList.findIndex((a) => a.name === name)
+  const obj = idx >= 0 ? attrList[idx] : null
+  return obj?.accent || (idx >= 0 ? accentKeys[idx % accentKeys.length] : hashAccent(name))
 }
 
 export const createEmptyMonth = () => ({

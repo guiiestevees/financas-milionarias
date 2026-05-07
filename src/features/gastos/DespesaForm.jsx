@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Sparkles, Check, X, CreditCard, Banknote, Receipt, Calendar } from 'lucide-react'
 import { Chip, Toggle, Btn, Field, ModePicker } from '../../components/ui'
 import { MoneyInput, TextInput } from '../../components/ui'
-import { accents, hashAccent } from '../../lib/constants'
+import { accents, accentKeys, attrAccentKey } from '../../lib/constants'
 import { todayISO, cardDueDayFor } from '../../lib/utils'
 
 export default function DespesaForm({ config, initial, onSubmit, onCancel, isEditing = false }) {
@@ -160,7 +160,7 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
             {[...config.attributedTo]
               .sort((a, b) => (a.isMine === false ? 1 : 0) - (b.isMine === false ? 1 : 0))
               .map((a) => {
-                const accent = hashAccent(a.name)
+                const accent = attrAccentKey(a.name, config.attributedTo)
                 const sel = d.attributedTo === a.name
                 const third = a.isMine === false
                 return (

@@ -209,7 +209,8 @@ function AttributedConfig({ config, setConfig }) {
   const [val, setVal] = useState('')
   const submit = () => {
     const v = val.trim(); if (!v || config.attributedTo.find((a) => a.name === v)) { setVal(''); setAdding(false); return }
-    setConfig({ attributedTo: [...config.attributedTo, { name: v, isMine: true }] }); setVal(''); setAdding(false)
+    const accent = accentKeys[config.attributedTo.length % accentKeys.length]
+    setConfig({ attributedTo: [...config.attributedTo, { name: v, isMine: true, accent }] }); setVal(''); setAdding(false)
   }
 
   return (
@@ -231,8 +232,8 @@ function AttributedConfig({ config, setConfig }) {
       )}
       <div className="space-y-1.5">
         {config.attributedTo.length === 0 && !adding && <Empty text="Nenhum atribuído cadastrado" />}
-        {config.attributedTo.map((p) => {
-          const a = accents[hashAccent(p.name)]
+        {config.attributedTo.map((p, idx) => {
+          const a = accents[p.accent || accentKeys[idx % accentKeys.length]] || accents.gold
           const mine = p.isMine !== false
           return (
             <div key={p.name} className="flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>

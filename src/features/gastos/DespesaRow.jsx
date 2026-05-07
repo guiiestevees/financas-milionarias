@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, Circle, CreditCard, Banknote, Calendar, Bell, Pencil, Trash2 } from 'lucide-react'
-import { accents, hashAccent } from '../../lib/constants'
+import { accents, attrAccentKey } from '../../lib/constants'
 import { fmtBRL, todayDay } from '../../lib/utils'
 
 export default function DespesaRow({ d, config, onTogglePaid, onEdit, onRemove }) {
@@ -8,7 +8,7 @@ export default function DespesaRow({ d, config, onTogglePaid, onEdit, onRemove }
   const pmAccent = cardObj?.accent || (d.paymentMethod === 'Pix' ? 'emerald' : d.paymentMethod === 'Débito' ? 'sky' : d.paymentMethod ? hashAccent(d.paymentMethod) : 'sky')
   const pmA = accents[pmAccent]
   const catA = catObj ? accents[catObj.accent] : null
-  const attA = d.attributedTo ? accents[hashAccent(d.attributedTo)] : null
+  const attA = d.attributedTo ? accents[attrAccentKey(d.attributedTo, config.attributedTo)] : null
   const today = todayDay()
   const dueDayN = d.dueDay ? Number(d.dueDay) : null
   const overdue = !d.paid && dueDayN && dueDayN < today && !cardObj
