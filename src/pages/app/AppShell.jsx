@@ -99,7 +99,7 @@ export default function AppShell() {
 
     setData((prev) => {
       const next = { ...prev, months: { ...prev.months } }
-      const makeEntry = (extra) => ({ id: uid(), ...despesa, ...extra })
+      const makeEntry = (extra) => ({ id: uid(), createdAt: Date.now(), ...despesa, ...extra })
 
       const curData = next.months[activeMonth] ?? createEmptyMonth()
       next.months[activeMonth] = {

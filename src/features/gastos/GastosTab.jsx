@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, X, CheckCircle2, Receipt, Calendar, Sparkles } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn } from '../../components/ui'
 import DespesaForm from './DespesaForm'
@@ -11,6 +11,13 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
   const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
+  const [confirmMarkAll, setConfirmMarkAll] = useState(false)
+
+  useEffect(() => {
+    if (!confirmMarkAll) return
+    const t = setTimeout(() => setConfirmMarkAll(false), 3000)
+    return () => clearTimeout(t)
+  }, [confirmMarkAll])
   const cfg = month.config
 
   const minhas = useMemo(() => month.despesas.filter((d) => isMineFor(d.attributedTo, cfg)), [month.despesas, cfg])
@@ -28,6 +35,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
     if (filters.attributedTo.length > 0 && !filters.attributedTo.includes(d.attributedTo)) return false
     if (filters.types.includes('parcelado') && !(Number(d.installmentTotal) > 1)) return false
     if (filters.types.includes('fixo') && !d.recurring) return false
+    if (filters.types.includes('recente') && !(d.createdAt && (Date.now() - d.createdAt) < 3 * 24 * 60 * 60 * 1000)) return false
     return true
   }), [month.despesas, filters])
 
@@ -46,7 +54,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
   const noConfig = cfg.categories.length === 0 && cfg.attributedTo.length === 0 && cfg.cards.length === 0
 
   const addDespesa = (d) => {
-    if (addDespesaPropagated) { addDespesaPropagated(d) } else { setMonth((m) => ({ ...m, despesas: [{ id: uid(), ...d }, ...m.despesas] })) }
+    if (addDespesaPropagated) { addDespesaPropagated(d) } else { setMonth((m) => ({ ...m, despesas: [{ id: uid(), createdAt: Date.now(), ...d }, ...m.despesas] })) }
     setAdding(false)
   }
   const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
@@ -62,7 +70,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
               ? 'Nenhum gasto ainda. Clique em "Novo gasto" pra começar.'
               : filterActive
                 ? `Mostrando ${fixos.length + eventuais.length} de ${month.despesas.length} (filtrado) · ${fmtBRL(sumFixos + sumEventuais)}`
-                : `${fixos.length} fixo(s) · ${eventuais.length} eventual(is)${terceirosCount > 0 ? ` · ${terceirosCount} de terceiros (no Painel)` : ''} · ${fmtBRL(sumFixos + sumEventuais)} é seu`}
+                : `${fixos.length} fixos · ${eventuais.length} eventuais · ${fmtBRL(sumFixos + sumEventuais)}`}
           </p>
         </div>
         <Btn icon={adding ? X : Plus} onClick={() => setAdding(!adding)}>{adding ? 'Fechar' : 'Novo gasto'}</Btn>
@@ -89,8 +97,14 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
           subtitle={fixos.length === 0 ? (filterActive ? 'Nenhum fixo bate com os filtros' : 'Marque um gasto como "Gasto fixo" e ele aparece aqui — e se repete todo mês') : `${fixos.filter((d) => !d.paid).length} pendente(s) de ${fixos.length} · ${fmtBRL(sumFixosPagos)} pago / ${fmtBRL(sumFixos - sumFixosPagos)} a pagar`}
           accent="violet"
           action={!filterActive && fixos.some((d) => !d.paid) && (
-            <Btn variant="ghost" size="sm" icon={CheckCircle2} onClick={() => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.recurring && !d.paid && isMineFor(d.attributedTo, m.config) ? { ...d, paid: true } : d) }))}>
-              Marcar todos pagos
+            <Btn variant="ghost" size="sm" icon={CheckCircle2}
+              className={confirmMarkAll ? 'text-rose-400 border-rose-400/30' : ''}
+              onClick={() => {
+                if (!confirmMarkAll) { setConfirmMarkAll(true); return }
+                setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.recurring && !d.paid && isMineFor(d.attributedTo, m.config) ? { ...d, paid: true } : d) }))
+                setConfirmMarkAll(false)
+              }}>
+              {confirmMarkAll ? 'Tem certeza?' : 'Marcar todos pagos'}
             </Btn>
           )}
         />

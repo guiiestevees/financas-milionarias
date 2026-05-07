@@ -1,8 +1,11 @@
-import { Search, X, Check, Banknote, Target, Users, Receipt } from 'lucide-react'
+import { useState } from 'react'
+import { Search, X, Check, Banknote, Target, Users, Receipt, ChevronDown } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 
 export default function FilterBar({ used, filters, toggleFilter, clearFilters, totalFiltros, config }) {
+  const [open, setOpen] = useState(false)
+
   const pmAccent = (name) => {
     const card = config.cards.find((c) => c.name === name)
     if (card?.accent) return card.accent
@@ -40,7 +43,7 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
 
   return (
     <Card className="p-3 sm:p-4">
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex items-center justify-between gap-2 cursor-pointer select-none" onClick={() => setOpen((o) => !o)}>
         <div className="flex items-center gap-2 text-xs text-white/55">
           <Search size={12} />
           <span className="uppercase" style={{ letterSpacing: '0.12em' }}>Filtrar</span>
@@ -50,16 +53,23 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
             </span>
           )}
         </div>
-        {totalFiltros > 0 && (
-          <button onClick={clearFilters} className="text-xs text-white/55 hover:text-white transition flex items-center gap-1"><X size={11} /> limpar</button>
-        )}
+        <div className="flex items-center gap-2">
+          {totalFiltros > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); clearFilters() }} className="text-xs text-white/55 hover:text-white transition flex items-center gap-1">
+              <X size={11} /> limpar
+            </button>
+          )}
+          <ChevronDown size={13} className={`text-white/30 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </div>
       </div>
-      <div className="space-y-2">
-        <Section label="Pagamento" dim="paymentMethods" items={used.paymentMethods} accentFn={pmAccent} icon={Banknote} />
-        <Section label="Categoria" dim="categories" items={used.categories} accentFn={catAccent} icon={Target} />
-        <Section label="Atribuído" dim="attributedTo" items={used.attributedTo} accentFn={attrAccent} labelFn={(n) => isThird(n) ? `🤝 ${n}` : n} icon={Users} />
-        <Section label="Tipo" dim="types" items={['parcelado', 'fixo']} accentFn={(n) => n === 'parcelado' ? 'cyan' : 'violet'} labelFn={(n) => n === 'parcelado' ? '📦 Parcelado' : '🔁 Gasto fixo'} icon={Receipt} />
-      </div>
+      {open && (
+        <div className="space-y-2 mt-3 pt-3 border-t border-white/5">
+          <Section label="Pagamento" dim="paymentMethods" items={used.paymentMethods} accentFn={pmAccent} icon={Banknote} />
+          <Section label="Categoria" dim="categories" items={used.categories} accentFn={catAccent} icon={Target} />
+          <Section label="Atribuído" dim="attributedTo" items={used.attributedTo} accentFn={attrAccent} labelFn={(n) => isThird(n) ? `🤝 ${n}` : n} icon={Users} />
+          <Section label="Tipo" dim="types" items={['parcelado', 'fixo', 'recente']} accentFn={(n) => n === 'parcelado' ? 'cyan' : n === 'fixo' ? 'violet' : 'amber'} labelFn={(n) => n === 'parcelado' ? '📦 Parcelado' : n === 'fixo' ? '🔁 Gasto fixo' : '🕐 Recentes'} icon={Receipt} />
+        </div>
+      )}
     </Card>
   )
 }
