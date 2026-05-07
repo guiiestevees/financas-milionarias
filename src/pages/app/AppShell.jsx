@@ -63,12 +63,22 @@ export default function AppShell() {
     return () => clearTimeout(saveTimer.current)
   }, [data])
 
-  const config = data?.config ?? createEmptyConfig()
-  const month = data ? { ...(data.months?.[activeMonth] ?? createEmptyMonth()), config } : null
+  const month = data ? (data.months?.[activeMonth] ?? createEmptyMonth()) : null
 
+  // Applies config patch to the current month and all future months
   const setConfig = useCallback((patch) => {
-    setData((prev) => ({ ...prev, config: { ...(prev.config ?? {}), ...patch } }))
-  }, [])
+    setData((prev) => {
+      const curCfg = prev.months?.[activeMonth]?.config ?? createEmptyConfig()
+      const newCfg = { ...curCfg, ...patch }
+      const updatedMonths = {}
+      for (const ym of Object.keys(prev.months || {})) {
+        updatedMonths[ym] = ym >= activeMonth
+          ? { ...(prev.months[ym]), config: newCfg }
+          : prev.months[ym]
+      }
+      return { ...prev, months: updatedMonths }
+    })
+  }, [activeMonth])
 
   const setMonth = useCallback((updater) => {
     setData((prev) => {
@@ -93,7 +103,7 @@ export default function AppShell() {
         ...prev,
         months: {
           ...prev.months,
-          [newKey]: { receitas: recurringReceitas, despesas: recurring },
+          [newKey]: { receitas: recurringReceitas, despesas: recurring, config: { ...(prevData.config ?? createEmptyConfig()) } },
         },
       }
     })

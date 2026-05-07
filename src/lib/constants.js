@@ -40,4 +40,5 @@ export const createEmptyConfig = () => ({
 export const createEmptyMonth = () => ({
   receitas: [],
   despesas: [],
+  config: createEmptyConfig(),
 })

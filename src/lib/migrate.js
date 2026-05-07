@@ -9,7 +9,6 @@ const EMPTY_CONFIG = () => ({
 const DEFAULT_DATA = () => ({
   months: {},
   brand: { name: '', subtitle: 'Finanças Milionárias' },
-  config: EMPTY_CONFIG(),
   _fixJun2026ToMay: true,
 })
 
@@ -20,7 +19,7 @@ export const migrateData = (data) => {
   const months = {}
   for (const ym of Object.keys(data.months)) {
     const m = data.months[ym]
-    if (!m?.config) { months[ym] = m; continue }
+    if (!m?.config) { months[ym] = { ...m, config: EMPTY_CONFIG() }; continue }
     const cfg = m.config
     months[ym] = {
       ...m,
@@ -48,30 +47,20 @@ export const migrateData = (data) => {
     }
   }
 
-  // Lift config to global level (one-shot migration)
-  // If data.config already exists, keep it. Otherwise pick from the richest month.
-  let globalConfig = data.config
-  if (!globalConfig) {
-    let bestScore = -1
+  // One-shot migration: if data.config exists (from temporary global config),
+  // distribute it to all months and drop the top-level config.
+  if (data.config) {
     for (const ym of Object.keys(months)) {
-      const cfg = months[ym]?.config
-      if (!cfg) continue
-      const score =
-        (cfg.cards?.length || 0) +
-        (cfg.categories?.length || 0) +
-        (cfg.attributedTo?.length || 0) +
-        (cfg.incomeSources?.length || 0)
-      if (score > bestScore) { bestScore = score; globalConfig = cfg }
+      months[ym] = { ...months[ym], config: { ...EMPTY_CONFIG(), ...data.config } }
     }
-    globalConfig = globalConfig
-      ? { ...EMPTY_CONFIG(), ...globalConfig }
-      : EMPTY_CONFIG()
   }
 
+  // Strip top-level config so it never comes back
+  const { config: _dropped, ...dataRest } = data
+
   return {
-    ...data,
+    ...dataRest,
     brand: data.brand || { name: '', subtitle: 'Finanças Milionárias' },
-    config: globalConfig,
     months,
     currentMonth,
     _fixJun2026ToMay: true,
