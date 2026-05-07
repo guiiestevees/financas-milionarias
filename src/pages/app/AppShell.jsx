@@ -127,15 +127,36 @@ export default function AppShell() {
 
       for (let i = 1; i <= remaining; i++) {
         const fm = shiftMonth(activeMonth, i)
-        const fmData = next.months[fm] ?? createEmptyMonth()
+        const fmData = next.months[fm]
         const day = despesa.date?.slice(8)
         const futureDate = fm + (day ? '-' + day : '-01')
-        next.months[fm] = {
-          ...fmData,
-          despesas: [
-            makeEntry({ installmentCurrent: cur + i, paid: false, date: futureDate }),
-            ...(fmData.despesas || []),
-          ],
+
+        if (fmData) {
+          // Month already exists — just add the installment
+          next.months[fm] = {
+            ...fmData,
+            despesas: [
+              makeEntry({ installmentCurrent: cur + i, paid: false, date: futureDate }),
+              ...(fmData.despesas || []),
+            ],
+          }
+        } else {
+          // New month — copy recurring items from the previous month + add installment
+          const srcData = next.months[shiftMonth(activeMonth, i - 1)] ?? createEmptyMonth()
+          const recurringDespesas = (srcData.despesas || [])
+            .filter((d) => d.recurring)
+            .map((d) => ({ ...d, id: uid(), paid: false }))
+          const recurringReceitas = (srcData.receitas || [])
+            .filter((r) => r.recurring)
+            .map((r) => ({ ...r, id: uid() }))
+          next.months[fm] = {
+            receitas: recurringReceitas,
+            despesas: [
+              makeEntry({ installmentCurrent: cur + i, paid: false, date: futureDate }),
+              ...recurringDespesas,
+            ],
+            config: { ...(srcData.config ?? createEmptyConfig()) },
+          }
         }
       }
 
