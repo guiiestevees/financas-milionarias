@@ -29,14 +29,15 @@ export const attrAccentKey = (name, attrList = []) => {
   return obj?.accent || (idx >= 0 ? accentKeys[idx % accentKeys.length] : hashAccent(name))
 }
 
+export const createEmptyConfig = () => ({
+  cards: [],
+  paymentMethods: [...DEFAULT_PAYMENT_METHODS],
+  categories: [],
+  attributedTo: [],
+  incomeSources: [],
+})
+
 export const createEmptyMonth = () => ({
   receitas: [],
   despesas: [],
-  config: {
-    cards: [],
-    paymentMethods: [...DEFAULT_PAYMENT_METHODS],
-    categories: [],
-    attributedTo: [],
-    incomeSources: [],
-  },
 })

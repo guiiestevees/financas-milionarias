@@ -1,12 +1,22 @@
+const EMPTY_CONFIG = () => ({
+  cards: [],
+  paymentMethods: ['Pix', 'Débito'],
+  categories: [],
+  attributedTo: [],
+  incomeSources: [],
+})
+
 const DEFAULT_DATA = () => ({
   months: {},
   brand: { name: '', subtitle: 'Finanças Milionárias' },
+  config: EMPTY_CONFIG(),
   _fixJun2026ToMay: true,
 })
 
 export const migrateData = (data) => {
   if (!data || !data.months) return DEFAULT_DATA()
 
+  // Normalize per-month configs
   const months = {}
   for (const ym of Object.keys(data.months)) {
     const m = data.months[ym]
@@ -38,9 +48,30 @@ export const migrateData = (data) => {
     }
   }
 
+  // Lift config to global level (one-shot migration)
+  // If data.config already exists, keep it. Otherwise pick from the richest month.
+  let globalConfig = data.config
+  if (!globalConfig) {
+    let bestScore = -1
+    for (const ym of Object.keys(months)) {
+      const cfg = months[ym]?.config
+      if (!cfg) continue
+      const score =
+        (cfg.cards?.length || 0) +
+        (cfg.categories?.length || 0) +
+        (cfg.attributedTo?.length || 0) +
+        (cfg.incomeSources?.length || 0)
+      if (score > bestScore) { bestScore = score; globalConfig = cfg }
+    }
+    globalConfig = globalConfig
+      ? { ...EMPTY_CONFIG(), ...globalConfig }
+      : EMPTY_CONFIG()
+  }
+
   return {
     ...data,
     brand: data.brand || { name: '', subtitle: 'Finanças Milionárias' },
+    config: globalConfig,
     months,
     currentMonth,
     _fixJun2026ToMay: true,

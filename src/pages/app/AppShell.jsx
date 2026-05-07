@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { storage } from '../../lib/storage'
 import { migrateData } from '../../lib/migrate'
-import { createEmptyMonth } from '../../lib/constants'
+import { createEmptyMonth, createEmptyConfig } from '../../lib/constants'
 import { getCurrentMonth, shiftMonth, formatMonthLabel, uid } from '../../lib/utils'
 import { Header } from '../../components/layout/Header'
 import { Footer } from '../../components/layout/Footer'
@@ -63,7 +63,12 @@ export default function AppShell() {
     return () => clearTimeout(saveTimer.current)
   }, [data])
 
-  const month = data ? (data.months?.[activeMonth] ?? createEmptyMonth()) : null
+  const config = data?.config ?? createEmptyConfig()
+  const month = data ? { ...(data.months?.[activeMonth] ?? createEmptyMonth()), config } : null
+
+  const setConfig = useCallback((patch) => {
+    setData((prev) => ({ ...prev, config: { ...(prev.config ?? {}), ...patch } }))
+  }, [])
 
   const setMonth = useCallback((updater) => {
     setData((prev) => {
@@ -88,7 +93,7 @@ export default function AppShell() {
         ...prev,
         months: {
           ...prev.months,
-          [newKey]: { receitas: recurringReceitas, despesas: recurring, config: { ...prevData.config } },
+          [newKey]: { receitas: recurringReceitas, despesas: recurring },
         },
       }
     })
@@ -166,7 +171,7 @@ export default function AppShell() {
         {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} />}
         {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
         {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} />}
-        {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} />}
+        {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
       </main>
 
       <div className="w-full max-w-4xl mx-auto px-4">

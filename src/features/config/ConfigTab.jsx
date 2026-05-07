@@ -289,13 +289,12 @@ function IncomeSourcesConfig({ config, setConfig }) {
 }
 
 // ---------- ConfigTab (export) ----------
-export default function ConfigTab({ month, setMonth, brand, updateBrand }) {
-  const setConfig = (patch) => setMonth((m) => ({ ...m, config: { ...m.config, ...patch } }))
+export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig }) {
   return (
     <div className="space-y-6">
       <Card className="p-4 sm:p-6">
         <SectionTitle icon={Settings} title="Configurações" subtitle="Personalize seu app, cartões, categorias, atribuídos e orçamentos." accent="gold" />
-        <div className="text-sm text-white/55 leading-relaxed">Os ajustes desta seção (exceto a marca, que é global) valem para o mês atual. Os próximos meses herdam.</div>
+        <div className="text-sm text-white/55 leading-relaxed">Estas configurações são globais — valem para todos os meses.</div>
       </Card>
       <BrandConfig brand={brand} updateBrand={updateBrand} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
