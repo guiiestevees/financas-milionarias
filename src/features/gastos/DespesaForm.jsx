@@ -175,9 +175,11 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
         {showJaPago && (
           <Toggle checked={!!d.paid} onChange={(v) => setD({ ...d, paid: v })} accent="emerald">Já pago</Toggle>
         )}
-        <Field label="Dia do mês que vence" hint="opcional · só o dia (1–31)">
-          <TextInput type="number" inputMode="numeric" value={d.dueDay} onChange={(v) => setD({ ...d, dueDay: v })} placeholder={cardDue ? `Ex: ${cardDue}` : 'Ex: 5'} style={{ maxWidth: 140 }} />
-        </Field>
+        {!chosenCard && (
+          <Field label="Dia do mês que vence" hint="opcional · só o dia (1–31)">
+            <TextInput type="number" inputMode="numeric" value={d.dueDay} onChange={(v) => setD({ ...d, dueDay: v })} placeholder="Ex: 5" style={{ maxWidth: 140 }} />
+          </Field>
+        )}
       </div>
 
       <div className="flex gap-2 justify-end pt-3 border-t border-white/5">
