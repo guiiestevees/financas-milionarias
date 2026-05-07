@@ -358,7 +358,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
 // ---------- BillsReminderPanel ----------
 function BillsReminderPanel({ month, setMonth }) {
   const today = todayDay()
-  const upcoming = useMemo(() => month.despesas.filter((d) => !d.paid && d.dueDay && isMineFor(d.attributedTo, month.config)).sort((a, b) => Number(a.dueDay) - Number(b.dueDay)), [month.despesas, month.config])
+  const upcoming = useMemo(() => month.despesas.filter((d) => !d.paid && d.dueDay && isMineFor(d.attributedTo, month.config) && !month.config?.cards?.some((c) => c.name === d.paymentMethod)).sort((a, b) => Number(a.dueDay) - Number(b.dueDay)), [month.despesas, month.config])
   const togglePaid = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) }))
 
   return (
