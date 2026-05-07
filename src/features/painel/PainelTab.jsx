@@ -21,16 +21,15 @@ function useMonthAggregates(month) {
     const totalAPagar = totalDespesas - totalPago
     const sobra = totalReceitas - totalDespesas
 
-    const aReceber = terceiros.filter((d) => !d.reimbursed)
-    const totalAReceber = aReceber.reduce((s, d) => s + Number(d.amount || 0), 0)
+    const totalAReceber = terceiros.filter((d) => !d.reimbursed).reduce((s, d) => s + Number(d.amount || 0), 0)
     const aReceberByPessoa = {}
-    aReceber.forEach((d) => {
+    terceiros.forEach((d) => {
       const k = d.attributedTo || '—'
-      aReceberByPessoa[k] = aReceberByPessoa[k] || { name: k, total: 0, items: [] }
-      aReceberByPessoa[k].total += Number(d.amount || 0)
+      aReceberByPessoa[k] = aReceberByPessoa[k] || { name: k, pending: 0, items: [] }
+      if (!d.reimbursed) aReceberByPessoa[k].pending += Number(d.amount || 0)
       aReceberByPessoa[k].items.push(d)
     })
-    const aReceberList = Object.values(aReceberByPessoa).map((p) => ({ ...p, accent: attrAccentKey(p.name, cfg.attributedTo) })).sort((a, b) => b.total - a.total)
+    const aReceberList = Object.values(aReceberByPessoa).map((p) => ({ ...p, accent: attrAccentKey(p.name, cfg.attributedTo) })).sort((a, b) => b.pending - a.pending)
 
     const byPayment = {}
     cfg.paymentMethods.forEach((pm) => { byPayment[pm] = 0 })
@@ -205,15 +204,17 @@ function CardsPanel({ cards, setMonth }) {
 
 // ---------- AReceberPanel ----------
 function AReceberPanel({ list, total, setMonth }) {
-  const mark = (id, all) => {
-    setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => (all ? d.attributedTo === id : d.id === id) ? { ...d, reimbursed: true } : d) }))
-  }
+  const toggle = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, reimbursed: !d.reimbursed } : d) }))
+  const markAll = (name) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.attributedTo === name && !d.reimbursed ? { ...d, reimbursed: true } : d) }))
+
   return (
     <Card className="p-4 sm:p-6" accent="amber" glow>
-      <SectionTitle icon={Users} title="A receber de terceiros" subtitle={`${fmtBRL(total)} adiantado · marque como recebido quando te pagarem`} accent="amber" />
+      <SectionTitle icon={Users} title="A receber de terceiros" subtitle={total > 0 ? `${fmtBRL(total)} pendente · marque quando te pagarem` : 'tudo recebido 🎯'} accent="amber" />
       <div className="space-y-3">
         {list.map((p) => {
           const a = accents[p.accent] || accents.gold
+          const allPaid = p.pending === 0
+          const sorted = [...p.items].sort((a, b) => (a.reimbursed === b.reimbursed ? 0 : a.reimbursed ? 1 : -1))
           return (
             <div key={p.name} className="p-3 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
               <div className="flex items-center justify-between mb-2">
@@ -223,19 +224,21 @@ function AReceberPanel({ list, total, setMonth }) {
                   <span className="text-xs text-white/40">({p.items.length} {p.items.length === 1 ? 'item' : 'itens'})</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', color: a.hex }} className="font-semibold tabular-nums">{fmtBRL(p.total)}</span>
-                  <button onClick={() => mark(p.name, true)} className="text-xs px-2 py-1 rounded text-emerald-300 hover:bg-emerald-500/15 transition">✓ tudo</button>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', color: allPaid ? accents.emerald.hex : a.hex }} className="font-semibold tabular-nums">{fmtBRL(p.pending > 0 ? p.pending : p.items.reduce((s, d) => s + Number(d.amount || 0), 0))}</span>
+                  {!allPaid && <button onClick={() => markAll(p.name)} className="text-xs px-2 py-1 rounded text-emerald-300 hover:bg-emerald-500/15 transition">✓ tudo</button>}
                 </div>
               </div>
               <div className="space-y-0.5">
-                {p.items.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between text-xs py-1 px-1 rounded hover:bg-white/5">
+                {sorted.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between text-xs py-1 px-1 rounded hover:bg-white/5" style={{ opacity: d.reimbursed ? 0.45 : 1 }}>
                     <div className="flex items-center gap-2 min-w-0">
-                      <button onClick={() => mark(d.id, false)} className="shrink-0 hover:scale-110 transition"><Circle size={12} className="text-white/30 hover:text-emerald-400" /></button>
-                      <span className="text-white/75 truncate">{d.description}</span>
+                      <button onClick={() => toggle(d.id)} className="shrink-0 hover:scale-110 transition">
+                        {d.reimbursed ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Circle size={12} className="text-white/30 hover:text-emerald-400" />}
+                      </button>
+                      <span className={`truncate ${d.reimbursed ? 'line-through text-white/40' : 'text-white/75'}`}>{d.description}</span>
                       {d.installmentTotal > 1 && <span className="text-white/35 shrink-0">{d.installmentCurrent}/{d.installmentTotal}</span>}
                     </div>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums text-white/70 shrink-0">{fmtBRL(d.amount)}</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className={`tabular-nums shrink-0 ${d.reimbursed ? 'text-white/35' : 'text-white/70'}`}>{fmtBRL(d.amount)}</span>
                   </div>
                 ))}
               </div>
