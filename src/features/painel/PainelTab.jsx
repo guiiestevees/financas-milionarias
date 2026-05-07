@@ -2,9 +2,10 @@ import { useState, useMemo } from 'react'
 import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
-  X, Plus,
+  X, Plus, Pencil, Trash2,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard } from '../../components/ui'
+import EditDespesaModal from '../gastos/EditDespesaModal'
 import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 import { fmtBRL, todayDay, isMineFor, uid } from '../../lib/utils'
 
@@ -203,7 +204,7 @@ function CardsPanel({ cards, setMonth }) {
 }
 
 // ---------- AReceberPanel ----------
-function AReceberPanel({ list, total, setMonth }) {
+function AReceberPanel({ list, total, setMonth, onEdit, onRemove }) {
   const toggle = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, reimbursed: !d.reimbursed } : d) }))
   const markAll = (name) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.attributedTo === name && !d.reimbursed ? { ...d, reimbursed: true } : d) }))
 
@@ -230,15 +231,17 @@ function AReceberPanel({ list, total, setMonth }) {
               </div>
               <div className="space-y-0.5">
                 {sorted.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between text-xs py-1 px-1 rounded hover:bg-white/5" style={{ opacity: d.reimbursed ? 0.45 : 1 }}>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <button onClick={() => toggle(d.id)} className="shrink-0 hover:scale-110 transition">
-                        {d.reimbursed ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Circle size={12} className="text-white/30 hover:text-emerald-400" />}
-                      </button>
-                      <span className={`truncate ${d.reimbursed ? 'line-through text-white/40' : 'text-white/75'}`}>{d.description}</span>
-                      {d.installmentTotal > 1 && <span className="text-white/35 shrink-0">{d.installmentCurrent}/{d.installmentTotal}</span>}
-                    </div>
+                  <div key={d.id} className="flex items-center gap-2 text-xs py-1 px-1 rounded hover:bg-white/5 group" style={{ opacity: d.reimbursed ? 0.45 : 1 }}>
+                    <button onClick={() => toggle(d.id)} className="shrink-0 hover:scale-110 transition">
+                      {d.reimbursed ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Circle size={12} className="text-white/30 hover:text-emerald-400" />}
+                    </button>
+                    <span className={`flex-1 truncate ${d.reimbursed ? 'line-through text-white/40' : 'text-white/75'}`}>{d.description}</span>
+                    {d.installmentTotal > 1 && <span className="text-white/35 shrink-0">{d.installmentCurrent}/{d.installmentTotal}</span>}
                     <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className={`tabular-nums shrink-0 ${d.reimbursed ? 'text-white/35' : 'text-white/70'}`}>{fmtBRL(d.amount)}</span>
+                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+                      <button onClick={() => onEdit(d)} className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition"><Pencil size={11} /></button>
+                      <button onClick={() => onRemove(d.id)} className="p-1 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition"><Trash2 size={11} /></button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -421,6 +424,10 @@ function CashPanel({ aVista, total }) {
 // ---------- PainelTab (export) ----------
 export default function PainelTab({ month, setMonth }) {
   const agg = useMonthAggregates(month)
+  const [editing, setEditing] = useState(null)
+
+  const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
+  const removeDespesa = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) }))
 
   const addQuickDespesa = ({ category, amount }) => {
     setMonth((m) => {
@@ -460,12 +467,13 @@ export default function PainelTab({ month, setMonth }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} />
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} />}
-          {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} />}
+          {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
           {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} />}
           {showCash && <CashPanel aVista={agg.aVista} total={agg.totalAVista} />}
           {showAttributed && <AttributedPanel list={agg.attributedList} total={agg.totalDespesas} />}
         </div>
       )}
     </div>
+    {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => { updateDespesa(editing.id, patch); setEditing(null) }} onClose={() => setEditing(null)} />}
   )
 }
