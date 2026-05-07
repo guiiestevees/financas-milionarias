@@ -1,6 +1,6 @@
 import { Search, X, Check, Banknote, Target, Users } from 'lucide-react'
 import { Card } from '../../components/ui'
-import { accents, hashAccent } from '../../lib/constants'
+import { accents, attrAccentKey } from '../../lib/constants'
 
 export default function FilterBar({ used, filters, toggleFilter, clearFilters, totalFiltros, config }) {
   const pmAccent = (name) => {
@@ -10,9 +10,11 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
     if (name === 'Débito') return 'sky'
     return hashAccent(name)
   }
-  const catAccent = (name) => config.categories.find((c) => c.name === name)?.accent || hashAccent(name)
+  const catAccent = (name) => config.categories.find((c) => c.name === name)?.accent || 'gold'
+  const attrAccent = (name) => attrAccentKey(name, config.attributedTo)
+  const isThird = (name) => config.attributedTo.find((a) => a.name === name)?.isMine === false
 
-  const Section = ({ label, dim, items, accentFn, icon: Icon }) => {
+  const Section = ({ label, dim, items, accentFn, icon: Icon, labelFn }) => {
     if (!items || items.length === 0) return null
     return (
       <div className="flex items-center gap-2 flex-wrap">
@@ -23,11 +25,12 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
         {items.map((name) => {
           const a = accents[accentFn(name)] || accents.gold
           const sel = filters[dim].includes(name)
+          const label = labelFn ? labelFn(name) : name
           return (
             <button key={name} onClick={() => toggleFilter(dim, name)}
                     className="px-2.5 py-1 rounded-full text-xs transition flex items-center gap-1"
                     style={{ background: sel ? a.hex : a.soft, color: sel ? '#0a0a0c' : a.hex, border: sel ? `1px solid ${a.hex}` : `1px solid ${a.hex}30`, fontWeight: sel ? 600 : 400 }}>
-              {sel && <Check size={11} />}{name}
+              {sel && <Check size={11} />}{label}
             </button>
           )
         })}
@@ -54,7 +57,7 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
       <div className="space-y-2">
         <Section label="Pagamento" dim="paymentMethods" items={used.paymentMethods} accentFn={pmAccent} icon={Banknote} />
         <Section label="Categoria" dim="categories" items={used.categories} accentFn={catAccent} icon={Target} />
-        <Section label="Atribuído" dim="attributedTo" items={used.attributedTo} accentFn={hashAccent} icon={Users} />
+        <Section label="Atribuído" dim="attributedTo" items={used.attributedTo} accentFn={attrAccent} labelFn={(n) => isThird(n) ? `🤝 ${n}` : n} icon={Users} />
       </div>
     </Card>
   )

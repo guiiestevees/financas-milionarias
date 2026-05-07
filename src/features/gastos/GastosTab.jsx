@@ -18,16 +18,16 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
 
   const usedValues = useMemo(() => {
     const pm = new Set(), cat = new Set(), att = new Set()
-    minhas.forEach((d) => { if (d.paymentMethod) pm.add(d.paymentMethod); if (d.category) cat.add(d.category); if (d.attributedTo) att.add(d.attributedTo) })
+    month.despesas.forEach((d) => { if (d.paymentMethod) pm.add(d.paymentMethod); if (d.category) cat.add(d.category); if (d.attributedTo) att.add(d.attributedTo) })
     return { paymentMethods: [...pm], categories: [...cat], attributedTo: [...att] }
-  }, [minhas])
+  }, [month.despesas])
 
-  const filtered = useMemo(() => minhas.filter((d) => {
+  const filtered = useMemo(() => month.despesas.filter((d) => {
     if (filters.paymentMethods.length > 0 && !filters.paymentMethods.includes(d.paymentMethod)) return false
     if (filters.categories.length > 0 && !filters.categories.includes(d.category)) return false
     if (filters.attributedTo.length > 0 && !filters.attributedTo.includes(d.attributedTo)) return false
     return true
-  }), [minhas, filters])
+  }), [month.despesas, filters])
 
   const totalFiltros = filters.paymentMethods.length + filters.categories.length + filters.attributedTo.length
   const filterActive = totalFiltros > 0
@@ -59,7 +59,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
             {month.despesas.length === 0
               ? 'Nenhum gasto ainda. Clique em "Novo gasto" pra começar.'
               : filterActive
-                ? `Mostrando ${fixos.length + eventuais.length} de ${minhas.length} (filtrado) · ${fmtBRL(sumFixos + sumEventuais)}`
+                ? `Mostrando ${fixos.length + eventuais.length} de ${month.despesas.length} (filtrado) · ${fmtBRL(sumFixos + sumEventuais)}`
                 : `${fixos.length} fixo(s) · ${eventuais.length} eventual(is)${terceirosCount > 0 ? ` · ${terceirosCount} de terceiros (no Painel)` : ''} · ${fmtBRL(sumFixos + sumEventuais)} é seu`}
           </p>
         </div>
