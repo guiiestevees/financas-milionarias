@@ -1,4 +1,4 @@
-import { Search, X, Check, Banknote, Target, Users } from 'lucide-react'
+import { Search, X, Check, Banknote, Target, Users, Receipt } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 
@@ -58,6 +58,7 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
         <Section label="Pagamento" dim="paymentMethods" items={used.paymentMethods} accentFn={pmAccent} icon={Banknote} />
         <Section label="Categoria" dim="categories" items={used.categories} accentFn={catAccent} icon={Target} />
         <Section label="Atribuído" dim="attributedTo" items={used.attributedTo} accentFn={attrAccent} labelFn={(n) => isThird(n) ? `🤝 ${n}` : n} icon={Users} />
+        <Section label="Tipo" dim="types" items={['parcelado', 'fixo']} accentFn={(n) => n === 'parcelado' ? 'cyan' : 'violet'} labelFn={(n) => n === 'parcelado' ? '📦 Parcelado' : '🔁 Gasto fixo'} icon={Receipt} />
       </div>
     </Card>
   )

@@ -10,7 +10,7 @@ import { uid, fmtBRL, isMineFor } from '../../lib/utils'
 export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [] })
+  const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
   const cfg = month.config
 
   const minhas = useMemo(() => month.despesas.filter((d) => isMineFor(d.attributedTo, cfg)), [month.despesas, cfg])
@@ -26,13 +26,15 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
     if (filters.paymentMethods.length > 0 && !filters.paymentMethods.includes(d.paymentMethod)) return false
     if (filters.categories.length > 0 && !filters.categories.includes(d.category)) return false
     if (filters.attributedTo.length > 0 && !filters.attributedTo.includes(d.attributedTo)) return false
+    if (filters.types.includes('parcelado') && !(Number(d.installmentTotal) > 1)) return false
+    if (filters.types.includes('fixo') && !d.recurring) return false
     return true
   }), [month.despesas, filters])
 
-  const totalFiltros = filters.paymentMethods.length + filters.categories.length + filters.attributedTo.length
+  const totalFiltros = filters.paymentMethods.length + filters.categories.length + filters.attributedTo.length + filters.types.length
   const filterActive = totalFiltros > 0
   const toggleFilter = (dim, val) => setFilters((f) => { const arr = f[dim] || []; return { ...f, [dim]: arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val] } })
-  const clearFilters = () => setFilters({ paymentMethods: [], categories: [], attributedTo: [] })
+  const clearFilters = () => setFilters({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
 
   const fixos = useMemo(() => filtered.filter((d) => d.recurring).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; return (a.dueDay ?? 99) - (b.dueDay ?? 99) }), [filtered])
   const eventuais = useMemo(() => filtered.filter((d) => !d.recurring).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; if (!a.date && !b.date) return 0; if (!a.date) return 1; if (!b.date) return -1; return b.date.localeCompare(a.date) }), [filtered])
