@@ -1,0 +1,13 @@
+{
+  "name": "Finanças Milionárias",
+  "short_name": "Finanças",
+  "description": "Controle suas finanças pessoais",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070912",
+  "theme_color": "#070912",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
