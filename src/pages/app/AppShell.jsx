@@ -24,6 +24,13 @@ export default function AppShell() {
   const initialized = useRef(false)
   const loadedUserId = useRef(null)
 
+  const loadFromStorage = useCallback(() => {
+    storage.load().then((raw) => {
+      setData(migrateData(raw))
+      initialized.current = true
+    })
+  }, [])
+
   useEffect(() => {
     // Reload when user identity changes (login, logout, account switch)
     const userId = user?.id ?? null
@@ -31,11 +38,19 @@ export default function AppShell() {
     loadedUserId.current = userId
     initialized.current = false
     setData(null)
-    storage.load().then((raw) => {
-      setData(migrateData(raw))
-      initialized.current = true
-    })
-  }, [user])
+    loadFromStorage()
+  }, [user, loadFromStorage])
+
+  // Reload from Supabase whenever the app comes back to focus (multi-device sync)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && initialized.current) {
+        loadFromStorage()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [loadFromStorage])
 
   useEffect(() => {
     if (!initialized.current || data === null) return

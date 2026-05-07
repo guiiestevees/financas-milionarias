@@ -238,7 +238,7 @@ function AReceberPanel({ list, total, setMonth, onEdit, onRemove }) {
                     <span className={`flex-1 truncate ${d.reimbursed ? 'line-through text-white/40' : 'text-white/75'}`}>{d.description}</span>
                     {d.installmentTotal > 1 && <span className="text-white/35 shrink-0">{d.installmentCurrent}/{d.installmentTotal}</span>}
                     <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className={`tabular-nums shrink-0 ${d.reimbursed ? 'text-white/35' : 'text-white/70'}`}>{fmtBRL(d.amount)}</span>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+                    <div className="flex gap-0.5 opacity-40 group-hover:opacity-100 transition shrink-0">
                       <button onClick={() => onEdit(d)} className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition"><Pencil size={11} /></button>
                       <button onClick={() => onRemove(d.id)} className="p-1 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition"><Trash2 size={11} /></button>
                     </div>
