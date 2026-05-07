@@ -4,6 +4,42 @@ import { Card, SectionTitle, Empty, Btn, MetricCard, MoneyInput, TextInput, Sele
 import { accents, hashAccent } from '../../lib/constants'
 import { uid, fmtBRL, todayISO } from '../../lib/utils'
 
+function ReceitaForm({ config, values, onChange, onSave, onCancel, saveLabel = 'Salvar' }) {
+  return (
+    <div className="w-full overflow-hidden">
+      <div className="flex flex-col gap-2">
+        {config.incomeSources.length > 0
+          ? <Select value={values.source} onChange={(v) => onChange({ ...values, source: v })} options={config.incomeSources} className="w-full" placeholder="Fonte de receita" />
+          : <input value={values.source} onChange={(e) => onChange({ ...values, source: e.target.value })} placeholder="Fonte de receita"
+                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', maxWidth: '100%', boxSizing: 'border-box', display: 'block' }}
+                   className="px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
+        }
+        <MoneyInput value={values.amount} onChange={(v) => onChange({ ...values, amount: v })} />
+        <input
+          type="date"
+          value={values.date}
+          onChange={(e) => onChange({ ...values, date: e.target.value })}
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', maxWidth: '100%', boxSizing: 'border-box', display: 'block', padding: '8px 12px', borderRadius: '8px', fontSize: '14px' }}
+        />
+        <div className="flex gap-2">
+          <Btn onClick={onSave} disabled={!values.amount || !values.source} className="flex-1">{saveLabel}</Btn>
+          {onCancel && <button onClick={onCancel} className="p-2 rounded-lg text-white/40 hover:text-white/70 bg-white/5 transition shrink-0"><X size={14} /></button>}
+        </div>
+      </div>
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => onChange({ ...values, recurring: !values.recurring })}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition border ${values.recurring ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' : 'bg-white/5 text-white/40 border-white/10'}`}
+        >
+          <Repeat2 size={11} />
+          Repetir todo mês
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ReceitasTab({ month, setMonth }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ source: month.config.incomeSources[0] || '', amount: '', date: todayISO(), notes: '', recurring: false })
@@ -39,35 +75,6 @@ export default function ReceitasTab({ month, setMonth }) {
 
   const cancelEdit = () => { setEditing(null); setEditDraft(null) }
 
-  const ReceitaEditForm = ({ r }) => (
-    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-      <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
-        {month.config.incomeSources.length > 0
-          ? <Select value={editDraft.source} onChange={(v) => setEditDraft({ ...editDraft, source: v })} options={month.config.incomeSources} className="w-full sm:col-span-2" placeholder="Fonte de receita" />
-          : <input value={editDraft.source} onChange={(e) => setEditDraft({ ...editDraft, source: e.target.value })} placeholder="Fonte de receita"
-                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-                   className="sm:col-span-2 px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
-        }
-        <MoneyInput value={editDraft.amount} onChange={(v) => setEditDraft({ ...editDraft, amount: v })} />
-        <TextInput type="date" value={editDraft.date} onChange={(v) => setEditDraft({ ...editDraft, date: v })} />
-        <div className="flex gap-2">
-          <Btn onClick={saveEdit} disabled={!editDraft.amount || !editDraft.source} className="flex-1">Salvar</Btn>
-          <button onClick={cancelEdit} className="p-2 rounded-lg text-white/40 hover:text-white/70 bg-white/5 transition shrink-0"><X size={14} /></button>
-        </div>
-      </div>
-      <div className="mt-2">
-        <button
-          type="button"
-          onClick={() => setEditDraft((d) => ({ ...d, recurring: !d.recurring }))}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition border ${editDraft.recurring ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' : 'bg-white/5 text-white/40 border-white/10'}`}
-        >
-          <Repeat2 size={11} />
-          Repetir todo mês
-        </button>
-      </div>
-    </div>
-  )
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -89,28 +96,8 @@ export default function ReceitasTab({ month, setMonth }) {
         />
 
         {adding && (
-          <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
-            <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
-              {month.config.incomeSources.length > 0
-                ? <Select value={draft.source} onChange={(v) => setDraft({ ...draft, source: v })} options={month.config.incomeSources} className="w-full sm:col-span-2" placeholder="Fonte de receita" />
-                : <input value={draft.source} onChange={(e) => setDraft({ ...draft, source: e.target.value })} placeholder="Fonte de receita"
-                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-                         className="sm:col-span-2 px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
-              }
-              <MoneyInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
-              <TextInput type="date" value={draft.date} onChange={(v) => setDraft({ ...draft, date: v })} />
-              <Btn onClick={add} disabled={!draft.amount || !draft.source} className="w-full sm:w-auto">Salvar</Btn>
-            </div>
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setDraft((d) => ({ ...d, recurring: !d.recurring }))}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition border ${draft.recurring ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' : 'bg-white/5 text-white/40 border-white/10'}`}
-              >
-                <Repeat2 size={11} />
-                Repetir todo mês
-              </button>
-            </div>
+          <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+            <ReceitaForm config={month.config} values={draft} onChange={setDraft} onSave={add} />
           </div>
         )}
 
@@ -118,7 +105,9 @@ export default function ReceitasTab({ month, setMonth }) {
           <div className="space-y-1.5">
             {month.receitas.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r) =>
               editing === r.id && editDraft ? (
-                <ReceitaEditForm key={r.id} r={r} />
+                <div key={r.id} className="p-3 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+                  <ReceitaForm config={month.config} values={editDraft} onChange={setEditDraft} onSave={saveEdit} onCancel={cancelEdit} />
+                </div>
               ) : (
                 <div key={r.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 group">
                   <div className="flex items-center gap-3">
