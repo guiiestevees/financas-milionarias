@@ -1,9 +1,8 @@
 import { useState, useRef } from 'react'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, Check, X } from 'lucide-react'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
-import { storage } from '../../lib/storage'
 
 // ---------- BrandConfig ----------
 function BrandConfig({ brand, updateBrand }) {
@@ -15,7 +14,7 @@ function BrandConfig({ brand, updateBrand }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="uppercase text-white/45 mb-1.5 block" style={{ fontSize: '10px', letterSpacing: '0.1em' }}>Seu nome (em cima)</label>
-          <TextInput value={name} onChange={setName} onBlur={() => updateBrand({ name: name.trim() })} placeholder="Ex: Gui Silva" />
+          <TextInput value={name} onChange={setName} onBlur={() => updateBrand({ name: name.trim() })} placeholder="Ex: João, Ju, Ana…" />
           <div className="text-xs text-white/40 mt-1">Aparece em letras pequenas douradas no topo.</div>
         </div>
         <div>
@@ -28,111 +27,6 @@ function BrandConfig({ brand, updateBrand }) {
   )
 }
 
-// ---------- BackupConfig ----------
-function BackupConfig() {
-  const [importMode, setImportMode] = useState(false)
-  const [pasted, setPasted] = useState('')
-  const [error, setError] = useState('')
-  const [exporting, setExporting] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [confirmation, setConfirmation] = useState(null)
-  const fileInputRef = useRef(null)
-
-  const exportar = async () => {
-    setExporting(true)
-    try {
-      const data = await storage.load()
-      if (!data || !Object.keys(data.months || {}).length) { setError('Nenhum dado pra exportar ainda'); return }
-      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `financas-milionarias-backup-${new Date().toISOString().slice(0, 10)}.json`
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
-    } catch (e) {
-      setError('Erro ao exportar: ' + e.message)
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const tryImport = (text, source) => {
-    setError('')
-    try {
-      const parsed = JSON.parse(text)
-      if (!parsed || typeof parsed !== 'object' || !parsed.months) { setError('Esse arquivo não parece um backup do Finanças Milionárias.'); return }
-      const monthsCount = Object.keys(parsed.months).length
-      let despesasCount = 0, receitasCount = 0
-      for (const ym of Object.keys(parsed.months)) { despesasCount += parsed.months[ym].despesas?.length || 0; receitasCount += parsed.months[ym].receitas?.length || 0 }
-      setConfirmation({ parsed, source, summary: `${monthsCount} mês(es) · ${despesasCount} gasto(s) · ${receitasCount} receita(s)` })
-    } catch { setError('JSON inválido. Verifique o arquivo.') }
-  }
-
-  const confirmImport = async () => {
-    if (!confirmation) return
-    setImporting(true)
-    try {
-      await storage.save(confirmation.parsed)
-      location.reload()
-    } catch (e) {
-      setError('Erro ao importar: ' + e.message)
-      setImporting(false)
-    }
-  }
-
-  const cancelImport = () => { setImportMode(false); setPasted(''); setError(''); setConfirmation(null) }
-
-  const handleFile = (e) => {
-    const file = e.target.files?.[0]; if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => tryImport(String(reader.result), 'arquivo')
-    reader.readAsText(file); e.target.value = ''
-  }
-
-  return (
-    <Card className="p-4 sm:p-6" accent="emerald">
-      <SectionTitle icon={ArrowUpRight} title="Backup e sincronização" subtitle="Mover seus dados entre PC, celular ou fazer backup" accent="emerald" />
-      <div className="text-sm text-white/65 leading-relaxed mb-4">
-        Com Supabase configurado, seus dados sincronizam automaticamente entre dispositivos. Backup manual é útil pra migrar dados ou guardar uma cópia de segurança.
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="p-4 rounded-lg" style={{ background: accents.emerald.soft, border: `1px solid ${accents.emerald.hex}30` }}>
-          <div className="flex items-center gap-2 mb-2"><ArrowUpRight size={14} style={{ color: accents.emerald.hex }} /><span className="font-medium text-sm">Exportar dados</span></div>
-          <div className="text-xs text-white/55 mb-3">Baixa um arquivo JSON com todos seus gastos, receitas e configurações.</div>
-          <Btn icon={ArrowUpRight} onClick={exportar} size="sm" disabled={exporting}>{exporting ? 'Exportando…' : 'Baixar backup'}</Btn>
-        </div>
-        <div className="p-4 rounded-lg" style={{ background: accents.amber.soft, border: `1px solid ${accents.amber.hex}30` }}>
-          <div className="flex items-center gap-2 mb-2"><ArrowDownRight size={14} style={{ color: accents.amber.hex }} /><span className="font-medium text-sm">Importar dados</span></div>
-          <div className="text-xs text-white/55 mb-3">⚠️ Substitui completamente os dados atuais. Faça um backup antes.</div>
-          {!importMode ? (
-            <Btn variant="ghost" icon={ArrowDownRight} onClick={() => setImportMode(true)} size="sm">Importar arquivo</Btn>
-          ) : (
-            <div className="space-y-2">
-              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleFile} style={{ display: 'none' }} />
-              <button onClick={() => fileInputRef.current?.click()} className="w-full px-3 py-2 rounded-lg text-sm transition flex items-center justify-center gap-1.5" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}>📁 Escolher arquivo .json</button>
-              <div className="text-xs text-white/40 text-center">ou cole o JSON aqui:</div>
-              <textarea value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder='{"months": {...}, ...}' rows={3}
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', width: '100%', outline: 'none', resize: 'vertical', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', boxSizing: 'border-box', borderRadius: 8, padding: '6px 8px' }}
-                className="placeholder:text-white/30 focus:border-amber-400" />
-              <div className="flex gap-2">
-                <button onClick={cancelImport} className="flex-1 px-3 py-1.5 rounded-lg text-xs text-white/55 hover:text-white hover:bg-white/5 transition">Cancelar</button>
-                <button onClick={() => tryImport(pasted, 'texto')} disabled={!pasted.trim()} style={{ opacity: pasted.trim() ? 1 : 0.4 }} className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">Validar e importar</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      {error && <div className="mt-3 p-3 rounded-lg text-sm flex items-start gap-2" style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.3)', color: 'rgba(255,255,255,0.85)' }}><AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" /><span>{error}</span></div>}
-      {confirmation && (
-        <div className="mt-4 p-4 rounded-lg" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.3)' }}>
-          <div className="flex items-start gap-2.5 mb-3"><AlertTriangle size={16} className="text-amber-300 mt-0.5 shrink-0" />
-            <div className="text-sm text-white/85"><strong>Confirma a importação?</strong><div className="text-xs text-white/65 mt-1">Vou trazer: {confirmation.summary}</div><div className="text-xs text-rose-300 mt-1">Tudo que está salvo agora vai ser substituído.</div></div>
-          </div>
-          <div className="flex gap-2 justify-end"><Btn variant="ghost" onClick={cancelImport} icon={X} disabled={importing}>Cancelar</Btn><Btn onClick={confirmImport} icon={Check} disabled={importing}>{importing ? 'Importando…' : 'Sim, importar'}</Btn></div>
-        </div>
-      )}
-    </Card>
-  )
-}
 
 // ---------- CardsConfig ----------
 function CardsConfig({ config, setConfig }) {
@@ -256,7 +150,7 @@ function CategoriesConfig({ config, setConfig }) {
       <SectionTitle icon={Target} title="Orçamentos" subtitle="Limite mensal pra controlar gastos variáveis" accent="rose" action={<AdderToggle open={adding} onToggle={setAdding} label="Novo orçamento" />} />
       <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-start gap-2"><Sparkles size={14} className="mt-0.5 shrink-0 text-rose-300" />
-          <div>Crie um orçamento pra cada gasto <strong className="text-white/85">variável</strong> que você quer limitar no mês — ex: <span className="text-rose-300">Mercado, Saídas, Lazer, Gasolina, Uber</span>.<br /><span className="text-white/45">Aluguel, Netflix e conta de luz <strong>não precisam</strong> aqui — esses são "Gasto fixo".</span></div>
+          <div>Crie um orçamento pra cada gasto que você quer acompanhar no mês — ex: <span className="text-rose-300">Mercado, Luz, Saídas, Lazer, Gasolina, Uber</span>. Qualquer categoria serve, fixa ou variável.</div>
         </div>
       </div>
       {adding && (
@@ -403,7 +297,6 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand }) {
         <div className="text-sm text-white/55 leading-relaxed">Os ajustes desta seção (exceto a marca, que é global) valem para o mês atual. Os próximos meses herdam.</div>
       </Card>
       <BrandConfig brand={brand} updateBrand={updateBrand} />
-      <BackupConfig />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CardsConfig config={month.config} setConfig={setConfig} />
         <PaymentMethodsConfig config={month.config} setConfig={setConfig} />

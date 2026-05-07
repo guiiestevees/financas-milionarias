@@ -94,8 +94,8 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
         </Field>
       )}
 
-      <Field label="O que foi?">
-        <TextInput value={d.description} onChange={(v) => setD({ ...d, description: v })} placeholder="Ex: Mercado da semana, FIFA, Presente Ju" />
+      <Field label="Descrição">
+        <TextInput value={d.description} onChange={(v) => setD({ ...d, description: v })} placeholder="Ex: Netflix, Restaurante X, Presente mãe" />
       </Field>
 
       {config.paymentMethods.length > 0 ? (
@@ -157,14 +157,16 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
       {config.attributedTo.length > 0 && (
         <Field label="Atribuído a" hint={!isMine && d.attributedTo ? 'vai pra A receber' : null}>
           <div className="flex flex-wrap gap-1.5">
-            {config.attributedTo.map((a) => {
-              const accent = hashAccent(a.name)
-              const sel = d.attributedTo === a.name
-              const third = a.isMine === false
-              return (
-                <Chip key={a.name} selected={sel} onClick={() => setD({ ...d, attributedTo: sel ? '' : a.name })} accent={third ? 'amber' : accent}>{third ? '🤝 ' : ''}{a.name}</Chip>
-              )
-            })}
+            {[...config.attributedTo]
+              .sort((a, b) => (a.isMine === false ? 1 : 0) - (b.isMine === false ? 1 : 0))
+              .map((a) => {
+                const accent = hashAccent(a.name)
+                const sel = d.attributedTo === a.name
+                const third = a.isMine === false
+                return (
+                  <Chip key={a.name} selected={sel} onClick={() => setD({ ...d, attributedTo: sel ? '' : a.name })} accent={third ? 'amber' : accent}>{third ? '🤝 ' : ''}{a.name}</Chip>
+                )
+              })}
           </div>
         </Field>
       )}
