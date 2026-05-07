@@ -41,16 +41,16 @@ export default function ReceitasTab({ month, setMonth }) {
 
   const ReceitaEditForm = ({ r }) => (
     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-5 sm:gap-2">
         {month.config.incomeSources.length > 0
-          ? <Select value={editDraft.source} onChange={(v) => setEditDraft({ ...editDraft, source: v })} options={month.config.incomeSources} className="col-span-2 sm:col-span-2" placeholder="Fonte de receita" />
+          ? <Select value={editDraft.source} onChange={(v) => setEditDraft({ ...editDraft, source: v })} options={month.config.incomeSources} className="w-full sm:col-span-2" placeholder="Fonte de receita" />
           : <input value={editDraft.source} onChange={(e) => setEditDraft({ ...editDraft, source: e.target.value })} placeholder="Fonte de receita"
-                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none' }}
-                   className="col-span-2 sm:col-span-2 px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
+                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                   className="sm:col-span-2 px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
         }
         <MoneyInput value={editDraft.amount} onChange={(v) => setEditDraft({ ...editDraft, amount: v })} />
         <TextInput type="date" value={editDraft.date} onChange={(v) => setEditDraft({ ...editDraft, date: v })} />
-        <div className="flex gap-2 col-span-2 sm:col-span-1">
+        <div className="flex gap-2">
           <Btn onClick={saveEdit} disabled={!editDraft.amount || !editDraft.source} className="flex-1">Salvar</Btn>
           <button onClick={cancelEdit} className="p-2 rounded-lg text-white/40 hover:text-white/70 bg-white/5 transition shrink-0"><X size={14} /></button>
         </div>
@@ -90,18 +90,16 @@ export default function ReceitasTab({ month, setMonth }) {
 
         {adding && (
           <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-5 sm:gap-2">
               {month.config.incomeSources.length > 0
-                ? <Select value={draft.source} onChange={(v) => setDraft({ ...draft, source: v })} options={month.config.incomeSources} className="col-span-2 sm:col-span-2" placeholder="Fonte de receita" />
+                ? <Select value={draft.source} onChange={(v) => setDraft({ ...draft, source: v })} options={month.config.incomeSources} className="w-full sm:col-span-2" placeholder="Fonte de receita" />
                 : <input value={draft.source} onChange={(e) => setDraft({ ...draft, source: e.target.value })} placeholder="Fonte de receita"
-                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none' }}
-                         className="col-span-2 sm:col-span-2 px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
+                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                         className="sm:col-span-2 px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
               }
               <MoneyInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
               <TextInput type="date" value={draft.date} onChange={(v) => setDraft({ ...draft, date: v })} />
-              <div className="col-span-2 sm:col-span-1">
-                <Btn onClick={add} disabled={!draft.amount || !draft.source} className="w-full">Salvar</Btn>
-              </div>
+              <Btn onClick={add} disabled={!draft.amount || !draft.source} className="w-full sm:w-auto">Salvar</Btn>
             </div>
             <div className="mt-2">
               <button
