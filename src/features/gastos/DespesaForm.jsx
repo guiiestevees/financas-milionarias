@@ -6,7 +6,7 @@ import { accents, hashAccent } from '../../lib/constants'
 import { todayISO, cardDueDayFor } from '../../lib/utils'
 
 export default function DespesaForm({ config, initial, onSubmit, onCancel, isEditing = false }) {
-  const firstAttr = config.attributedTo[0]?.name || ''
+  const firstAttr = (config.attributedTo.find((a) => a.isMine !== false) ?? config.attributedTo[0])?.name || ''
   const [d, setD] = useState(initial || {
     description: '', amount: '', date: todayISO(),
     category: '', paymentMethod: '', attributedTo: firstAttr,
