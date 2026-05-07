@@ -358,30 +358,32 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
 // ---------- BillsReminderPanel ----------
 function BillsReminderPanel({ month, setMonth }) {
   const today = todayDay()
-  const upcoming = useMemo(() => month.despesas.filter((d) => !d.paid && d.dueDay && isMineFor(d.attributedTo, month.config) && !month.config?.cards?.some((c) => c.name === d.paymentMethod)).sort((a, b) => Number(a.dueDay) - Number(b.dueDay)), [month.despesas, month.config])
+  const bills = useMemo(() => month.despesas.filter((d) => d.dueDay && isMineFor(d.attributedTo, month.config) && !month.config?.cards?.some((c) => c.name === d.paymentMethod)).sort((a, b) => (a.paid === b.paid ? Number(a.dueDay) - Number(b.dueDay) : a.paid ? 1 : -1)), [month.despesas, month.config])
+  const pending = bills.filter((d) => !d.paid).length
   const togglePaid = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) }))
 
   return (
     <Card className="p-4 sm:p-6" accent="amber" glow>
-      <SectionTitle icon={Bell} title="Contas a lembrar" subtitle={`${upcoming.length} pendente(s)`} accent="amber" />
-      {upcoming.length === 0 ? <Empty text="Nada pendente. Tudo em dia 🎯" /> : (
+      <SectionTitle icon={Bell} title="Contas a lembrar" subtitle={pending > 0 ? `${pending} pendente(s)` : 'tudo pago 🎯'} accent="amber" />
+      {bills.length === 0 ? <Empty text="Nenhuma conta com vencimento neste mês" /> : (
         <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
-          {upcoming.map((d) => {
-            const isCard = !!month.config?.cards?.find((c) => c.name === d.paymentMethod)
-            const overdue = Number(d.dueDay) < today && !isCard
-            const isToday = Number(d.dueDay) === today
+          {bills.map((d) => {
+            const overdue = !d.paid && Number(d.dueDay) < today
+            const isToday = !d.paid && Number(d.dueDay) === today
             return (
-              <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5">
-                <button onClick={() => togglePaid(d.id)}><Circle size={16} className="text-white/30 hover:text-emerald-400 transition" /></button>
+              <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5" style={{ opacity: d.paid ? 0.5 : 1 }}>
+                <button onClick={() => togglePaid(d.id)}>
+                  {d.paid ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Circle size={16} className="text-white/30 hover:text-emerald-400 transition" />}
+                </button>
                 <div className="w-8 text-center shrink-0">
-                  <div style={{ fontFamily: 'Fraunces, serif' }} className={`text-lg font-semibold leading-none ${overdue ? 'text-rose-400' : isToday ? 'text-amber-300' : 'text-white/80'}`}>{d.dueDay}</div>
-                  <div style={{ letterSpacing: '0.1em' }} className="text-xs uppercase text-white/35">{overdue ? 'atras.' : isToday ? 'hoje' : 'dia'}</div>
+                  <div style={{ fontFamily: 'Fraunces, serif' }} className={`text-lg font-semibold leading-none ${d.paid ? 'text-emerald-400' : overdue ? 'text-rose-400' : isToday ? 'text-amber-300' : 'text-white/80'}`}>{d.dueDay}</div>
+                  <div style={{ letterSpacing: '0.1em' }} className="text-xs uppercase text-white/35">{d.paid ? 'pago' : overdue ? 'atras.' : isToday ? 'hoje' : 'dia'}</div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{d.description}</div>
+                  <div className={`text-sm truncate ${d.paid ? 'line-through text-white/40' : ''}`}>{d.description}</div>
                   <div className="text-xs text-white/40 truncate">{d.paymentMethod || '—'}{d.attributedTo ? ` · ${d.attributedTo}` : ''}</div>
                 </div>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-sm font-semibold tabular-nums shrink-0">{fmtBRL(d.amount)}</div>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className={`text-sm font-semibold tabular-nums shrink-0 ${d.paid ? 'text-white/40' : ''}`}>{fmtBRL(d.amount)}</div>
               </div>
             )
           })}
