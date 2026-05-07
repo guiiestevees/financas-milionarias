@@ -10,7 +10,7 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
   const [d, setD] = useState(initial || {
     description: '', amount: '', date: todayISO(),
     category: '', paymentMethod: '', attributedTo: firstAttr,
-    paid: true, dueDay: '', installmentCurrent: 1, installmentTotal: 1, recurring: false,
+    paid: false, dueDay: '', installmentCurrent: 1, installmentTotal: 1, recurring: false,
   })
 
   const initialMode = initial
@@ -36,7 +36,7 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
       const next = { ...prev, paymentMethod: v }
       if (cardDue && (!prev.dueDay || cardDueDayFor(prev.paymentMethod, config) === Number(prev.dueDay))) next.dueDay = String(cardDue)
       if (isCard && !wasCard) next.paid = false
-      if (!isCard && wasCard) next.paid = true
+      if (!isCard && wasCard) next.paid = false
       return next
     })
   }
