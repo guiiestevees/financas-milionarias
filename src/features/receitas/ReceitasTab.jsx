@@ -1,41 +1,88 @@
 import { useState } from 'react'
 import { Wallet, Plus, Trash2, ArrowUpRight, Repeat2, Pencil, X } from 'lucide-react'
-import { Card, SectionTitle, Empty, Btn, MetricCard, MoneyInput, TextInput, Select } from '../../components/ui'
+import { Card, SectionTitle, Empty, Btn, MetricCard, MoneyInput, Select } from '../../components/ui'
 import { accents, hashAccent } from '../../lib/constants'
 import { uid, fmtBRL, todayISO } from '../../lib/utils'
 
+const inputStyle = {
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color: 'white',
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+  display: 'block',
+  padding: '8px 12px',
+  borderRadius: '8px',
+  fontSize: '14px',
+}
+
+// YYYY-MM-DD → DD/MM/AAAA
+function toDisplay(iso) {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return d && m && y ? `${d}/${m}/${y}` : ''
+}
+
+// DD/MM/AAAA → YYYY-MM-DD (returns '' if incomplete)
+function toISO(display) {
+  const match = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : ''
+}
+
+// Auto-mask: only digits → DD/MM/AAAA
+function maskDate(raw) {
+  const d = raw.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 2) return d
+  if (d.length <= 4) return d.slice(0, 2) + '/' + d.slice(2)
+  return d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4)
+}
+
+function DateInput({ value, onChange }) {
+  const [display, setDisplay] = useState(() => toDisplay(value))
+
+  const handle = (e) => {
+    const masked = maskDate(e.target.value)
+    setDisplay(masked)
+    const iso = toISO(masked)
+    if (iso || masked === '') onChange(iso)
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      placeholder="DD/MM/AAAA"
+      value={display}
+      onChange={handle}
+      style={inputStyle}
+      className="placeholder:text-white/30"
+    />
+  )
+}
+
 function ReceitaForm({ config, values, onChange, onSave, onCancel, saveLabel = 'Salvar' }) {
   return (
-    <div className="w-full overflow-hidden">
-      <div className="flex flex-col gap-2">
-        {config.incomeSources.length > 0
-          ? <Select value={values.source} onChange={(v) => onChange({ ...values, source: v })} options={config.incomeSources} className="w-full" placeholder="Fonte de receita" />
-          : <input value={values.source} onChange={(e) => onChange({ ...values, source: e.target.value })} placeholder="Fonte de receita"
-                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', maxWidth: '100%', boxSizing: 'border-box', display: 'block' }}
-                   className="px-3 py-2 rounded-lg text-sm placeholder:text-white/30" />
-        }
-        <MoneyInput value={values.amount} onChange={(v) => onChange({ ...values, amount: v })} />
-        <input
-          type="date"
-          value={values.date}
-          onChange={(e) => onChange({ ...values, date: e.target.value })}
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', display: 'block', padding: '8px 12px', borderRadius: '8px', fontSize: '14px' }}
-        />
-        <div className="flex gap-2">
-          <Btn onClick={onSave} disabled={!values.amount || !values.source} className="flex-1">{saveLabel}</Btn>
-          {onCancel && <button onClick={onCancel} className="p-2 rounded-lg text-white/40 hover:text-white/70 bg-white/5 transition shrink-0"><X size={14} /></button>}
-        </div>
+    <div className="flex flex-col gap-2">
+      {config.incomeSources.length > 0
+        ? <Select value={values.source} onChange={(v) => onChange({ ...values, source: v })} options={config.incomeSources} className="w-full" placeholder="Fonte de receita" />
+        : <input value={values.source} onChange={(e) => onChange({ ...values, source: e.target.value })} placeholder="Fonte de receita"
+                 style={inputStyle} className="placeholder:text-white/30" />
+      }
+      <MoneyInput value={values.amount} onChange={(v) => onChange({ ...values, amount: v })} />
+      <DateInput value={values.date} onChange={(iso) => onChange({ ...values, date: iso })} />
+      <div className="flex gap-2">
+        <Btn onClick={onSave} disabled={!values.amount || !values.source} className="flex-1">{saveLabel}</Btn>
+        {onCancel && <button onClick={onCancel} className="p-2 rounded-lg text-white/40 hover:text-white/70 bg-white/5 transition shrink-0"><X size={14} /></button>}
       </div>
-      <div className="mt-2">
-        <button
-          type="button"
-          onClick={() => onChange({ ...values, recurring: !values.recurring })}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition border ${values.recurring ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' : 'bg-white/5 text-white/40 border-white/10'}`}
-        >
-          <Repeat2 size={11} />
-          Repetir todo mês
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => onChange({ ...values, recurring: !values.recurring })}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition border ${values.recurring ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' : 'bg-white/5 text-white/40 border-white/10'}`}
+      >
+        <Repeat2 size={11} />
+        Repetir todo mês
+      </button>
     </div>
   )
 }
@@ -96,7 +143,7 @@ export default function ReceitasTab({ month, setMonth }) {
         />
 
         {adding && (
-          <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+          <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
             <ReceitaForm config={month.config} values={draft} onChange={setDraft} onSave={add} />
           </div>
         )}
@@ -105,8 +152,8 @@ export default function ReceitasTab({ month, setMonth }) {
           <div className="space-y-1.5">
             {month.receitas.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r) =>
               editing === r.id && editDraft ? (
-                <div key={r.id} className="p-3 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
-                  <ReceitaForm config={month.config} values={editDraft} onChange={setEditDraft} onSave={saveEdit} onCancel={cancelEdit} />
+                <div key={r.id} className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <ReceitaForm config={month.config} values={editDraft} onChange={setEditDraft} onSave={saveEdit} onCancel={cancelEdit} saveLabel="Salvar" />
                 </div>
               ) : (
                 <div key={r.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 group">
