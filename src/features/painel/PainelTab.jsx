@@ -163,12 +163,11 @@ function CardsPanel({ cards, setMonth }) {
         <div className="space-y-3">
           {sorted.map((c) => {
             const a = accents[c.accent] || accents.cyan
-            const overdue = c.dueDay && c.dueDay < today && c.aPagar > 0
             const isToday = c.dueDay === today && c.aPagar > 0
             const pct = c.total > 0 ? ((c.total - c.aPagar) / c.total) * 100 : 0
             const isPaid = c.aPagar === 0 && c.total > 0
-            const dueMsg = !c.dueDay ? 'sem vencimento cadastrado' : overdue ? `vencida no dia ${c.dueDay}` : isToday ? `vence HOJE (dia ${c.dueDay})` : `vence dia ${c.dueDay}`
-            const dueColor = overdue ? 'text-rose-400' : isToday ? 'text-amber-300' : 'text-white/55'
+            const dueMsg = !c.dueDay ? 'sem vencimento cadastrado' : isToday ? `vence HOJE (dia ${c.dueDay})` : `vence dia ${c.dueDay}`
+            const dueColor = isToday ? 'text-amber-300' : 'text-white/55'
             return (
               <div key={c.name} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -180,7 +179,7 @@ function CardsPanel({ cards, setMonth }) {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', color: isPaid ? accents.emerald.hex : (overdue ? accents.rose.hex : a.hex) }} className="font-semibold tabular-nums">{fmtBRL(c.total)}</div>
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', color: isPaid ? accents.emerald.hex : a.hex }} className="font-semibold tabular-nums">{fmtBRL(c.total)}</div>
                     <div className="uppercase text-white/40" style={{ letterSpacing: '0.1em', fontSize: '10px' }}>fatura</div>
                   </div>
                 </div>
@@ -368,7 +367,8 @@ function BillsReminderPanel({ month, setMonth }) {
       {upcoming.length === 0 ? <Empty text="Nada pendente. Tudo em dia 🎯" /> : (
         <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
           {upcoming.map((d) => {
-            const overdue = Number(d.dueDay) < today
+            const isCard = !!month.config?.cards?.find((c) => c.name === d.paymentMethod)
+            const overdue = Number(d.dueDay) < today && !isCard
             const isToday = Number(d.dueDay) === today
             return (
               <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5">

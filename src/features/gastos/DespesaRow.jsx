@@ -11,7 +11,7 @@ export default function DespesaRow({ d, config, onTogglePaid, onEdit, onRemove }
   const attA = d.attributedTo ? accents[hashAccent(d.attributedTo)] : null
   const today = todayDay()
   const dueDayN = d.dueDay ? Number(d.dueDay) : null
-  const overdue = !d.paid && dueDayN && dueDayN < today
+  const overdue = !d.paid && dueDayN && dueDayN < today && !cardObj
   const dueToday = !d.paid && dueDayN === today
 
   let bg = d.paid ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)'
