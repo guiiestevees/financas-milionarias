@@ -19,7 +19,7 @@ function ReceitaForm({ config, values, onChange, onSave, onCancel, saveLabel = '
           type="date"
           value={values.date}
           onChange={(e) => onChange({ ...values, date: e.target.value })}
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', maxWidth: '100%', boxSizing: 'border-box', display: 'block', padding: '8px 12px', borderRadius: '8px', fontSize: '14px' }}
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', display: 'block', padding: '8px 12px', borderRadius: '8px', fontSize: '14px' }}
         />
         <div className="flex gap-2">
           <Btn onClick={onSave} disabled={!values.amount || !values.source} className="flex-1">{saveLabel}</Btn>
