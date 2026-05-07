@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Wallet, Plus, Trash2, ArrowUpRight } from 'lucide-react'
+import { Wallet, Plus, Trash2, ArrowUpRight, Repeat2 } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, MetricCard, MoneyInput, TextInput, Select } from '../../components/ui'
 import { accents, hashAccent } from '../../lib/constants'
 import { uid, fmtBRL, todayISO } from '../../lib/utils'
 
 export default function ReceitasTab({ month, setMonth }) {
   const [adding, setAdding] = useState(false)
-  const [draft, setDraft] = useState({ source: month.config.incomeSources[0] || '', amount: '', date: todayISO(), notes: '' })
+  const [draft, setDraft] = useState({ source: month.config.incomeSources[0] || '', amount: '', date: todayISO(), notes: '', recurring: false })
 
   const total = month.receitas.reduce((s, r) => s + Number(r.amount || 0), 0)
   const bySource = month.config.incomeSources.map((src) => ({
@@ -17,7 +17,7 @@ export default function ReceitasTab({ month, setMonth }) {
   const add = () => {
     if (!draft.amount || !draft.source) return
     setMonth((m) => ({ ...m, receitas: [...m.receitas, { id: uid(), ...draft, amount: Number(draft.amount) }] }))
-    setDraft({ source: month.config.incomeSources[0] || '', amount: '', date: todayISO(), notes: '' })
+    setDraft({ source: month.config.incomeSources[0] || '', amount: '', date: todayISO(), notes: '', recurring: false })
     setAdding(false)
   }
   const remove = (id) => setMonth((m) => ({ ...m, receitas: m.receitas.filter((r) => r.id !== id) }))
@@ -43,16 +43,28 @@ export default function ReceitasTab({ month, setMonth }) {
         />
 
         {adding && (
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
-            {month.config.incomeSources.length > 0
-              ? <Select value={draft.source} onChange={(v) => setDraft({ ...draft, source: v })} options={month.config.incomeSources} className="sm:col-span-2" placeholder="Fonte de receita" />
-              : <input value={draft.source} onChange={(e) => setDraft({ ...draft, source: e.target.value })} placeholder="Fonte de receita"
-                       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none' }}
-                       className="px-3 py-2 rounded-lg text-sm placeholder:text-white/30 sm:col-span-2" />
-            }
-            <MoneyInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
-            <TextInput type="date" value={draft.date} onChange={(v) => setDraft({ ...draft, date: v })} />
-            <Btn onClick={add} disabled={!draft.amount || !draft.source}>Salvar</Btn>
+          <div className="mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+              {month.config.incomeSources.length > 0
+                ? <Select value={draft.source} onChange={(v) => setDraft({ ...draft, source: v })} options={month.config.incomeSources} className="sm:col-span-2" placeholder="Fonte de receita" />
+                : <input value={draft.source} onChange={(e) => setDraft({ ...draft, source: e.target.value })} placeholder="Fonte de receita"
+                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', outline: 'none' }}
+                         className="px-3 py-2 rounded-lg text-sm placeholder:text-white/30 sm:col-span-2" />
+              }
+              <MoneyInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
+              <TextInput type="date" value={draft.date} onChange={(v) => setDraft({ ...draft, date: v })} />
+              <Btn onClick={add} disabled={!draft.amount || !draft.source}>Salvar</Btn>
+            </div>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setDraft((d) => ({ ...d, recurring: !d.recurring }))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition border ${draft.recurring ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' : 'bg-white/5 text-white/40 border-white/10'}`}
+              >
+                <Repeat2 size={11} />
+                Repetir todo mês
+              </button>
+            </div>
           </div>
         )}
 

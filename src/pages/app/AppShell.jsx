@@ -81,11 +81,14 @@ export default function AppShell() {
       const recurring = (prevData.despesas || [])
         .filter((d) => d.recurring)
         .map((d) => ({ ...d, id: uid(), paid: false }))
+      const recurringReceitas = (prevData.receitas || [])
+        .filter((r) => r.recurring)
+        .map((r) => ({ ...r, id: uid() }))
       return {
         ...prev,
         months: {
           ...prev.months,
-          [newKey]: { receitas: [], despesas: recurring, config: { ...prevData.config } },
+          [newKey]: { receitas: recurringReceitas, despesas: recurring, config: { ...prevData.config } },
         },
       }
     })
@@ -160,7 +163,7 @@ export default function AppShell() {
       </div>
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
-        {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} />}
+        {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} />}
         {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
         {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} />}
         {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} />}

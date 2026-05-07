@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, X, CheckCircle2, Receipt, Calendar, Sparkles } from 'lucide-react'
+import { Plus, X, CheckCircle2, Receipt, Calendar, Sparkles, Users } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn } from '../../components/ui'
 import DespesaForm from './DespesaForm'
 import DespesaRow from './DespesaRow'
@@ -12,16 +12,15 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
   const [editing, setEditing] = useState(null)
   const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
   const [confirmMarkAll, setConfirmMarkAll] = useState(false)
+  const cfg = month.config
 
   useEffect(() => {
     if (!confirmMarkAll) return
     const t = setTimeout(() => setConfirmMarkAll(false), 3000)
     return () => clearTimeout(t)
   }, [confirmMarkAll])
-  const cfg = month.config
 
   const minhas = useMemo(() => month.despesas.filter((d) => isMineFor(d.attributedTo, cfg)), [month.despesas, cfg])
-  const terceirosCount = month.despesas.length - minhas.length
 
   const usedValues = useMemo(() => {
     const pm = new Set(), cat = new Set(), att = new Set()
@@ -44,13 +43,13 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
   const toggleFilter = (dim, val) => setFilters((f) => { const arr = f[dim] || []; return { ...f, [dim]: arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val] } })
   const clearFilters = () => setFilters({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
 
-  const fixos = useMemo(() => filtered.filter((d) => d.recurring).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; return (a.dueDay ?? 99) - (b.dueDay ?? 99) }), [filtered])
-  const eventuais = useMemo(() => filtered.filter((d) => !d.recurring).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; if (!a.date && !b.date) return 0; if (!a.date) return 1; if (!b.date) return -1; return b.date.localeCompare(a.date) }), [filtered])
+  const fixos = useMemo(() => filtered.filter((d) => d.recurring && isMineFor(d.attributedTo, cfg)).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; return (a.dueDay ?? 99) - (b.dueDay ?? 99) }), [filtered, cfg])
+  const eventuais = useMemo(() => filtered.filter((d) => !d.recurring && isMineFor(d.attributedTo, cfg)).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; if (!a.date && !b.date) return 0; if (!a.date) return 1; if (!b.date) return -1; return b.date.localeCompare(a.date) }), [filtered, cfg])
+  const atribuidos = useMemo(() => filtered.filter((d) => !isMineFor(d.attributedTo, cfg)).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; return (b.date || '').localeCompare(a.date || '') }), [filtered, cfg])
 
   const sumFixos = fixos.reduce((s, d) => s + Number(d.amount || 0), 0)
-  const sumFixosPagos = fixos.filter((d) => d.paid).reduce((s, d) => s + Number(d.amount || 0), 0)
   const sumEventuais = eventuais.reduce((s, d) => s + Number(d.amount || 0), 0)
-  const sumEventuaisPagos = eventuais.filter((d) => d.paid).reduce((s, d) => s + Number(d.amount || 0), 0)
+  const sumAtribuidos = atribuidos.reduce((s, d) => s + Number(d.amount || 0), 0)
   const noConfig = cfg.categories.length === 0 && cfg.attributedTo.length === 0 && cfg.cards.length === 0
 
   const addDespesa = (d) => {
@@ -69,7 +68,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
             {month.despesas.length === 0
               ? 'Nenhum gasto ainda. Clique em "Novo gasto" pra começar.'
               : filterActive
-                ? `Mostrando ${fixos.length + eventuais.length} de ${month.despesas.length} (filtrado) · ${fmtBRL(sumFixos + sumEventuais)}`
+                ? `Mostrando ${fixos.length + eventuais.length + atribuidos.length} de ${month.despesas.length} (filtrado)`
                 : `${fixos.length} fixos · ${eventuais.length} eventuais · ${fmtBRL(sumFixos + sumEventuais)}`}
           </p>
         </div>
@@ -94,7 +93,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
       {/* Gastos fixos */}
       <Card className="p-5 sm:p-6" accent="violet" glow>
         <SectionTitle icon={Calendar} title="Gastos fixos"
-          subtitle={fixos.length === 0 ? (filterActive ? 'Nenhum fixo bate com os filtros' : 'Marque um gasto como "Gasto fixo" e ele aparece aqui — e se repete todo mês') : `${fixos.filter((d) => !d.paid).length} pendente(s) de ${fixos.length} · ${fmtBRL(sumFixosPagos)} pago / ${fmtBRL(sumFixos - sumFixosPagos)} a pagar`}
+          subtitle={fixos.length === 0 ? (filterActive ? 'Nenhum fixo bate com os filtros' : 'Marque um gasto como "Gasto fixo" e ele aparece aqui — e se repete todo mês') : fmtBRL(sumFixos)}
           accent="violet"
           action={!filterActive && fixos.some((d) => !d.paid) && (
             <Btn variant="ghost" size="sm" icon={CheckCircle2}
@@ -124,7 +123,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
       {/* Gastos eventuais */}
       <Card className="p-5 sm:p-6" accent="cyan">
         <SectionTitle icon={Receipt} title="Gastos eventuais"
-          subtitle={eventuais.length === 0 ? (filterActive ? 'Nenhum eventual bate com os filtros' : 'Compras, parcelas, presentes — tudo que aparece só esse mês') : `${eventuais.filter((d) => !d.paid).length} pendente(s) de ${eventuais.length} · ${fmtBRL(sumEventuaisPagos)} pago / ${fmtBRL(sumEventuais - sumEventuaisPagos)} a pagar`}
+          subtitle={eventuais.length === 0 ? (filterActive ? 'Nenhum eventual bate com os filtros' : 'Compras, parcelas, presentes — tudo que aparece só esse mês') : fmtBRL(sumEventuais)}
           accent="cyan"
         />
         {eventuais.length === 0 ? <Empty text={filterActive ? '—' : 'Nenhum gasto eventual neste mês'} /> : (
@@ -139,6 +138,25 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
           </div>
         )}
       </Card>
+
+      {/* Atribuídos a terceiros */}
+      {atribuidos.length > 0 && (
+        <Card className="p-5 sm:p-6" accent="amber">
+          <SectionTitle icon={Users} title="Atribuídos a terceiros"
+            subtitle={fmtBRL(sumAtribuidos)}
+            accent="amber"
+          />
+          <div className="space-y-1.5">
+            {atribuidos.map((d) => (
+              <DespesaRow key={d.id} d={d} config={cfg} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
+            ))}
+            <div className="border-t border-white/5 mt-3 pt-3 flex items-center justify-between text-sm">
+              <span className="text-white/50">Total atribuído</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="font-semibold tabular-nums">{fmtBRL(sumAtribuidos)}</span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {editing && <EditDespesaModal despesa={editing} config={cfg} onSave={(patch) => { updateDespesa(editing.id, patch); setEditing(null) }} onClose={() => setEditing(null)} />}
     </div>

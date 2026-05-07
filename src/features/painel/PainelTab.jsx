@@ -422,7 +422,7 @@ function CashPanel({ aVista, total }) {
 }
 
 // ---------- PainelTab (export) ----------
-export default function PainelTab({ month, setMonth }) {
+export default function PainelTab({ month, setMonth, setTab }) {
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
 
@@ -449,9 +449,7 @@ export default function PainelTab({ month, setMonth }) {
   }
 
   const showCards = agg.byCard.length > 0
-  const showAttributed = agg.attributedList.some((a) => a.total > 0)
   const showBudgets = agg.categoryList.some((c) => c.budget)
-  const showCash = agg.aVista.length > 0 && agg.totalAVista > 0
   const showAReceber = agg.aReceberList.length > 0
 
   return (
@@ -459,19 +457,21 @@ export default function PainelTab({ month, setMonth }) {
     <div className="space-y-6">
       <HeroBalance agg={agg} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <MetricCard label="Receitas" value={fmtBRL(agg.totalReceitas)} icon={ArrowUpRight} accent="emerald" sub={`${month.receitas.length} entrada(s)`} />
-        <MetricCard label="Despesas" value={fmtBRL(agg.totalDespesas)} icon={ArrowDownRight} accent="rose" sub={agg.terceirosCount > 0 ? `só as suas (${agg.terceirosCount} de terceiros à parte)` : `${month.despesas.length} gasto(s)`} />
+        <div className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setTab?.('receitas')}>
+          <MetricCard label="Receitas" value={fmtBRL(agg.totalReceitas)} icon={ArrowUpRight} accent="emerald" sub={`${month.receitas.length} entrada(s)`} />
+        </div>
+        <div className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setTab?.('gastos')}>
+          <MetricCard label="Despesas" value={fmtBRL(agg.totalDespesas)} icon={ArrowDownRight} accent="rose" sub={agg.terceirosCount > 0 ? `só as suas (${agg.terceirosCount} de terceiros à parte)` : `${month.despesas.length} gasto(s)`} />
+        </div>
         <MetricCard label="Já pago" value={fmtBRL(agg.totalPago)} icon={CheckCircle2} accent="cyan" sub={agg.totalDespesas > 0 ? `${Math.round(agg.totalPago / agg.totalDespesas * 100)}% das despesas` : '—'} />
         <MetricCard label="A pagar" value={fmtBRL(agg.totalAPagar)} icon={Bell} accent="amber" sub={agg.totalAPagar > 0 ? 'ainda pendente' : 'tudo em dia 🎯'} />
       </div>
-      {(showCards || showAttributed || showBudgets || showCash || showAReceber || month.despesas.length > 0) && (
+      {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} />
+          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
-          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} />}
-          {showCash && <CashPanel aVista={agg.aVista} total={agg.totalAVista} />}
-          {showAttributed && <AttributedPanel list={agg.attributedList} total={agg.totalDespesas} />}
         </div>
       )}
     </div>
