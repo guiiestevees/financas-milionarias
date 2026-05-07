@@ -99,7 +99,6 @@ export default function AppShell() {
   const navigateMonth = (dir) => {
     const newKey = shiftMonth(activeMonth, dir)
     setData((prev) => {
-      if (prev.months?.[newKey]) return prev
       const prevData = prev.months?.[activeMonth] ?? createEmptyMonth()
       const recurring = (prevData.despesas || [])
         .filter((d) => d.recurring)
@@ -107,6 +106,34 @@ export default function AppShell() {
       const recurringReceitas = (prevData.receitas || [])
         .filter((r) => r.recurring)
         .map((r) => ({ ...r, id: uid() }))
+
+      const existing = prev.months?.[newKey]
+      if (existing) {
+        // Month exists — backfill recurring items if it's missing them
+        // (happens when the month was created only with installment entries)
+        const hasRecurringDespesas = (existing.despesas || []).some((d) => d.recurring)
+        const hasReceitas = (existing.receitas || []).length > 0
+        if (hasRecurringDespesas && hasReceitas) return prev  // already complete
+
+        return {
+          ...prev,
+          months: {
+            ...prev.months,
+            [newKey]: {
+              ...existing,
+              config: existing.config ?? prevData.config ?? createEmptyConfig(),
+              despesas: hasRecurringDespesas
+                ? (existing.despesas || [])
+                : [...recurring, ...(existing.despesas || [])],
+              receitas: hasReceitas
+                ? (existing.receitas || [])
+                : recurringReceitas,
+            },
+          },
+        }
+      }
+
+      // New month — create from scratch
       return {
         ...prev,
         months: {
