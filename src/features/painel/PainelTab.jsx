@@ -455,6 +455,7 @@ export default function PainelTab({ month, setMonth }) {
   const showAReceber = agg.aReceberList.length > 0
 
   return (
+    <>
     <div className="space-y-6">
       <HeroBalance agg={agg} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -475,5 +476,6 @@ export default function PainelTab({ month, setMonth }) {
       )}
     </div>
     {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => { updateDespesa(editing.id, patch); setEditing(null) }} onClose={() => setEditing(null)} />}
+    </>
   )
 }
