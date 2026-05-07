@@ -1,6 +1,6 @@
 import { Search, X, Check, Banknote, Target, Users } from 'lucide-react'
 import { Card } from '../../components/ui'
-import { accents, attrAccentKey } from '../../lib/constants'
+import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 
 export default function FilterBar({ used, filters, toggleFilter, clearFilters, totalFiltros, config }) {
   const pmAccent = (name) => {
