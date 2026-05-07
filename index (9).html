@@ -1,0 +1,3378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanças Milionárias</title>
+  <meta name="description" content="App de finanças pessoais — controle de receitas, gastos fixos, parcelas, cartões e orçamentos.">
+  <meta name="theme-color" content="#0a0a0c">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E✨%3C/text%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS via CDN (JIT, suporta arbitrary values) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Manrope:wght@200..800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { margin: 0; padding: 0; background: #0a0a0c; color: #e6e8ef; }
+    #root { min-height: 100vh; }
+    /* Loading inicial enquanto Babel compila */
+    .boot-loader {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      font-family: Manrope, system-ui, sans-serif; color: rgba(255,255,255,0.5); font-size: 14px;
+      gap: 10px;
+    }
+    .boot-loader .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #d4af37;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="boot-loader">
+      <span class="dot"></span>
+      <span>Carregando o app…</span>
+    </div>
+  </div>
+
+  <!-- localStorage como adaptador para a API window.storage (que vem do ambiente Claude) -->
+  <script>
+    window.storage = {
+      async get(key) {
+        const v = localStorage.getItem(key);
+        if (v === null) throw new Error("Key not found: " + key);
+        return { key, value: v, shared: false };
+      },
+      async set(key, value, shared = false) {
+        localStorage.setItem(key, value);
+        return { key, value, shared };
+      },
+      async delete(key, shared = false) {
+        localStorage.removeItem(key);
+        return { key, deleted: true, shared };
+      },
+      async list(prefix = "", shared = false) {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!prefix || k.startsWith(prefix)) keys.push(k);
+        }
+        return { keys, prefix, shared };
+      },
+    };
+  </script>
+
+  <!-- React, ReactDOM, Babel via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+
+  <!-- Lucide (browser/UMD) — vamos criar wrappers React em runtime -->
+  <script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Cria componentes React a partir dos ícones SVG do lucide -->
+  <script>
+    (function () {
+      const { createElement: h, forwardRef, useMemo } = React;
+      const lucide = window.lucide;
+      const cache = {};
+
+      // Converte um nome PascalCase ('CheckCircle2') para o snake do lucide ('check-circle-2')
+      const toKebab = (s) => s.replace(/([a-z])([A-Z0-9])/g, "$1-$2").replace(/([0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
+      // Pega o array [tag, attrs, children] que o lucide expõe em window.lucide.icons
+      // e devolve um componente React equivalente.
+      function makeIconComponent(name) {
+        if (cache[name]) return cache[name];
+        const kebab = toKebab(name);
+        const node = lucide.icons[kebab] || lucide.icons[name];
+        if (!node) {
+          // fallback: caixinha vazia 16x16
+          const Fallback = ({ size = 16, ...rest }) =>
+            h("svg", { width: size, height: size, viewBox: "0 0 24 24", ...rest });
+          cache[name] = Fallback;
+          return Fallback;
+        }
+
+        // node é um array tipo:
+        // ["svg", {attrs base}, [["path", {...}], ["circle", {...}]]]
+        const [, baseAttrs, children] = node;
+
+        const Comp = ({ size = 24, color = "currentColor", strokeWidth = 2, className, style, ...rest }) => {
+          const finalChildren = (children || []).map((c, i) => {
+            const [tag, attrs] = c;
+            return h(tag, { key: i, ...attrs });
+          });
+          return h(
+            "svg",
+            {
+              ...baseAttrs,
+              width: size,
+              height: size,
+              stroke: color,
+              strokeWidth,
+              className,
+              style,
+              ...rest,
+            },
+            ...finalChildren
+          );
+        };
+        Comp.displayName = name;
+        cache[name] = Comp;
+        return Comp;
+      }
+
+      // Expõe um objeto Lucide com todos os ícones que o app vai usar.
+      // Deixe registrado também um Proxy pra facilitar:
+      window.LucideIcons = new Proxy({}, {
+        get(_, prop) {
+          if (typeof prop !== "string") return undefined;
+          return makeIconComponent(prop);
+        },
+      });
+    })();
+  </script>
+
+  <!-- App propriamente dito — JSX compilado pelo Babel -->
+  <script type="text/babel" data-presets="react">
+    // Hooks e ícones via globals (sem ES modules)
+    const { useState, useEffect, useMemo, useRef } = React;
+    const {
+      LayoutDashboard, Wallet, Receipt, Settings,
+      Plus, Trash2, Check, X, ChevronLeft, ChevronRight,
+      Sparkles, AlertTriangle, CheckCircle2, Circle, Loader2,
+      ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
+      Banknote, Bell, Search, Pencil, Calendar
+    } = window.LucideIcons;
+
+    /* === APP CODE BEGIN === */
+const STORAGE_KEY = "alquimia-financas:v3";
+
+// ---------- helpers ----------
+const uid = () => Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4);
+
+const fmtBRL = (n) =>
+  (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayDay = () => new Date().getDate();
+
+const getCurrentMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const formatMonthLabel = (ym) => {
+  const [y, m] = ym.split("-");
+  const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  return `${months[Number(m) - 1]} ${y}`;
+};
+
+const shiftMonth = (ym, delta) => {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+// Defaults vazios — você adiciona o que quiser nas Configurações.
+// Pix e Débito vêm como métodos básicos pois são universais.
+const DEFAULT_CARDS = [];
+const DEFAULT_PAYMENT_METHODS = ["Pix", "Débito"];
+const DEFAULT_CATEGORIES = [];
+const DEFAULT_ATTRIBUTED_TO = [];
+const DEFAULT_INCOME_SOURCES = [];
+
+const createEmptyMonth = () => ({
+  receitas: [],
+  despesas: [],
+  config: {
+    cards: [...DEFAULT_CARDS],
+    paymentMethods: [...DEFAULT_PAYMENT_METHODS],
+    categories: DEFAULT_CATEGORIES.map(c => ({ ...c })),
+    attributedTo: [...DEFAULT_ATTRIBUTED_TO],
+    incomeSources: [...DEFAULT_INCOME_SOURCES],
+  },
+});
+
+// Color tokens
+const accents = {
+  gold:    { hex: "#d4af37", soft: "rgba(212,175,55,0.14)", glow: "rgba(212,175,55,0.4)"  },
+  emerald: { hex: "#10b981", soft: "rgba(16,185,129,0.12)", glow: "rgba(16,185,129,0.35)" },
+  rose:    { hex: "#f43f5e", soft: "rgba(244,63,94,0.12)",  glow: "rgba(244,63,94,0.35)" },
+  amber:   { hex: "#f59e0b", soft: "rgba(245,158,11,0.12)", glow: "rgba(245,158,11,0.35)" },
+  cyan:    { hex: "#06b6d4", soft: "rgba(6,182,212,0.12)",  glow: "rgba(6,182,212,0.35)" },
+  violet:  { hex: "#8b5cf6", soft: "rgba(139,92,246,0.12)", glow: "rgba(139,92,246,0.35)" },
+  sky:     { hex: "#0ea5e9", soft: "rgba(14,165,233,0.12)", glow: "rgba(14,165,233,0.35)" },
+  fuchsia: { hex: "#d946ef", soft: "rgba(217,70,239,0.12)", glow: "rgba(217,70,239,0.35)" },
+};
+
+const accentKeys = Object.keys(accents);
+const hashAccent = (str) => {
+  let h = 0;
+  for (let i = 0; i < (str || "").length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return accentKeys[Math.abs(h) % accentKeys.length];
+};
+
+// Helpers para o novo schema
+const isMineFor = (attributedToName, config) => {
+  if (!attributedToName) return true;
+  const item = config?.attributedTo?.find?.(a => (a?.name || a) === attributedToName);
+  if (!item) return true;
+  if (typeof item === "string") return true;
+  return item.isMine !== false;
+};
+
+const cardDueDayFor = (cardName, config) => {
+  const c = config?.cards?.find?.(x => x.name === cardName);
+  return c?.dueDay ? Number(c.dueDay) : null;
+};
+
+const fmtDate = (d) => {
+  if (!(d instanceof Date) || isNaN(d)) return "";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
+
+// Migração in-place: converte attributedTo de string[] → {name,isMine}[] e
+// garante que cartões tenham dueDay opcional. Roda no load.
+const migrateData = (data) => {
+  if (!data?.months) return data;
+  const months = {};
+  for (const ym of Object.keys(data.months)) {
+    const m = data.months[ym];
+    if (!m?.config) { months[ym] = m; continue; }
+    const cfg = m.config;
+    months[ym] = {
+      ...m,
+      config: {
+        ...cfg,
+        attributedTo: (cfg.attributedTo || []).map(a =>
+          typeof a === "string" ? { name: a, isMine: true } : a
+        ),
+        cards: (cfg.cards || []).map(c => ({ dueDay: null, closingDay: null, ...c })),
+      },
+    };
+  }
+
+  let currentMonth = data.currentMonth;
+
+  // Migração one-shot: mover dados de 2026-06 → 2026-05 (pediu pra corrigir uma vez)
+  if (!data._fixJun2026ToMay && months["2026-06"]) {
+    const may = months["2026-05"];
+    const mayEmpty = !may || ((may.despesas?.length || 0) === 0 && (may.receitas?.length || 0) === 0);
+    if (mayEmpty) {
+      months["2026-05"] = months["2026-06"];
+      delete months["2026-06"];
+      if (currentMonth === "2026-06") currentMonth = "2026-05";
+    }
+  }
+
+  return {
+    ...data,
+    brand: data.brand || { name: "", subtitle: "Finanças Milionárias" },
+    months,
+    currentMonth,
+    _fixJun2026ToMay: true, // marca que já rodou, não roda mais
+  };
+};
+
+// ---------- root ----------
+function App() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("painel");
+  const [saving, setSaving] = useState(false);
+  const saveTimer = useRef(null);
+  const firstLoad = useRef(true);
+
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap";
+    document.head.appendChild(link);
+    return () => { try { document.head.removeChild(link); } catch {} };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await window.storage.get(STORAGE_KEY);
+        if (result?.value) {
+          const parsed = migrateData(JSON.parse(result.value));
+          const cm = parsed.currentMonth || getCurrentMonth();
+          if (!parsed.months[cm]) parsed.months[cm] = createEmptyMonth();
+          setData(parsed);
+        } else {
+          const cm = getCurrentMonth();
+          setData({ currentMonth: cm, brand: { name: "", subtitle: "Finanças Milionárias" }, months: { [cm]: createEmptyMonth() } });
+        }
+      } catch {
+        const cm = getCurrentMonth();
+        setData({ currentMonth: cm, brand: { name: "", subtitle: "Finanças Milionárias" }, months: { [cm]: createEmptyMonth() } });
+      } finally {
+        setLoading(false);
+        firstLoad.current = false;
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (loading || !data || firstLoad.current) return;
+    setSaving(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await window.storage.set(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error("Erro ao salvar:", e);
+      } finally {
+        setSaving(false);
+      }
+    }, 600);
+    return () => clearTimeout(saveTimer.current);
+  }, [data, loading]);
+
+  if (loading || !data) {
+    return (
+      <div style={{ background: "#0a0a0c", minHeight: "100vh", fontFamily: "Manrope, sans-serif" }}
+           className="flex items-center justify-center text-white">
+        <div className="flex items-center gap-3 opacity-70">
+          <Loader2 className="animate-spin" size={20} style={{ color: "#d4af37" }} />
+          <span>Carregando…</span>
+        </div>
+      </div>
+    );
+  }
+
+  const cm = data.currentMonth;
+  const month = data.months[cm];
+
+  const setMonth = (updater) => {
+    setData((d) => {
+      const newMonth = typeof updater === "function" ? updater(d.months[d.currentMonth]) : updater;
+      return { ...d, months: { ...d.months, [d.currentMonth]: newMonth } };
+    });
+  };
+
+  // Adiciona uma despesa no mês atual e, se for parcelada, cria as parcelas
+  // futuras nos próximos meses (criando-os caso não existam ainda).
+  const addDespesaPropagated = (despesa) => {
+    const total = Number(despesa.installmentTotal) || 1;
+    const cur = Number(despesa.installmentCurrent) || 1;
+    const futureCount = despesa.recurring ? 0 : Math.max(0, total - cur);
+
+    setData((d) => {
+      const months = { ...d.months };
+      const cm = d.currentMonth;
+      const cfg = months[cm].config;
+
+      // Despesa sempre fica no mês ATUAL (mês da compra). A fatura é calculada
+      // dinamicamente no painel — gasto e fatura podem estar em meses diferentes.
+      const startYM = cm;
+
+      // helper pra criar mês caso não exista (carregando config + recorrentes)
+      const ensureMonth = (ym) => {
+        if (months[ym]) return;
+        const ref = months[cm];
+        const recurring = ref.despesas
+          .filter(x => x.recurring)
+          .map(x => ({ ...x, id: uid(), paid: false, date: "" }));
+        months[ym] = {
+          receitas: [],
+          despesas: recurring,
+          config: JSON.parse(JSON.stringify(ref.config)),
+        };
+      };
+
+      // 1) adiciona no mês de destino (pode ser o atual ou o próximo)
+      ensureMonth(startYM);
+      months[startYM] = {
+        ...months[startYM],
+        despesas: [{ id: uid(), ...despesa }, ...months[startYM].despesas],
+      };
+
+      // 2) cria parcelas futuras a partir do mês de destino
+      let ym = startYM;
+      for (let i = 1; i <= futureCount; i++) {
+        ym = shiftMonth(ym, 1);
+        ensureMonth(ym);
+        const futureDespesa = {
+          ...despesa,
+          id: uid(),
+          paid: false,
+          date: "",
+          installmentCurrent: cur + i,
+        };
+        months[ym] = {
+          ...months[ym],
+          despesas: [futureDespesa, ...months[ym].despesas],
+        };
+      }
+
+      return { ...d, months };
+    });
+  };
+
+  const changeMonth = (delta) => {
+    const newCm = shiftMonth(cm, delta);
+    setData((d) => {
+      const months = { ...d.months };
+      if (!months[newCm]) {
+        const prev = months[d.currentMonth];
+        const recurring = prev.despesas
+          .filter(x => x.recurring)
+          .map(x => ({ ...x, id: uid(), paid: false, date: "" }));
+        months[newCm] = {
+          receitas: [],
+          despesas: recurring,
+          config: JSON.parse(JSON.stringify(prev.config)),
+        };
+      }
+      return { ...d, currentMonth: newCm, months };
+    });
+  };
+
+  return (
+    <div style={{
+      background: "radial-gradient(circle at 12% 0%, rgba(212,175,55,0.12), transparent 50%), radial-gradient(circle at 88% 100%, rgba(212,175,55,0.06), transparent 45%), #0a0a0c",
+      minHeight: "100vh",
+      fontFamily: "Manrope, system-ui, sans-serif",
+      color: "#e6e8ef"
+    }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <Header
+          brand={data.brand}
+          updateBrand={(patch) => setData(d => ({ ...d, brand: { ...d.brand, ...patch } }))}
+          monthLabel={formatMonthLabel(cm)}
+          onPrev={() => changeMonth(-1)}
+          onNext={() => changeMonth(1)}
+          saving={saving}
+        />
+        <Tabs tab={tab} setTab={setTab} />
+        <div className="mt-6">
+          {tab === "painel"   && <PainelTab month={month} setMonth={setMonth} currentMonth={cm} allMonths={data.months} />}
+          {tab === "receitas" && <ReceitasTab month={month} setMonth={setMonth} />}
+          {tab === "gastos"   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} currentMonth={cm} />}
+          {tab === "config"   && <ConfigTab month={month} setMonth={setMonth} brand={data.brand} updateBrand={(patch) => setData(d => ({ ...d, brand: { ...d.brand, ...patch } }))} />}
+        </div>
+        <Footer />
+      </div>
+    </div>
+  );
+}
+
+// ---------- header / tabs ----------
+function Header({ brand, updateBrand, monthLabel, onPrev, onNext, saving }) {
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(brand?.name || "");
+
+  const saveName = () => {
+    updateBrand({ name: draftName.trim() });
+    setEditingName(false);
+  };
+
+  const displayName = brand?.name?.trim() || "Seu nome aqui";
+  const subtitle = brand?.subtitle || "Finanças Milionárias";
+  const hasName = !!brand?.name?.trim();
+
+  return (
+    <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+      <div className="min-w-0">
+        {/* Linha de cima — nome (editável) */}
+        {editingName ? (
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              autoFocus
+              value={draftName}
+              onChange={e => setDraftName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={e => {
+                if (e.key === "Enter") saveName();
+                if (e.key === "Escape") { setEditingName(false); setDraftName(brand?.name || ""); }
+              }}
+              placeholder="Seu nome"
+              style={{
+                background: "rgba(212,175,55,0.08)",
+                border: "1px solid rgba(212,175,55,0.4)",
+                color: "#d4af37",
+                letterSpacing: "0.25em",
+                fontSize: "12px",
+              }}
+              className="px-3 py-1 rounded-full uppercase tracking-widest focus:outline-none placeholder:text-white/30"
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => { setEditingName(true); setDraftName(brand?.name || ""); }}
+            style={{ letterSpacing: "0.25em", color: "#d4af37" }}
+            className={`group flex items-center gap-2 text-xs uppercase mb-2 hover:opacity-80 transition ${!hasName ? "opacity-60" : ""}`}
+          >
+            <Sparkles size={12} />
+            <span>{displayName}</span>
+            <Pencil size={10} className="opacity-0 group-hover:opacity-60 transition" />
+          </button>
+        )}
+
+        {/* Título — Finanças Milionárias com gradient dourado */}
+        <h1 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, letterSpacing: "-0.02em" }}
+            className="text-4xl sm:text-5xl text-white">
+          {(() => {
+            const parts = subtitle.trim().split(/\s+/);
+            if (parts.length < 2) {
+              return (
+                <em style={{
+                  fontStyle: "italic",
+                  background: "linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)",
+                  WebkitBackgroundClip: "text",
+                  color: "transparent",
+                }}>{subtitle}.</em>
+              );
+            }
+            const last = parts.pop();
+            const head = parts.join(" ");
+            return (
+              <>
+                {head}{" "}
+                <em style={{
+                  fontStyle: "italic",
+                  background: "linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)",
+                  WebkitBackgroundClip: "text",
+                  color: "transparent",
+                }}>{last}.</em>
+              </>
+            );
+          })()}
+        </h1>
+      </div>
+      <div className="flex items-center gap-3">
+        {saving && (
+          <div className="flex items-center gap-1.5 text-xs text-white/40">
+            <Loader2 size={12} className="animate-spin" style={{ color: "#d4af37" }} />
+            <span>salvando</span>
+          </div>
+        )}
+        <div className="flex items-center gap-1 rounded-full p-1 backdrop-blur"
+             style={{ background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.2)" }}>
+          <button onClick={onPrev} className="p-1.5 rounded-full hover:bg-white/10 transition" aria-label="Anterior">
+            <ChevronLeft size={16} />
+          </button>
+          <span className="px-3 text-sm font-medium tabular-nums whitespace-nowrap">{monthLabel}</span>
+          <button onClick={onNext} className="p-1.5 rounded-full hover:bg-white/10 transition" aria-label="Próximo">
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <div className="mt-16 pt-8 border-t border-white/5 text-center text-xs text-white/30">
+      Os dados são salvos automaticamente no seu navegador.
+    </div>
+  );
+}
+
+function Tabs({ tab, setTab }) {
+  const items = [
+    { id: "painel",   label: "Painel",        icon: LayoutDashboard },
+    { id: "receitas", label: "Receitas",      icon: Wallet },
+    { id: "gastos",   label: "Gastos",        icon: Receipt },
+    { id: "config",   label: "Configurações", icon: Settings },
+  ];
+  return (
+    <nav className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+      {items.map((it) => {
+        const Icon = it.icon;
+        const active = tab === it.id;
+        return (
+          <button
+            key={it.id}
+            onClick={() => setTab(it.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              active
+                ? "bg-white/10 text-white border border-white/15 shadow-lg"
+                : "text-white/55 hover:text-white hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <Icon size={15} />
+            {it.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+// ---------- primitives ----------
+function Card({ children, className = "", accent, glow = false, style = {} }) {
+  const base = {
+    background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 18,
+    backdropFilter: "blur(8px)",
+    ...style,
+  };
+  if (accent && glow) {
+    base.boxShadow = `0 0 0 1px ${accents[accent].soft}, 0 14px 40px -20px ${accents[accent].glow}`;
+  }
+  return <div style={base} className={className}>{children}</div>;
+}
+
+function SectionTitle({ icon: Icon, title, subtitle, action, accent }) {
+  const c = accent ? accents[accent] : null;
+  return (
+    <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
+      <div className="flex items-start gap-3 min-w-0 flex-1">
+        {Icon && (
+          <div style={c ? { background: c.soft, color: c.hex } : {}}
+               className={`p-2 rounded-xl shrink-0 ${c ? "" : "bg-white/5"}`}>
+            <Icon size={16} />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500 }}
+              className="text-lg sm:text-xl leading-tight">{title}</h2>
+          {subtitle && <p className="text-xs text-white/50 mt-1 leading-snug">{subtitle}</p>}
+        </div>
+      </div>
+      {action && <div className="shrink-0 mt-0.5">{action}</div>}
+    </div>
+  );
+}
+
+function Empty({ text }) {
+  return <div className="text-center py-8 text-sm text-white/40">{text}</div>;
+}
+
+function TextInput({ value, onChange, placeholder, type = "text", inputMode, className = "", style = {}, onBlur }) {
+  // No iOS, type="number" abre teclado padrão. inputMode="decimal" abre teclado numérico com vírgula.
+  // inputMode="numeric" abre só dígitos (pra dia do mês).
+  const resolvedInputMode = inputMode
+    || (type === "number" ? "decimal" : undefined);
+  return (
+    <input
+      type={type}
+      inputMode={resolvedInputMode}
+      value={value ?? ""}
+      onChange={(e) => onChange(type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "white",
+        outline: "none",
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        ...style,
+      }}
+      className={`px-3 py-2 rounded-lg text-sm placeholder:text-white/30 focus:border-amber-400 transition ${className}`}
+    />
+  );
+}
+
+// MoneyInput — formato calculadora: digita centavos e a vírgula entra automaticamente.
+// Ex: digita "815500" → mostra "8.155,00". value sempre é um número (em reais).
+function MoneyInput({ value, onChange, placeholder, className = "", style = {}, autoFocus }) {
+  // Formata um valor (Number em reais) para BR sem o "R$ "
+  const formatBR = (n) => {
+    if (n === "" || n === null || n === undefined || isNaN(n)) return "";
+    return Number(n).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const handleChange = (e) => {
+    // Pega só os dígitos do que foi digitado
+    const digits = e.target.value.replace(/\D/g, "");
+    if (digits === "") {
+      onChange("");
+      return;
+    }
+    // Os dígitos representam centavos. Ex: "815500" = 8155.00
+    const cents = parseInt(digits, 10);
+    const reais = cents / 100;
+    onChange(reais);
+  };
+
+  const display = value === "" || value === null || value === undefined ? "" : formatBR(value);
+
+  return (
+    <div className="relative" style={{ width: "100%" }}>
+      <span style={{
+        position: "absolute",
+        left: 12,
+        top: "50%",
+        transform: "translateY(-50%)",
+        color: "rgba(255,255,255,0.4)",
+        fontSize: "14px",
+        pointerEvents: "none",
+        fontFamily: "JetBrains Mono, monospace",
+      }}>R$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={display}
+        onChange={handleChange}
+        autoFocus={autoFocus}
+        placeholder={placeholder || "0,00"}
+        style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "white",
+          outline: "none",
+          width: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+          paddingLeft: 36,
+          fontFamily: "JetBrains Mono, monospace",
+          ...style,
+        }}
+        className={`px-3 py-2 rounded-lg text-sm placeholder:text-white/30 focus:border-amber-400 transition tabular-nums ${className}`}
+      />
+    </div>
+  );
+}
+
+function Select({ value, onChange, options, className = "", placeholder }) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "white",
+      }}
+      className={`px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-amber-400 transition ${className}`}
+    >
+      {placeholder && <option value="" style={{ background: "#0f1525" }}>{placeholder}</option>}
+      {options.map((o) => (
+        <option key={typeof o === "string" ? o : o.value}
+                value={typeof o === "string" ? o : o.value}
+                style={{ background: "#0f1525" }}>
+          {typeof o === "string" ? o : o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function Btn({ children, onClick, variant = "primary", size = "md", icon: Icon, disabled, className = "", title }) {
+  const sizes = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
+  const variants = {
+    primary: "",
+    ghost: "text-white/70 hover:text-white hover:bg-white/5 border border-white/10",
+  };
+  const style = variant === "primary" ? {
+    background: "linear-gradient(135deg, #e6c552 0%, #d4af37 50%, #a87f1f 100%)",
+    color: "#1a1410",
+    boxShadow: "0 8px 24px -10px rgba(212,175,55,0.55)",
+  } : {};
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={style}
+      className={`inline-flex items-center gap-1.5 rounded-lg font-medium transition disabled:opacity-40 ${sizes[size]} ${variants[variant]} ${className}`}
+    >
+      {Icon && <Icon size={14} />}
+      {children}
+    </button>
+  );
+}
+
+// Chip selecionável — botão tipo pill que mostra estado claro de selecionado.
+function Chip({ children, selected, onClick, accent = "violet", icon: Icon, size = "md" }) {
+  const a = accents[accent] || accents.violet;
+  const sizes = {
+    sm: "px-2.5 py-1 text-xs",
+    md: "px-3 py-1.5 text-sm",
+  };
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full font-medium transition-all flex items-center gap-1.5 ${sizes[size]}`}
+      style={{
+        background: selected ? a.soft : "rgba(255,255,255,0.04)",
+        border: `1px solid ${selected ? a.hex + "60" : "rgba(255,255,255,0.08)"}`,
+        color: selected ? a.hex : "rgba(255,255,255,0.7)",
+        boxShadow: selected ? `0 0 0 2px ${a.hex}15, 0 4px 12px -4px ${a.glow}` : "none",
+      }}
+    >
+      {Icon && <Icon size={12} />}
+      {children}
+    </button>
+  );
+}
+
+// Toggle em formato pill — pra "Já pago", "Recorrente", "Parcelado", etc.
+function Toggle({ children, checked, onChange, accent = "emerald", icon: Icon }) {
+  const a = accents[accent] || accents.emerald;
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className="rounded-full px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-2"
+      style={{
+        background: checked ? a.soft : "rgba(255,255,255,0.04)",
+        border: `1px solid ${checked ? a.hex + "55" : "rgba(255,255,255,0.08)"}`,
+        color: checked ? a.hex : "rgba(255,255,255,0.65)",
+      }}
+    >
+      <span
+        className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition"
+        style={{
+          background: checked ? a.hex : "rgba(255,255,255,0.05)",
+          border: checked ? "none" : "1px solid rgba(255,255,255,0.2)",
+        }}
+      >
+        {checked && <Check size={11} className="text-white" strokeWidth={3} />}
+      </span>
+      {Icon && <Icon size={12} />}
+      {children}
+    </button>
+  );
+}
+
+// ModePicker — seletor segmentado pra escolher o tipo do gasto
+function ModePicker({ value, onChange, options }) {
+  return (
+    <div className="flex flex-col gap-1.5 p-1.5 rounded-xl"
+         style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      {options.map(opt => {
+        const sel = value === opt.value;
+        const a = accents[opt.accent] || accents.violet;
+        const Icon = opt.icon;
+        return (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            style={{
+              background: sel ? a.soft : "transparent",
+              color: sel ? a.hex : "rgba(255,255,255,0.65)",
+              border: sel ? `1px solid ${a.hex}50` : "1px solid transparent",
+              boxShadow: sel ? `0 4px 14px -6px ${a.glow}` : "none",
+            }}
+            className="px-3 py-2.5 rounded-lg text-left transition-all flex items-center gap-3 w-full"
+          >
+            {Icon && (
+              <div className="shrink-0 p-1.5 rounded-md"
+                   style={{ background: sel ? `${a.hex}20` : "rgba(255,255,255,0.04)" }}>
+                <Icon size={14} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-sm">{opt.label}</div>
+              {opt.description && (
+                <div className="text-xs"
+                     style={{ color: sel ? `${a.hex}cc` : "rgba(255,255,255,0.4)" }}>
+                  {opt.description}
+                </div>
+              )}
+            </div>
+            {sel && (
+              <div className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
+                   style={{ background: a.hex }}>
+                <Check size={12} className="text-white" strokeWidth={3} />
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Field — label + slot pra um input. Padroniza o espaçamento.
+function Field({ label, hint, children }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1.5">
+        <label className="uppercase text-white/40"
+               style={{ fontSize: "11px", letterSpacing: "0.08em" }}>
+          {label}
+        </label>
+        {hint && <span className="text-xs text-white/35">{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ---------- Config UI utilities ----------
+
+// Mini input pra edição inline de valores em rows de configuração
+function MiniInput({ value, onChange, placeholder, type = "text", title, width = 60, inputMode, min, max, maxLength }) {
+  const resolvedInputMode = inputMode || (type === "number" ? "numeric" : undefined);
+  return (
+    <input
+      type={type}
+      inputMode={resolvedInputMode}
+      value={value ?? ""}
+      onChange={onChange}
+      placeholder={placeholder}
+      title={title}
+      min={min}
+      max={max}
+      maxLength={maxLength}
+      style={{
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        color: "white",
+        width,
+        boxSizing: "border-box",
+        minWidth: 0,
+      }}
+      className="px-2 py-1.5 rounded text-sm tabular-nums text-center focus:outline-none focus:border-amber-400 placeholder:text-white/30"
+    />
+  );
+}
+
+// Botão de delete sempre visível (não some em mobile)
+function DeleteIconBtn({ onClick, size = 13 }) {
+  return (
+    <button onClick={onClick}
+            title="Remover"
+            className="p-1.5 rounded text-white/35 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0">
+      <Trash2 size={size} />
+    </button>
+  );
+}
+
+// Shell pra um adder que aparece como bloco abaixo do título da seção
+function AdderShell({ children, accent = "violet", title }) {
+  const a = accents[accent] || accents.violet;
+  return (
+    <div className="rounded-lg p-3 mb-3 space-y-2"
+         style={{
+           background: a.soft,
+           border: `1px solid ${a.hex}30`,
+         }}>
+      {title && (
+        <div className="text-xs uppercase mb-2"
+             style={{ color: a.hex, letterSpacing: "0.08em" }}>
+          {title}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+// Botão "Novo" / "Fechar" pro action do SectionTitle
+function AdderToggle({ open, onToggle, label = "Novo" }) {
+  if (open) {
+    return <Btn variant="ghost" size="sm" icon={X} onClick={() => onToggle(false)}>Fechar</Btn>;
+  }
+  return <Btn variant="ghost" size="sm" icon={Plus} onClick={() => onToggle(true)}>{label}</Btn>;
+}
+
+// ---------- aggregations ----------
+function useMonthAggregates(month, currentYM, allMonths) {
+  return useMemo(() => {
+    const cfg = month.config;
+    const cardNames = cfg.cards.map(c => c.name);
+
+    // Despesas separadas: minhas vs de terceiros
+    const minhas = month.despesas.filter(d => isMineFor(d.attributedTo, cfg));
+    const terceiros = month.despesas.filter(d => !isMineFor(d.attributedTo, cfg));
+
+    const totalReceitas = month.receitas.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+    // Despesas, total pago, saldo — só consideram MINHAS
+    const totalDespesas = minhas.reduce((s, d) => s + Number(d.amount || 0), 0);
+    const totalPago = minhas.filter(d => d.paid).reduce((s, d) => s + Number(d.amount || 0), 0);
+    const totalAPagar = totalDespesas - totalPago;
+    const sobra = totalReceitas - totalDespesas;
+
+    // A receber de terceiros (não ressarcidos)
+    const aReceber = terceiros.filter(d => !d.reimbursed);
+    const totalAReceber = aReceber.reduce((s, d) => s + Number(d.amount || 0), 0);
+    // agrupa por pessoa
+    const aReceberByPessoa = {};
+    aReceber.forEach(d => {
+      const k = d.attributedTo || "—";
+      aReceberByPessoa[k] = aReceberByPessoa[k] || { name: k, total: 0, items: [] };
+      aReceberByPessoa[k].total += Number(d.amount || 0);
+      aReceberByPessoa[k].items.push(d);
+    });
+    const aReceberList = Object.values(aReceberByPessoa).sort((a, b) => b.total - a.total);
+
+    // Pagamentos — só minhas pra cálculos do painel
+    const byPayment = {};
+    cfg.paymentMethods.forEach(pm => { byPayment[pm] = 0; });
+    minhas.forEach(d => {
+      const k = d.paymentMethod || "—";
+      byPayment[k] = (byPayment[k] || 0) + Number(d.amount || 0);
+    });
+
+    // Faturas dos cartões no mês corrente: só os gastos lançados nesse mês.
+    const byCard = cfg.cards.map(c => {
+      const items = minhas.filter(d => d.paymentMethod === c.name);
+      const total = items.reduce((s, d) => s + Number(d.amount || 0), 0);
+      const aPagar = items.filter(d => !d.paid).reduce((s, d) => s + Number(d.amount || 0), 0);
+      return {
+        name: c.name,
+        accent: c.accent,
+        dueDay: c.dueDay ? Number(c.dueDay) : null,
+        total,
+        aPagar,
+        count: items.length,
+        items,
+      };
+    }).filter(c => c.count > 0 || c.total > 0);
+    const totalCards = byCard.reduce((s, c) => s + c.total, 0);
+
+    const cashMethods = cfg.paymentMethods.filter(pm => !cardNames.includes(pm));
+    const aVista = cashMethods.map(m => ({ name: m, total: byPayment[m] || 0 })).filter(m => m.total > 0);
+    const totalAVista = aVista.reduce((s, m) => s + m.total, 0);
+
+    // Atribuído a — só atribuídos meus
+    const myAttributed = cfg.attributedTo.filter(a => a?.isMine !== false);
+    const byAttributed = {};
+    myAttributed.forEach(a => { byAttributed[a.name] = 0; });
+    minhas.forEach(d => {
+      const k = d.attributedTo || "—";
+      byAttributed[k] = (byAttributed[k] || 0) + Number(d.amount || 0);
+    });
+    const attributedList = Object.entries(byAttributed)
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total);
+
+    // Categorias — só minhas
+    const byCategory = {};
+    cfg.categories.forEach(c => { byCategory[c.name] = 0; });
+    minhas.forEach(d => {
+      const k = d.category || "Sem categoria";
+      byCategory[k] = (byCategory[k] || 0) + Number(d.amount || 0);
+    });
+    const categoryList = cfg.categories.map(c => ({
+      ...c, spent: byCategory[c.name] || 0,
+    }));
+
+    // Quanto ainda está "reservado" em orçamentos não consumidos
+    // (somente categorias com orçamento). Se já gastou mais do que o budget,
+    // não há reserva extra (gasto excedente já foi contabilizado em totalDespesas).
+    const orcamentoReservado = categoryList
+      .filter(c => c.budget && c.budget > 0)
+      .reduce((s, c) => s + Math.max(0, c.budget - c.spent), 0);
+
+    // Disponível pra gastar com OUTRAS coisas, considerando que os orçamentos
+    // serão totalmente consumidos.
+    const disponivel = sobra - orcamentoReservado;
+
+    return {
+      totalReceitas, totalDespesas, sobra, totalCards, totalAVista,
+      totalPago, totalAPagar, totalAReceber,
+      orcamentoReservado, disponivel,
+      byCard, aVista, attributedList, categoryList,
+      aReceberList, terceirosCount: terceiros.length,
+    };
+  }, [month, currentYM, allMonths]);
+}
+
+// ---------- PAINEL ----------
+function HeroBalance({ agg }) {
+  const semDados = agg.totalReceitas === 0 && agg.totalDespesas === 0;
+  const temReserva = agg.orcamentoReservado > 0;
+
+  // Cor é definida pelo "Disponível" — se ele é negativo, o usuário está em risco
+  // mesmo que a sobra real ainda seja positiva (porque tem orçamento por gastar).
+  const valorPrimario = temReserva ? agg.disponivel : agg.sobra;
+  const positivo = valorPrimario >= 0;
+  const heroColor = positivo ? accents.emerald : accents.rose;
+
+  // Label primário muda dependendo se há orçamentos
+  const labelPrimario = temReserva
+    ? (positivo ? "Disponível pra gastar" : "Vai estourar o mês")
+    : (positivo ? "Sobra do mês" : "Estouro do mês");
+
+  return (
+    <Card className="p-6 sm:p-8 relative overflow-hidden"
+          style={{
+            background: `linear-gradient(135deg, ${heroColor.soft}, rgba(255,255,255,0.02) 60%)`,
+            border: `1px solid ${heroColor.hex}30`,
+            boxShadow: `0 20px 60px -25px ${heroColor.glow}`,
+          }}>
+      <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full pointer-events-none"
+           style={{ background: `radial-gradient(circle, ${heroColor.hex}22, transparent 70%)` }} />
+      <div className="relative">
+        <div className="flex items-center gap-2 text-xs uppercase text-white/55 mb-3"
+             style={{ letterSpacing: "0.22em" }}>
+          <Sparkles size={12} style={{ color: heroColor.hex }} />
+          <span>{labelPrimario}</span>
+        </div>
+        <div style={{
+               fontFamily: "Fraunces, serif",
+               fontWeight: 500,
+               letterSpacing: "-0.03em",
+               color: heroColor.hex,
+             }}
+             className="text-5xl sm:text-6xl tabular-nums leading-none">
+          {fmtBRL(Math.abs(valorPrimario))}
+        </div>
+
+        {semDados ? (
+          <div className="text-sm text-white/55 mt-3">
+            Adicione receitas e gastos pra ver o quanto sobra
+          </div>
+        ) : temReserva ? (
+          <div className="mt-4 space-y-2">
+            <div className="text-sm text-white/65">
+              {positivo
+                ? <>Pode gastar livre com coisas <em>fora</em> dos orçamentos.</>
+                : <>Vai faltar mesmo gastando só o que tá orçado. Considere ajustar.</>}
+            </div>
+            {/* Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/8">
+              <BreakdownItem
+                label="Sobra real"
+                value={agg.sobra}
+                hint="receita − gastos lançados"
+                emphasis
+              />
+              <BreakdownItem
+                label="Reservado em orçamentos"
+                value={-agg.orcamentoReservado}
+                hint="ainda não gasto"
+                accent="amber"
+              />
+              <BreakdownItem
+                label="Disponível"
+                value={agg.disponivel}
+                hint="o que sobra de verdade"
+                accent={positivo ? "emerald" : "rose"}
+                emphasis
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-white/55 mt-3">
+            {positivo
+              ? `${fmtBRL(agg.totalReceitas)} de receita − ${fmtBRL(agg.totalDespesas)} de despesa`
+              : `Despesa de ${fmtBRL(agg.totalDespesas)} passou da receita de ${fmtBRL(agg.totalReceitas)}`}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function BreakdownItem({ label, value, hint, accent, emphasis }) {
+  const isNegative = value < 0;
+  const c = accent ? accents[accent] : null;
+  const color = c ? c.hex : (emphasis ? "white" : "rgba(255,255,255,0.7)");
+  return (
+    <div>
+      <div className="uppercase text-white/45 mb-1"
+           style={{ fontSize: "10px", letterSpacing: "0.12em" }}>
+        {label}
+      </div>
+      <div style={{
+             fontFamily: "JetBrains Mono, monospace",
+             color,
+             fontWeight: emphasis ? 600 : 500,
+           }}
+           className="tabular-nums text-base sm:text-lg">
+        {isNegative ? "−" : ""}{fmtBRL(Math.abs(value))}
+      </div>
+      {hint && <div className="text-xs text-white/40 mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function PainelTab({ month, setMonth, currentMonth, allMonths }) {
+  const agg = useMonthAggregates(month, currentMonth, allMonths);
+
+  const updateCategory = (name, patch) => {
+    setMonth(m => ({
+      ...m,
+      config: {
+        ...m.config,
+        categories: m.config.categories.map(c => c.name === name ? { ...c, ...patch } : c),
+      },
+    }));
+  };
+
+  // Lança um gasto rápido (do orçamento). Usa defaults sensatos: hoje, primeiro
+  // pagamento, primeiro atribuído (que é meu), pago, descrição = nome da categoria.
+  const addQuickDespesa = ({ category, amount }) => {
+    setMonth(m => {
+      const myAttrs = m.config.attributedTo.filter(a => a.isMine !== false);
+      const attributedTo = myAttrs[0]?.name || m.config.attributedTo[0]?.name || "";
+      return {
+        ...m,
+        despesas: [{
+          id: uid(),
+          description: category,
+          amount,
+          date: todayISO(),
+          category,
+          paymentMethod: m.config.paymentMethods[0] || "",
+          attributedTo,
+          paid: true,
+          dueDay: null,
+          installmentCurrent: 1, installmentTotal: 1,
+          recurring: false,
+        }, ...m.despesas],
+      };
+    });
+  };
+
+  const showCards = agg.byCard.length > 0;
+  const showAttributed = agg.attributedList.some(a => a.total > 0);
+  const showBudgets = agg.categoryList.some(c => c.budget);
+  const showCash = agg.aVista.length > 0 && agg.totalAVista > 0;
+  const showAReceber = agg.aReceberList.length > 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Hero — Disponível pra gastar (com sobra real ao lado) */}
+      <HeroBalance agg={agg} />
+
+      {/* Métricas secundárias */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <MetricCard label="Receitas" value={fmtBRL(agg.totalReceitas)} icon={ArrowUpRight} accent="emerald"
+                    sub={`${month.receitas.length} entrada(s)`} />
+        <MetricCard label="Despesas" value={fmtBRL(agg.totalDespesas)} icon={ArrowDownRight} accent="rose"
+                    sub={agg.terceirosCount > 0 ? `só as suas (${agg.terceirosCount} de terceiros à parte)` : `${month.despesas.length} gasto(s)`} />
+        <MetricCard label="Já pago" value={fmtBRL(agg.totalPago)} icon={CheckCircle2} accent="cyan"
+                    sub={agg.totalDespesas > 0 ? `${Math.round(agg.totalPago / agg.totalDespesas * 100)}% das despesas` : "—"} />
+        <MetricCard label="A pagar" value={fmtBRL(agg.totalAPagar)} icon={Bell} accent="amber"
+                    sub={agg.totalAPagar > 0 ? "ainda pendente" : "tudo em dia 🎯"} />
+      </div>
+
+      {/* Painéis (só mostra os que tem conteúdo) */}
+      {(showCards || showAttributed || showBudgets || showCash || showAReceber || month.despesas.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <BillsReminderPanel month={month} setMonth={setMonth} />
+          {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} />}
+          {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} />}
+          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter(c => c.budget)} addQuickDespesa={addQuickDespesa} />}
+          {showCash && <CashPanel aVista={agg.aVista} total={agg.totalAVista} />}
+          {showAttributed && <AttributedPanel list={agg.attributedList} total={agg.totalDespesas} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricCard({ label, value, icon: Icon, accent, sub, highlight }) {
+  const c = accents[accent] || accents.violet;
+  return (
+    <Card
+      className="p-4 sm:p-5 relative overflow-hidden"
+      style={highlight ? {
+        background: `linear-gradient(135deg, ${c.soft}, rgba(255,255,255,0.02))`,
+        border: `1px solid ${c.soft}`,
+      } : {}}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div style={{ letterSpacing: "0.18em" }} className="text-xs uppercase text-white/45 truncate">{label}</div>
+        <div style={{ background: c.soft, color: c.hex }} className="p-1.5 rounded-lg shrink-0">
+          <Icon size={13} />
+        </div>
+      </div>
+      <div style={{ fontFamily: "Fraunces, serif", letterSpacing: "-0.02em" }}
+           className="text-2xl sm:text-3xl font-medium tabular-nums">{value}</div>
+      {sub && <div className="text-xs text-white/45 mt-1 truncate">{sub}</div>}
+    </Card>
+  );
+}
+
+function CardsPanel({ cards, setMonth }) {
+  const totalAPagar = cards.reduce((s, c) => s + c.aPagar, 0);
+  const today = todayDay();
+
+  const sorted = [...cards].sort((a, b) => {
+    if (!a.dueDay && !b.dueDay) return b.total - a.total;
+    if (!a.dueDay) return 1;
+    if (!b.dueDay) return -1;
+    // Ordena por proximidade do vencimento dentro do mês
+    const da = a.dueDay >= today ? a.dueDay - today : 100 + a.dueDay;
+    const db = b.dueDay >= today ? b.dueDay - today : 100 + b.dueDay;
+    return da - db;
+  });
+
+  const markFaturaPaga = (cardName, items) => {
+    const ids = new Set((items || []).map(i => i.id));
+    setMonth(m => ({
+      ...m,
+      despesas: m.despesas.map(d => ids.has(d.id) ? { ...d, paid: true } : d),
+    }));
+  };
+  const markFaturaPendente = (cardName, items) => {
+    const ids = new Set((items || []).map(i => i.id));
+    setMonth(m => ({
+      ...m,
+      despesas: m.despesas.map(d => ids.has(d.id) ? { ...d, paid: false } : d),
+    }));
+  };
+
+  return (
+    <Card className="p-4 sm:p-6" accent="violet">
+      <SectionTitle icon={CreditCard} title="Faturas dos cartões"
+                    subtitle={totalAPagar > 0 ? `${fmtBRL(totalAPagar)} a pagar` : "tudo quitado"} accent="violet" />
+      {cards.length === 0 ? <Empty text="Nenhuma despesa em cartão neste mês" /> : (
+        <div className="space-y-3">
+          {sorted.map(c => {
+            const a = accents[c.accent] || accents.cyan;
+            const overdue = c.dueDay && c.dueDay < today && c.aPagar > 0;
+            const isToday = c.dueDay === today && c.aPagar > 0;
+            const pct = c.total > 0 ? ((c.total - c.aPagar) / c.total) * 100 : 0;
+            const isPaid = c.aPagar === 0 && c.total > 0;
+
+            const dueMsg = !c.dueDay ? "sem vencimento cadastrado"
+              : overdue ? `vencida no dia ${c.dueDay}`
+              : isToday ? `vence HOJE (dia ${c.dueDay})`
+              : `vence dia ${c.dueDay}`;
+            const dueColor = overdue ? "text-rose-400"
+              : isToday ? "text-amber-300"
+              : "text-white/55";
+
+            return (
+              <div key={c.name} className="p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.025)" }}>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0">
+                      <CreditCard size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{c.name}</div>
+                      <div className={`text-xs flex items-center gap-1 ${dueColor}`}>
+                        <Calendar size={10} />
+                        {dueMsg}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div style={{ fontFamily: "JetBrains Mono, monospace", color: isPaid ? accents.emerald.hex : (overdue ? accents.rose.hex : a.hex) }}
+                         className="font-semibold tabular-nums">
+                      {fmtBRL(c.total)}
+                    </div>
+                    <div className="uppercase text-white/40" style={{ letterSpacing: "0.1em", fontSize: "10px" }}>
+                      fatura
+                    </div>
+                  </div>
+                </div>
+                {c.total > 0 && (
+                  <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="h-full"
+                         style={{ width: `${pct}%`, background: isPaid ? accents.emerald.hex : a.hex }} />
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/45">
+                    {isPaid
+                      ? "fatura paga ✓"
+                      : c.aPagar < c.total
+                        ? `${fmtBRL(c.aPagar)} ainda em aberto`
+                        : `${c.count} compra${c.count !== 1 ? "s" : ""} no mês`}
+                  </span>
+                  {isPaid ? (
+                    <button onClick={() => markFaturaPendente(c.name, c.items)}
+                            className="text-white/45 hover:text-white/70 transition">
+                      desfazer
+                    </button>
+                  ) : (
+                    <button onClick={() => markFaturaPaga(c.name, c.items)}
+                            className="px-2.5 py-1 rounded-md text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition flex items-center gap-1">
+                      <Check size={11} /> Fatura paga
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function AReceberPanel({ list, total, setMonth }) {
+  const markReimbursed = (id) => {
+    setMonth(m => ({
+      ...m,
+      despesas: m.despesas.map(d => d.id === id ? { ...d, reimbursed: true } : d),
+    }));
+  };
+  const markAllReimbursedFor = (pessoa) => {
+    setMonth(m => ({
+      ...m,
+      despesas: m.despesas.map(d => d.attributedTo === pessoa ? { ...d, reimbursed: true } : d),
+    }));
+  };
+
+  return (
+    <Card className="p-4 sm:p-6" accent="amber" glow>
+      <SectionTitle icon={Users} title="A receber de terceiros"
+                    subtitle={`${fmtBRL(total)} adiantado · marque como recebido quando te pagarem`}
+                    accent="amber" />
+      <div className="space-y-3">
+        {list.map(p => {
+          const a = accents[hashAccent(p.name)];
+          return (
+            <div key={p.name} className="p-3 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: a.hex }} />
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-xs text-white/40">({p.items.length} {p.items.length === 1 ? "item" : "itens"})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontFamily: "JetBrains Mono, monospace", color: a.hex }}
+                        className="font-semibold tabular-nums">{fmtBRL(p.total)}</span>
+                  <button onClick={() => markAllReimbursedFor(p.name)}
+                          title={`Marcar tudo de ${p.name} como recebido`}
+                          className="text-xs px-2 py-1 rounded text-emerald-300 hover:bg-emerald-500/15 transition">
+                    ✓ tudo
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                {p.items.map(d => (
+                  <div key={d.id} className="flex items-center justify-between text-xs py-1 px-1 rounded hover:bg-white/5 group">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <button onClick={() => markReimbursed(d.id)}
+                              title="Marcar como recebido"
+                              className="shrink-0 hover:scale-110 transition">
+                        <Circle size={12} className="text-white/30 hover:text-emerald-400" />
+                      </button>
+                      <span className="text-white/75 truncate">{d.description}</span>
+                      {d.installmentTotal > 1 && (
+                        <span className="text-white/35 shrink-0">
+                          {d.installmentCurrent}/{d.installmentTotal}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: "JetBrains Mono, monospace" }}
+                          className="tabular-nums text-white/70 shrink-0">{fmtBRL(d.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function AttributedPanel({ list, total }) {
+  const visible = list.filter(x => x.total > 0);
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={Users} title="Atribuído a" subtitle={`${visible.length} responsáveis com gastos`} accent="fuchsia" />
+      {visible.length === 0 ? <Empty text="Nenhuma despesa lançada" /> : (
+        <div className="space-y-2.5">
+          {visible.map(x => {
+            const a = accents[hashAccent(x.name)];
+            const pct = total > 0 ? (x.total / total) * 100 : 0;
+            return (
+              <div key={x.name} className="flex items-center gap-3">
+                <div className="w-1.5 self-stretch rounded-full" style={{ background: a.hex, minHeight: 28 }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="truncate">{x.name}</span>
+                    <span style={{ fontFamily: "JetBrains Mono, monospace" }} className="tabular-nums shrink-0 ml-2">{fmtBRL(x.total)}</span>
+                  </div>
+                  <div className="text-xs text-white/35">{pct.toFixed(0)}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
+  const [quickName, setQuickName] = useState(null);
+  const [quickAmount, setQuickAmount] = useState("");
+
+  const submitQuick = (catName) => {
+    const v = Number(quickAmount);
+    if (!v || !addQuickDespesa) return;
+    addQuickDespesa({ category: catName, amount: v });
+    setQuickAmount("");
+    setQuickName(null);
+  };
+
+  return (
+    <Card className="p-4 sm:p-6" accent="rose">
+      <SectionTitle icon={Target} title="Orçamentos do mês"
+                    subtitle="Quanto sobra de cada limite. Clique em + pra lançar gasto rápido."
+                    accent="rose" />
+      {categories.length === 0 ? (
+        <Empty text="Cadastre orçamentos em Configurações pra controlar limites mensais" />
+      ) : (
+        <div className="space-y-4">
+          {categories.map(c => {
+            const a = accents[c.accent] || accents.rose;
+            const remaining = (c.budget || 0) - c.spent;
+            const pct = c.budget > 0 ? (c.spent / c.budget) * 100 : 0;
+            const over = remaining < 0;
+            const quickOpen = quickName === c.name;
+            return (
+              <div key={c.name}>
+                <div className="flex items-center justify-between mb-1.5 gap-2">
+                  <div className="flex items-center gap-2 text-sm min-w-0">
+                    <div style={{ background: a.soft, color: a.hex }} className="p-1 rounded-md shrink-0">
+                      <Target size={12} />
+                    </div>
+                    <span className="font-medium truncate">{c.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span style={{ fontFamily: "JetBrains Mono, monospace" }}
+                          className="text-xs tabular-nums">
+                      <span style={{ color: over ? accents.rose.hex : "white" }}>{fmtBRL(c.spent)}</span>
+                      <span className="text-white/40"> / {fmtBRL(c.budget)}</span>
+                    </span>
+                    {addQuickDespesa && (
+                      <button
+                        onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(""); }}
+                        className="p-1.5 rounded transition shrink-0"
+                        style={{
+                          background: quickOpen ? a.soft : "rgba(255,255,255,0.05)",
+                          color: quickOpen ? a.hex : "rgba(255,255,255,0.55)",
+                        }}
+                        title={`Lançar gasto rápido em ${c.name}`}
+                      >
+                        {quickOpen ? <X size={12} /> : <Plus size={12} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <div className="h-full transition-all"
+                       style={{
+                         width: `${Math.min(100, pct)}%`,
+                         background: over
+                           ? `linear-gradient(90deg, ${accents.rose.hex}, ${accents.amber.hex})`
+                           : `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`,
+                         boxShadow: `0 0 12px ${a.glow}`,
+                       }} />
+                </div>
+                <div className="flex justify-between text-xs text-white/45 mt-1">
+                  <span>{pct.toFixed(0)}% gasto</span>
+                  <span className={over ? "text-rose-400" : ""}>
+                    {over ? "Estourou " : "Sobra "}
+                    {fmtBRL(Math.abs(remaining))}
+                  </span>
+                </div>
+
+                {/* Mini-form de gasto rápido */}
+                {quickOpen && (
+                  <div className="mt-2.5 p-2.5 rounded-lg flex items-center gap-2"
+                       style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+                    <span className="text-xs text-white/65 shrink-0">Quanto gastou?</span>
+                    <div style={{ flex: 1, minWidth: 0 }}
+                         onKeyDown={e => {
+                           if (e.key === "Enter") submitQuick(c.name);
+                           if (e.key === "Escape") { setQuickName(null); setQuickAmount(""); }
+                         }}>
+                      <MoneyInput value={quickAmount} onChange={setQuickAmount} autoFocus />
+                    </div>
+                    <button onClick={() => submitQuick(c.name)}
+                            disabled={!quickAmount}
+                            className="p-1.5 rounded bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/40 disabled:opacity-30 transition shrink-0">
+                      <Check size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function BillsReminderPanel({ month, setMonth }) {
+  const upcoming = useMemo(() => {
+    return month.despesas
+      .filter(d => !d.paid && d.dueDay && isMineFor(d.attributedTo, month.config))
+      .sort((a, b) => Number(a.dueDay) - Number(b.dueDay));
+  }, [month.despesas, month.config]);
+
+  const today = todayDay();
+
+  const togglePaid = (id) => {
+    setMonth(m => ({
+      ...m,
+      despesas: m.despesas.map(d => d.id === id ? { ...d, paid: !d.paid } : d),
+    }));
+  };
+
+  return (
+    <Card className="p-4 sm:p-6" accent="amber" glow>
+      <SectionTitle icon={Bell} title="Contas a lembrar" subtitle={`${upcoming.length} pendente(s)`} accent="amber" />
+      {upcoming.length === 0 ? (
+        <Empty text="Nada pendente. Tudo em dia 🎯" />
+      ) : (
+        <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+          {upcoming.map(d => {
+            const overdue = Number(d.dueDay) < today;
+            const isToday = Number(d.dueDay) === today;
+            return (
+              <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5 group">
+                <button onClick={() => togglePaid(d.id)}>
+                  <Circle size={16} className="text-white/30 hover:text-emerald-400 transition" />
+                </button>
+                <div className="w-8 text-center shrink-0">
+                  <div style={{ fontFamily: "Fraunces, serif" }}
+                       className={`text-lg font-semibold leading-none ${overdue ? "text-rose-400" : isToday ? "text-amber-300" : "text-white/80"}`}>
+                    {d.dueDay}
+                  </div>
+                  <div style={{ letterSpacing: "0.1em" }} className="text-xs uppercase text-white/35">
+                    {overdue ? "atras." : isToday ? "hoje" : "dia"}
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm truncate">{d.description}</div>
+                  <div className="text-xs text-white/40 truncate">
+                    {d.paymentMethod || "—"} {d.attributedTo ? `· ${d.attributedTo}` : ""}
+                  </div>
+                </div>
+                <div style={{ fontFamily: "JetBrains Mono, monospace" }}
+                     className="text-sm font-semibold tabular-nums shrink-0">
+                  {fmtBRL(d.amount)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function CashPanel({ aVista, total }) {
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={Banknote} title="À vista" subtitle={`${fmtBRL(total)} via Pix / débito / outros`} accent="emerald" />
+      {aVista.length === 0 ? <Empty text="Nenhum método à vista cadastrado" /> : (
+        <div className="grid grid-cols-2 gap-3">
+          {aVista.map(m => {
+            const a = accents[hashAccent(m.name)];
+            return (
+              <div key={m.name}
+                   className="p-4 rounded-xl"
+                   style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+                <div style={{ letterSpacing: "0.12em" }} className="text-xs text-white/55 uppercase mb-1.5">{m.name}</div>
+                <div style={{ fontFamily: "Fraunces, serif", color: a.hex }}
+                     className="text-2xl font-medium tabular-nums">
+                  {fmtBRL(m.total)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ---------- LANÇAMENTOS ----------
+function GastosTab({ month, setMonth, addDespesaPropagated, currentMonth }) {
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null);
+  // Filtros: arrays de strings selecionadas em cada dimensão (multi-select com OR)
+  const [filters, setFilters] = useState({
+    paymentMethods: [],
+    categories: [],
+    attributedTo: [],
+  });
+  const cfg = month.config;
+
+  // só despesas minhas aparecem nas seções de fixos e eventuais.
+  // gastos de terceiros aparecem no painel "A receber" no Painel.
+  const minhas = useMemo(
+    () => month.despesas.filter(d => isMineFor(d.attributedTo, cfg)),
+    [month.despesas, cfg]
+  );
+  const terceirosCount = month.despesas.length - minhas.length;
+
+  // Valores que efetivamente aparecem nos gastos do mês — só esses viram chips
+  const usedValues = useMemo(() => {
+    const pm = new Set(), cat = new Set(), att = new Set();
+    minhas.forEach(d => {
+      if (d.paymentMethod) pm.add(d.paymentMethod);
+      if (d.category) cat.add(d.category);
+      if (d.attributedTo) att.add(d.attributedTo);
+    });
+    return {
+      paymentMethods: [...pm],
+      categories: [...cat],
+      attributedTo: [...att],
+    };
+  }, [minhas]);
+
+  // Aplica filtros (intersecção entre dimensões; OR dentro de cada dimensão)
+  const filtered = useMemo(() => {
+    return minhas.filter(d => {
+      if (filters.paymentMethods.length > 0 && !filters.paymentMethods.includes(d.paymentMethod)) return false;
+      if (filters.categories.length > 0 && !filters.categories.includes(d.category)) return false;
+      if (filters.attributedTo.length > 0 && !filters.attributedTo.includes(d.attributedTo)) return false;
+      return true;
+    });
+  }, [minhas, filters]);
+
+  const totalFiltros = filters.paymentMethods.length + filters.categories.length + filters.attributedTo.length;
+  const filterActive = totalFiltros > 0;
+
+  const toggleFilter = (dim, val) => {
+    setFilters(f => {
+      const arr = f[dim] || [];
+      return { ...f, [dim]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] };
+    });
+  };
+  const clearFilters = () => setFilters({ paymentMethods: [], categories: [], attributedTo: [] });
+
+  const fixos = useMemo(() => {
+    return filtered.filter(d => d.recurring).sort((a, b) => {
+      // pendentes primeiro, depois ordem por dia de vencimento se tiver
+      if (a.paid !== b.paid) return a.paid ? 1 : -1;
+      const da = a.dueDay ?? 99;
+      const db = b.dueDay ?? 99;
+      return da - db;
+    });
+  }, [filtered]);
+
+  const eventuais = useMemo(() => {
+    return filtered.filter(d => !d.recurring).sort((a, b) => {
+      if (a.paid !== b.paid) return a.paid ? 1 : -1;
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return b.date.localeCompare(a.date);
+    });
+  }, [filtered]);
+
+  const sumFixos = fixos.reduce((s, d) => s + Number(d.amount || 0), 0);
+  const sumFixosPagos = fixos.filter(d => d.paid).reduce((s, d) => s + Number(d.amount || 0), 0);
+  const sumEventuais = eventuais.reduce((s, d) => s + Number(d.amount || 0), 0);
+  const sumEventuaisPagos = eventuais.filter(d => d.paid).reduce((s, d) => s + Number(d.amount || 0), 0);
+
+  const noConfig = cfg.categories.length === 0 && cfg.attributedTo.length === 0 && cfg.cards.length === 0;
+
+  const addDespesa = (d) => {
+    if (addDespesaPropagated) {
+      addDespesaPropagated(d);
+    } else {
+      setMonth(m => ({ ...m, despesas: [{ id: uid(), ...d }, ...m.despesas] }));
+    }
+    setAdding(false);
+  };
+  const updateDespesa = (id, patch) => {
+    setMonth(m => ({ ...m, despesas: m.despesas.map(d => d.id === id ? { ...d, ...patch } : d) }));
+  };
+  const removeDespesa = (id) => {
+    setMonth(m => ({ ...m, despesas: m.despesas.filter(d => d.id !== id) }));
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* botão e form */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, letterSpacing: "-0.01em" }}
+              className="text-2xl">Gastos do mês</h2>
+          <p className="text-sm text-white/50 mt-1">
+            {month.despesas.length === 0
+              ? "Nenhum gasto ainda. Clique em \"Novo gasto\" pra começar."
+              : filterActive
+                ? `Mostrando ${fixos.length + eventuais.length} de ${minhas.length} (filtrado) · ${fmtBRL(sumFixos + sumEventuais)}`
+                : `${fixos.length} fixo(s) · ${eventuais.length} eventual(is)${terceirosCount > 0 ? ` · ${terceirosCount} de terceiros (no Painel)` : ""} · ${fmtBRL(sumFixos + sumEventuais)} é seu`}
+          </p>
+        </div>
+        <Btn icon={adding ? X : Plus} onClick={() => setAdding(!adding)}>{adding ? "Fechar" : "Novo gasto"}</Btn>
+      </div>
+
+      {adding && <DespesaForm config={cfg} currentMonth={currentMonth} onSubmit={addDespesa} onCancel={() => setAdding(false)} />}
+
+      {minhas.length > 0 && (
+        <FilterBar
+          used={usedValues}
+          filters={filters}
+          toggleFilter={toggleFilter}
+          clearFilters={clearFilters}
+          totalFiltros={totalFiltros}
+          config={cfg}
+        />
+      )}
+
+      {noConfig && month.despesas.length === 0 && !adding && (
+        <Card className="p-5" accent="violet">
+          <div className="flex items-start gap-3">
+            <Sparkles size={18} className="text-amber-300 mt-0.5" />
+            <div className="text-sm text-white/75">
+              Antes de lançar, talvez queira passar nas <strong>Configurações</strong>: cadastrar seus cartões (Safra, Nubank…),
+              quem atribui os gastos (Eu, Casal, Pai…) e seus orçamentos mensais (Mercado, Saídas…).
+              Mas pode lançar do jeito que tá também — esses campos são opcionais.
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Card 1: Gastos fixos */}
+      <Card className="p-5 sm:p-6" accent="violet" glow>
+        <SectionTitle
+          icon={Calendar}
+          title="Gastos fixos"
+          subtitle={
+            fixos.length === 0
+              ? (filterActive
+                  ? "Nenhum fixo bate com os filtros"
+                  : "Marque um gasto como \"Gasto fixo\" e ele aparece aqui — e se repete todo mês")
+              : `${fixos.filter(d => !d.paid).length} pendente(s) de ${fixos.length} · ${fmtBRL(sumFixosPagos)} pago / ${fmtBRL(sumFixos - sumFixosPagos)} a pagar`
+          }
+          accent="violet"
+          action={
+            !filterActive && fixos.some(d => !d.paid) && (
+              <Btn variant="ghost" size="sm" icon={CheckCircle2}
+                   onClick={() => {
+                     setMonth(m => ({
+                       ...m,
+                       despesas: m.despesas.map(d =>
+                         d.recurring && !d.paid && isMineFor(d.attributedTo, m.config)
+                           ? { ...d, paid: true } : d
+                       ),
+                     }));
+                   }}>
+                Marcar todos pagos
+              </Btn>
+            )
+          }
+        />
+
+        {fixos.length === 0 ? (
+          <Empty text={filterActive ? "—" : "Nenhum gasto fixo neste mês"} />
+        ) : (
+          <div className="space-y-1.5">
+            {fixos.map(d => (
+              <DespesaRow
+                key={d.id}
+                d={d}
+                config={cfg}
+                onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })}
+                onEdit={() => setEditing(d)}
+                onRemove={() => removeDespesa(d.id)}
+              />
+            ))}
+            <div className="border-t border-white/5 mt-3 pt-3 flex items-center justify-between text-sm">
+              <span className="text-white/50">Total de fixos</span>
+              <span style={{ fontFamily: "JetBrains Mono, monospace" }} className="font-semibold tabular-nums">
+                {fmtBRL(sumFixos)}
+              </span>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Card 2: Gastos eventuais */}
+      <Card className="p-5 sm:p-6" accent="cyan">
+        <SectionTitle
+          icon={Receipt}
+          title="Gastos eventuais"
+          subtitle={
+            eventuais.length === 0
+              ? (filterActive
+                  ? "Nenhum eventual bate com os filtros"
+                  : "Compras, parcelas, presentes — tudo que aparece só esse mês")
+              : `${eventuais.filter(d => !d.paid).length} pendente(s) de ${eventuais.length} · ${fmtBRL(sumEventuaisPagos)} pago / ${fmtBRL(sumEventuais - sumEventuaisPagos)} a pagar`
+          }
+          accent="cyan"
+        />
+
+        {eventuais.length === 0 ? (
+          <Empty text={filterActive ? "—" : "Nenhum gasto eventual neste mês"} />
+        ) : (
+          <div className="space-y-1.5">
+            {eventuais.map(d => (
+              <DespesaRow
+                key={d.id}
+                d={d}
+                config={cfg}
+                onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })}
+                onEdit={() => setEditing(d)}
+                onRemove={() => removeDespesa(d.id)}
+              />
+            ))}
+            <div className="border-t border-white/5 mt-3 pt-3 flex items-center justify-between text-sm">
+              <span className="text-white/50">Total de eventuais</span>
+              <span style={{ fontFamily: "JetBrains Mono, monospace" }} className="font-semibold tabular-nums">
+                {fmtBRL(sumEventuais)}
+              </span>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {editing && (
+        <EditDespesaModal
+          despesa={editing}
+          config={cfg}
+          onSave={(patch) => { updateDespesa(editing.id, patch); setEditing(null); }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FilterBar({ used, filters, toggleFilter, clearFilters, totalFiltros, config }) {
+  // Resolver acento de uma forma de pagamento (cartão tem cor configurada;
+  // Pix/Débito têm cores fixas; outros usam hash)
+  const pmAccent = (name) => {
+    const card = config.cards.find(c => c.name === name);
+    if (card?.accent) return card.accent;
+    if (name === "Pix") return "emerald";
+    if (name === "Débito") return "sky";
+    return hashAccent(name);
+  };
+  const catAccent = (name) => {
+    const cat = config.categories.find(c => c.name === name);
+    return cat?.accent || hashAccent(name);
+  };
+  const attAccent = (name) => hashAccent(name);
+
+  const Section = ({ label, dim, items, accentFn, icon: Icon }) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 shrink-0 mr-1">
+          <Icon size={11} className="text-white/35" />
+          <span className="uppercase text-white/40"
+                style={{ fontSize: "10px", letterSpacing: "0.1em" }}>
+            {label}
+          </span>
+        </div>
+        {items.map(name => {
+          const a = accents[accentFn(name)] || accents.gold;
+          const sel = filters[dim].includes(name);
+          return (
+            <button
+              key={name}
+              onClick={() => toggleFilter(dim, name)}
+              className="px-2.5 py-1 rounded-full text-xs transition flex items-center gap-1"
+              style={{
+                background: sel ? a.hex : a.soft,
+                color: sel ? "#0a0a0c" : a.hex,
+                border: sel ? `1px solid ${a.hex}` : `1px solid ${a.hex}30`,
+                fontWeight: sel ? 600 : 400,
+              }}
+            >
+              {sel && <Check size={11} />}
+              {name}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <Card className="p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 text-xs text-white/55">
+          <Search size={12} />
+          <span className="uppercase" style={{ letterSpacing: "0.12em" }}>
+            Filtrar
+          </span>
+          {totalFiltros > 0 && (
+            <span className="px-1.5 rounded-full text-xs"
+                  style={{ background: accents.gold.soft, color: accents.gold.hex, fontSize: "10px" }}>
+              {totalFiltros} ativo{totalFiltros > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        {totalFiltros > 0 && (
+          <button onClick={clearFilters}
+                  className="text-xs text-white/55 hover:text-white transition flex items-center gap-1">
+            <X size={11} /> limpar
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Section label="Pagamento" dim="paymentMethods" items={used.paymentMethods}
+                 accentFn={pmAccent} icon={Banknote} />
+        <Section label="Categoria" dim="categories" items={used.categories}
+                 accentFn={catAccent} icon={Target} />
+        <Section label="Atribuído" dim="attributedTo" items={used.attributedTo}
+                 accentFn={attAccent} icon={Users} />
+      </div>
+    </Card>
+  );
+}
+
+function DespesaRow({ d, config, onTogglePaid, onEdit, onRemove }) {
+  const cardObj = config.cards.find(c => c.name === d.paymentMethod);
+  const catObj = config.categories.find(c => c.name === d.category);
+  const pmAccent = cardObj?.accent
+    || (d.paymentMethod === "Pix" ? "emerald"
+        : d.paymentMethod === "Débito" ? "sky"
+        : d.paymentMethod ? hashAccent(d.paymentMethod) : "sky");
+  const pmA = accents[pmAccent];
+  const catA = catObj ? accents[catObj.accent] : null;
+  const attA = d.attributedTo ? accents[hashAccent(d.attributedTo)] : null;
+
+  const today = todayDay();
+  const dueDayN = d.dueDay ? Number(d.dueDay) : null;
+  const overdue = !d.paid && dueDayN && dueDayN < today;
+  const dueToday = !d.paid && dueDayN === today;
+
+  let bg = d.paid ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)";
+  let border = "1px solid transparent";
+  if (overdue) {
+    bg = "rgba(244,63,94,0.06)";
+    border = `1px solid ${accents.rose.hex}40`;
+  } else if (dueToday) {
+    bg = "rgba(245,158,11,0.06)";
+    border = `1px solid ${accents.amber.hex}40`;
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg group transition"
+         style={{
+           background: bg,
+           border,
+           opacity: d.paid ? 0.7 : 1,
+         }}>
+      {/* Checkbox de pago — grande e óbvio */}
+      <button onClick={onTogglePaid}
+              title={d.paid ? "Marcar como pendente" : "Dar baixa (marcar como pago)"}
+              className="shrink-0 transition hover:scale-110">
+        {d.paid
+          ? <CheckCircle2 size={22} className="text-emerald-400" />
+          : overdue
+            ? <AlertTriangle size={22} className="text-rose-400 hover:text-emerald-400 transition" />
+            : <Circle size={22} className="text-white/30 hover:text-emerald-400 transition" />}
+      </button>
+
+      {/* Descrição + meta */}
+      <div className="min-w-0 flex-1">
+        <div className={`font-medium truncate ${d.paid ? "line-through text-white/50" : ""}`}>
+          {d.description || "—"}
+        </div>
+        <div className="text-xs flex items-center gap-2 flex-wrap mt-0.5"
+             style={{ color: "rgba(255,255,255,0.45)" }}>
+          {overdue && (
+            <span className="px-1.5 py-0.5 rounded font-medium flex items-center gap-1"
+                  style={{ background: accents.rose.soft, color: accents.rose.hex }}>
+              <AlertTriangle size={10} /> atrasada
+            </span>
+          )}
+          {dueToday && (
+            <span className="px-1.5 py-0.5 rounded font-medium flex items-center gap-1"
+                  style={{ background: accents.amber.soft, color: accents.amber.hex }}>
+              <Bell size={10} /> vence hoje
+            </span>
+          )}
+          {d.dueDay && !overdue && !dueToday && (
+            <span className="flex items-center gap-1">
+              <Calendar size={10} /> dia {d.dueDay}
+            </span>
+          )}
+          {d.installmentTotal > 1 && (
+            <span className="px-1.5 py-0.5 rounded bg-white/5 text-white/55 tabular-nums">
+              parcela {d.installmentCurrent}/{d.installmentTotal}
+            </span>
+          )}
+          {catObj && catA && (
+            <span className="px-1.5 py-0.5 rounded" style={{ background: catA.soft, color: catA.hex }}>
+              {d.category}
+            </span>
+          )}
+          {d.attributedTo && attA && (
+            <span className="px-1.5 py-0.5 rounded" style={{ background: attA.soft, color: attA.hex }}>
+              {d.attributedTo}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Forma de pagamento (se houver) — destaque visual */}
+      {d.paymentMethod && (
+        <div className="shrink-0 hidden sm:block">
+          <span className="text-xs px-2 py-1 rounded inline-flex items-center gap-1"
+                style={{ background: pmA.soft, color: pmA.hex, border: `1px solid ${pmA.hex}25` }}>
+            {cardObj ? <CreditCard size={11} /> : <Banknote size={11} />}
+            {d.paymentMethod}
+          </span>
+        </div>
+      )}
+
+      {/* Valor */}
+      <div className="shrink-0 text-right">
+        <div style={{ fontFamily: "JetBrains Mono, monospace" }}
+             className={`tabular-nums font-semibold whitespace-nowrap ${d.paid ? "text-white/55" : ""}`}>
+          {fmtBRL(d.amount)}
+        </div>
+        <div className="text-xs sm:hidden mt-0.5">
+          {d.paymentMethod && (
+            <span style={{ color: pmA.hex }}>{d.paymentMethod}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Ações */}
+      <div className="shrink-0 flex gap-0.5">
+        <button onClick={onEdit} className="p-1.5 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition"
+                title="Editar">
+          <Pencil size={13} />
+        </button>
+        <button onClick={onRemove} className="p-1.5 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition"
+                title="Remover">
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DespesaForm({ config, initial, onSubmit, onCancel, isEditing = false, currentMonth }) {
+  const firstAttr = config.attributedTo[0]?.name || "";
+  const [d, setD] = useState(initial || {
+    description: "", amount: "", date: todayISO(),
+    category: "",
+    paymentMethod: "",
+    attributedTo: firstAttr,
+    paid: true,
+    dueDay: "",
+    installmentCurrent: 1, installmentTotal: 1,
+    recurring: false,
+  });
+
+  // Modo do gasto: à vista, parcelado ou recorrente. Determina parte da estrutura.
+  const initialMode = initial
+    ? (initial.recurring ? "recorrente" : Number(initial.installmentTotal) > 1 ? "parcelado" : "avista")
+    : "avista";
+  const [mode, setMode] = useState(initialMode);
+
+  const onChangeMode = (m) => {
+    setMode(m);
+    setD(prev => ({
+      ...prev,
+      recurring: m === "recorrente",
+      installmentTotal: m === "parcelado" ? Math.max(2, Number(prev.installmentTotal) || 2) : 1,
+      installmentCurrent: m === "parcelado" ? Math.max(1, Number(prev.installmentCurrent) || 1) : 1,
+    }));
+  };
+
+  // Auto-preenche dueDay e ajusta paid quando troca o método de pagamento
+  const setPayment = (v) => {
+    setD(prev => {
+      const cardDue = cardDueDayFor(v, config);
+      const wasCard = cardDueDayFor(prev.paymentMethod, config) != null;
+      const isCard = cardDue != null;
+      const next = { ...prev, paymentMethod: v };
+      if (cardDue && (!prev.dueDay || cardDueDayFor(prev.paymentMethod, config) === Number(prev.dueDay))) {
+        next.dueDay = String(cardDue);
+      }
+      if (isCard && !wasCard) next.paid = false;
+      if (!isCard && wasCard) next.paid = true;
+      return next;
+    });
+  };
+
+  const submit = () => {
+    if (!d.description || !d.amount) return;
+    onSubmit({
+      ...d,
+      amount: Number(d.amount),
+      dueDay: d.dueDay === "" ? null : Number(d.dueDay),
+      recurring: mode === "recorrente",
+      installmentCurrent: mode === "parcelado" ? Number(d.installmentCurrent) || 1 : 1,
+      installmentTotal: mode === "parcelado" ? Number(d.installmentTotal) || 1 : 1,
+    });
+  };
+
+  const isParcelado = mode === "parcelado";
+  const isRecorrente = mode === "recorrente";
+  const totalParc = Number(d.installmentTotal) || 1;
+  const curParc = Number(d.installmentCurrent) || 1;
+  const valorParc = Number(d.amount) || 0;
+  const totalCompra = valorParc * totalParc;
+
+  const attrObj = config.attributedTo.find(a => a.name === d.attributedTo);
+  const isMine = attrObj ? attrObj.isMine !== false : true;
+
+  const chosenCard = config.cards.find(c => c.name === d.paymentMethod);
+  const cardDue = chosenCard?.dueDay ? Number(chosenCard.dueDay) : null;
+  const cardNames = config.cards.map(c => c.name);
+
+  // Toggle "Já pago" só faz sentido quando: tem método à vista (não cartão) e não é parcelado
+  const showJaPago = d.paymentMethod && !chosenCard && !isParcelado;
+
+  const valorLabel = isParcelado ? "Valor da parcela" : "Valor";
+
+  return (
+    <div className="rounded-xl bg-white/5 border border-white/10 mb-4 p-4 sm:p-5 space-y-4">
+      {!isEditing && (
+        <div className="flex items-center gap-2.5">
+          <div style={{ background: "rgba(212,175,55,0.15)", color: "#d4af37" }}
+               className="p-1.5 rounded-lg shrink-0">
+            <Plus size={14} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold">Novo gasto</div>
+            <div className="text-xs text-white/45">Aluguel, mercado, presente, parcela…</div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Tipo do gasto — segmented control no topo */}
+      <ModePicker value={mode} onChange={onChangeMode}
+                  options={[
+                    { value: "avista",     label: "À vista",     description: "Pago tudo de uma vez (Pix, débito, cartão)", accent: "emerald", icon: Banknote   },
+                    { value: "parcelado",  label: "Parcelado",   description: "Dividido em parcelas mensais (cartão)",      accent: "cyan",    icon: Receipt    },
+                    { value: "recorrente", label: "Gasto fixo",  description: "Repete todo mês (aluguel, assinaturas)",     accent: "violet",  icon: Calendar   },
+                  ]} />
+
+      {/* 2. Orçamento (opcional) — chips */}
+      {config.categories.length > 0 ? (
+        <Field label="Orçamento" hint="opcional">
+          <div className="flex flex-wrap gap-1.5">
+            {config.categories.map(c => (
+              <Chip key={c.name}
+                    selected={d.category === c.name}
+                    onClick={() => setD({ ...d, category: d.category === c.name ? "" : c.name })}
+                    accent={c.accent}>
+                {c.name}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      ) : null}
+
+      {/* 3. Descrição */}
+      <Field label="O que foi?">
+        <TextInput value={d.description} onChange={v => setD({ ...d, description: v })}
+                   placeholder="Ex: Mercado da semana, FIFA, Presente Ju" />
+      </Field>
+
+      {/* 4. Forma de pagamento — chips */}
+      {config.paymentMethods.length > 0 ? (
+        <Field label="Forma de pagamento" hint={chosenCard && cardDue ? `vence dia ${cardDue}` : null}>
+          <div className="flex flex-wrap gap-1.5">
+            {config.paymentMethods.map(pm => {
+              const card = config.cards.find(c => c.name === pm);
+              const accent = card?.accent
+                || (pm === "Pix" ? "emerald"
+                    : pm === "Débito" ? "sky"
+                    : hashAccent(pm));
+              const isCard = cardNames.includes(pm);
+              return (
+                <Chip key={pm}
+                      selected={d.paymentMethod === pm}
+                      onClick={() => setPayment(d.paymentMethod === pm ? "" : pm)}
+                      accent={accent}
+                      icon={isCard ? CreditCard : Banknote}>
+                  {pm}
+                </Chip>
+              );
+            })}
+          </div>
+        </Field>
+      ) : (
+        <Field label="Forma de pagamento" hint="cadastre nas Configurações">
+          <div className="text-xs text-white/40 italic py-1">— nenhum método —</div>
+        </Field>
+      )}
+
+      {/* 5. Valor (+ Data) — com R$ prefix e preview formatado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label={valorLabel}>
+          <MoneyInput value={d.amount} onChange={v => setD({ ...d, amount: v })} />
+        </Field>
+        <Field label="Data" hint="toque pra abrir o calendário">
+          <TextInput type="date" value={d.date} onChange={v => setD({ ...d, date: v })}
+                     style={{ fontSize: 14, textAlign: "center", padding: "10px 8px" }} />
+        </Field>
+      </div>
+
+      {/* 5b. Box de parcelas — só se parcelado */}
+      {isParcelado && (
+        <div className="p-3 sm:p-4 rounded-lg space-y-3"
+             style={{ background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.25)" }}>
+          <div className="text-xs text-white/70 flex items-center gap-1.5">
+            <Sparkles size={12} className="text-cyan-300" />
+            Em qual parcela você está?
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Parcela atual">
+              <TextInput type="number" value={d.installmentCurrent}
+                         onChange={v => setD({ ...d, installmentCurrent: v })}
+                         placeholder="1" />
+            </Field>
+            <Field label="De quantas">
+              <TextInput type="number" value={d.installmentTotal}
+                         onChange={v => setD({ ...d, installmentTotal: v })}
+                         placeholder="2" />
+            </Field>
+          </div>
+          {totalCompra > 0 && (
+            <div className="text-xs text-white/65">
+              Total da compra: <strong className="text-white/90">{fmtBRL(totalCompra)}</strong>
+              <span className="text-white/35"> ({totalParc}× {fmtBRL(valorParc)})</span>
+            </div>
+          )}
+          {!isEditing && curParc < totalParc && (
+            <div className="text-xs text-white/70 pt-2 border-t border-white/5">
+              ✨ Vou criar as <strong>{totalParc - curParc} parcela(s)</strong> seguintes de {fmtBRL(valorParc)} nos próximos meses.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5c. Aviso de cartão — só lembrete do vencimento */}
+      {chosenCard && cardDue && (
+        <div className="rounded-lg p-3"
+             style={{
+               background: `${accents[chosenCard.accent]?.soft || "rgba(212,175,55,0.10)"}`,
+               border: `1px solid ${accents[chosenCard.accent]?.hex || accents.gold.hex}25`,
+             }}>
+          <div className="text-xs flex items-start gap-2 text-white/75">
+            <CreditCard size={13} className="mt-0.5 shrink-0"
+                        style={{ color: accents[chosenCard.accent]?.hex }} />
+            <div className="min-w-0">
+              Cartão <strong className="text-white/90">{chosenCard.name}</strong> · fatura vence dia <strong className="text-white/90">{cardDue}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Atribuído a — chips */}
+      {config.attributedTo.length > 0 && (
+        <Field label="Atribuído a"
+               hint={!isMine && d.attributedTo ? "vai pra A receber" : null}>
+          <div className="flex flex-wrap gap-1.5">
+            {config.attributedTo.map(a => {
+              const accent = hashAccent(a.name);
+              const sel = d.attributedTo === a.name;
+              const third = a.isMine === false;
+              return (
+                <Chip key={a.name}
+                      selected={sel}
+                      onClick={() => setD({ ...d, attributedTo: sel ? "" : a.name })}
+                      accent={third ? "amber" : accent}>
+                  {third ? "🤝 " : ""}{a.name}
+                </Chip>
+              );
+            })}
+          </div>
+        </Field>
+      )}
+
+      {/* 7. Já pago (só quando faz sentido) + dia de vencimento */}
+      <div className="space-y-3">
+        {showJaPago && (
+          <div>
+            <Toggle checked={!!d.paid}
+                    onChange={v => setD({ ...d, paid: v })}
+                    accent="emerald">
+              Já pago
+            </Toggle>
+          </div>
+        )}
+        <Field label="Dia do mês que vence" hint="opcional · só o dia (1–31)">
+          <TextInput type="number"
+                     inputMode="numeric"
+                     value={d.dueDay}
+                     onChange={v => setD({ ...d, dueDay: v })}
+                     placeholder={cardDue ? `Ex: ${cardDue}` : "Ex: 5"}
+                     style={{ maxWidth: 140 }} />
+        </Field>
+      </div>
+
+      {/* Botões */}
+      <div className="flex gap-2 justify-end pt-3 border-t border-white/5">
+        {onCancel && <Btn variant="ghost" onClick={onCancel} icon={X}>Cancelar</Btn>}
+        <Btn onClick={submit} icon={Check} disabled={!d.description || !d.amount}>Salvar</Btn>
+      </div>
+    </div>
+  );
+}
+
+function EditDespesaModal({ despesa, config, onSave, onClose }) {
+  return (
+    <div onClick={onClose}
+         style={{ background: "rgba(7,9,18,0.7)", backdropFilter: "blur(8px)" }}
+         className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-8 overflow-y-auto">
+      <div onClick={e => e.stopPropagation()}
+           style={{
+             background: "linear-gradient(180deg, #0f1525, #0a0d18)",
+             border: "1px solid rgba(255,255,255,0.1)",
+             borderRadius: 18,
+             maxWidth: 800,
+             width: "100%",
+           }}
+           className="p-6 sm:p-8">
+        <div className="flex items-center justify-between mb-5">
+          <h3 style={{ fontFamily: "Fraunces, serif", fontWeight: 500 }} className="text-2xl">Editar lançamento</h3>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5"><X size={18} /></button>
+        </div>
+        <DespesaForm config={config} initial={despesa} onSubmit={onSave} onCancel={onClose} isEditing />
+      </div>
+    </div>
+  );
+}
+
+// ---------- RECEITAS ----------
+function ReceitasTab({ month, setMonth }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({
+    source: month.config.incomeSources[0] || "",
+    amount: "", date: todayISO(), notes: "",
+  });
+
+  const total = month.receitas.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const bySource = month.config.incomeSources.map(src => ({
+    src,
+    total: month.receitas.filter(r => r.source === src).reduce((s, r) => s + Number(r.amount || 0), 0),
+  }));
+
+  const add = () => {
+    if (!draft.amount || !draft.source) return;
+    setMonth(m => ({ ...m, receitas: [...m.receitas, { id: uid(), ...draft, amount: Number(draft.amount) }] }));
+    setDraft({ source: month.config.incomeSources[0] || "", amount: "", date: todayISO(), notes: "" });
+    setAdding(false);
+  };
+
+  const remove = (id) => setMonth(m => ({ ...m, receitas: m.receitas.filter(r => r.id !== id) }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <MetricCard label="Total recebido" value={fmtBRL(total)} icon={ArrowUpRight} accent="emerald" highlight />
+        {bySource.map(b => {
+          const a = accents[hashAccent(b.src)];
+          return (
+            <Card key={b.src} className="p-5">
+              <div style={{ letterSpacing: "0.18em" }} className="text-xs uppercase text-white/45 mb-2 truncate">{b.src}</div>
+              <div style={{ fontFamily: "Fraunces, serif", color: a.hex }}
+                   className="text-2xl font-medium tabular-nums">{fmtBRL(b.total)}</div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card className="p-4 sm:p-6">
+        <SectionTitle
+          icon={Wallet}
+          title="Entradas do mês"
+          subtitle={`${month.receitas.length} registro(s)`}
+          accent="emerald"
+          action={<Btn icon={Plus} onClick={() => setAdding(!adding)}>{adding ? "Cancelar" : "Adicionar"}</Btn>}
+        />
+
+        {adding && (
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-5 p-4 rounded-xl bg-white/5 border border-white/10">
+            <Select value={draft.source} onChange={v => setDraft({ ...draft, source: v })}
+                    options={month.config.incomeSources} className="sm:col-span-2" />
+            <MoneyInput value={draft.amount} onChange={v => setDraft({ ...draft, amount: v })} />
+            <TextInput type="date" value={draft.date} onChange={v => setDraft({ ...draft, date: v })} />
+            <Btn onClick={add} icon={Check}>Salvar</Btn>
+          </div>
+        )}
+
+        {month.receitas.length === 0 ? <Empty text="Nenhuma receita ainda" /> : (
+          <div className="space-y-1.5">
+            {month.receitas.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(r => (
+              <div key={r.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 group">
+                <div className="flex items-center gap-3">
+                  <div style={{ background: accents.emerald.soft, color: accents.emerald.hex }} className="p-2 rounded-lg">
+                    <ArrowUpRight size={14} />
+                  </div>
+                  <div>
+                    <div className="font-medium">{r.source}</div>
+                    <div className="text-xs text-white/40">{r.date ? new Date(r.date + "T00:00").toLocaleDateString("pt-BR") : "—"}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span style={{ color: accents.emerald.hex, fontFamily: "JetBrains Mono, monospace" }}
+                        className="text-base font-semibold">+{fmtBRL(r.amount)}</span>
+                  <button onClick={() => remove(r.id)}
+                          title="Remover"
+                          className="p-1.5 rounded text-white/35 hover:text-rose-400 hover:bg-rose-500/10 transition">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ---------- CONFIG ----------
+function ConfigTab({ month, setMonth, brand, updateBrand }) {
+  const setConfig = (patch) => setMonth(m => ({ ...m, config: { ...m.config, ...patch } }));
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4 sm:p-6">
+        <SectionTitle icon={Settings} title="Configurações" subtitle="Personalize seu app, cartões, categorias, atribuídos e orçamentos." accent="gold" />
+        <div className="text-sm text-white/55 leading-relaxed">
+          Os ajustes desta seção (exceto a marca, que é global) valem para o mês atual. Os próximos meses herdam.
+        </div>
+      </Card>
+
+      <BrandConfig brand={brand} updateBrand={updateBrand} />
+
+      <BackupConfig />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CardsConfig config={month.config} setConfig={setConfig} />
+        <PaymentMethodsConfig config={month.config} setConfig={setConfig} />
+        <CategoriesConfig config={month.config} setConfig={setConfig} />
+        <AttributedConfig config={month.config} setConfig={setConfig} />
+        <IncomeSourcesConfig config={month.config} setConfig={setConfig} />
+      </div>
+    </div>
+  );
+}
+
+function BrandConfig({ brand, updateBrand }) {
+  const [name, setName] = useState(brand?.name || "");
+  const [subtitle, setSubtitle] = useState(brand?.subtitle || "Finanças Milionárias");
+
+  // Salva ao perder foco ou Enter
+  const saveName = () => updateBrand({ name: name.trim() });
+  const saveSubtitle = () => updateBrand({ subtitle: subtitle.trim() || "Finanças Milionárias" });
+
+  return (
+    <Card className="p-6" accent="gold">
+      <SectionTitle icon={Sparkles} title="Identidade do app"
+                    subtitle="Personalize o título que aparece no topo. O nome em cima é seu, o subtítulo abaixo é o nome do app."
+                    accent="gold" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="uppercase text-white/45 mb-1.5 block"
+                 style={{ fontSize: "10px", letterSpacing: "0.1em" }}>
+            Seu nome (em cima)
+          </label>
+          <TextInput
+            value={name}
+            onChange={setName}
+            onBlur={saveName}
+            placeholder="Ex: Gui Silva"
+          />
+          <div className="text-xs text-white/40 mt-1">Aparece em letras pequenas douradas no topo.</div>
+        </div>
+        <div>
+          <label className="uppercase text-white/45 mb-1.5 block"
+                 style={{ fontSize: "10px", letterSpacing: "0.1em" }}>
+            Nome do app (subtítulo grande)
+          </label>
+          <TextInput
+            value={subtitle}
+            onChange={setSubtitle}
+            onBlur={saveSubtitle}
+            placeholder="Finanças Milionárias"
+          />
+          <div className="text-xs text-white/40 mt-1">Padrão: "Finanças Milionárias". Última palavra recebe o destaque dourado.</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function BackupConfig() {
+  const [importMode, setImportMode] = useState(false);
+  const [pasted, setPasted] = useState("");
+  const [error, setError] = useState("");
+  const [confirmation, setConfirmation] = useState(null); // { json, source }
+  const fileInputRef = useRef(null);
+
+  const exportar = () => {
+    const data = localStorage.getItem("alquimia-financas:v3");
+    if (!data) {
+      setError("Nenhum dado pra exportar ainda");
+      return;
+    }
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `financas-milionarias-backup-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const tryImport = (text, source) => {
+    setError("");
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object" || !parsed.months) {
+        setError("Esse arquivo não parece um backup do Finanças Milionárias.");
+        return;
+      }
+      const monthsCount = Object.keys(parsed.months).length;
+      let despesasCount = 0, receitasCount = 0;
+      for (const ym of Object.keys(parsed.months)) {
+        const m = parsed.months[ym];
+        despesasCount += m.despesas?.length || 0;
+        receitasCount += m.receitas?.length || 0;
+      }
+      setConfirmation({
+        json: text,
+        source,
+        summary: `${monthsCount} mês(es) · ${despesasCount} gasto(s) · ${receitasCount} receita(s)`,
+      });
+    } catch (e) {
+      setError("JSON inválido. Verifique o arquivo.");
+    }
+  };
+
+  const confirmImport = () => {
+    if (!confirmation) return;
+    localStorage.setItem("alquimia-financas:v3", confirmation.json);
+    location.reload();
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => tryImport(String(reader.result), "arquivo");
+    reader.readAsText(file);
+    e.target.value = ""; // permite re-selecionar mesmo arquivo
+  };
+
+  const cancelImport = () => {
+    setImportMode(false);
+    setPasted("");
+    setError("");
+    setConfirmation(null);
+  };
+
+  return (
+    <Card className="p-4 sm:p-6" accent="emerald">
+      <SectionTitle icon={ArrowUpRight} title="Backup e sincronização"
+                    subtitle="Mover seus dados entre PC, celular ou fazer backup"
+                    accent="emerald" />
+
+      <div className="text-sm text-white/65 leading-relaxed mb-4">
+        Os dados são salvos só no navegador onde você usa o app. Pra sincronizar entre dispositivos:
+        <strong className="text-white/85"> exporte aqui</strong>, mande o arquivo pra você mesmo (Drive, e-mail, WhatsApp),
+        e <strong className="text-white/85">importe</strong> no outro dispositivo.
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Exportar */}
+        <div className="p-4 rounded-lg"
+             style={{ background: accents.emerald.soft, border: `1px solid ${accents.emerald.hex}30` }}>
+          <div className="flex items-center gap-2 mb-2">
+            <ArrowUpRight size={14} style={{ color: accents.emerald.hex }} />
+            <span className="font-medium text-sm">Exportar dados</span>
+          </div>
+          <div className="text-xs text-white/55 mb-3">
+            Baixa um arquivo JSON com todos seus gastos, receitas e configurações.
+          </div>
+          <Btn icon={ArrowUpRight} onClick={exportar} size="sm">Baixar backup</Btn>
+        </div>
+
+        {/* Importar */}
+        <div className="p-4 rounded-lg"
+             style={{ background: accents.amber.soft, border: `1px solid ${accents.amber.hex}30` }}>
+          <div className="flex items-center gap-2 mb-2">
+            <ArrowDownRight size={14} style={{ color: accents.amber.hex }} />
+            <span className="font-medium text-sm">Importar dados</span>
+          </div>
+          <div className="text-xs text-white/55 mb-3">
+            ⚠️ Substitui completamente os dados atuais. Faça um backup antes.
+          </div>
+          {!importMode ? (
+            <Btn variant="ghost" icon={ArrowDownRight} onClick={() => setImportMode(true)} size="sm">
+              Importar arquivo
+            </Btn>
+          ) : (
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleFile}
+                style={{ display: "none" }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full px-3 py-2 rounded-lg text-sm transition flex items-center justify-center gap-1.5"
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "white",
+                }}
+              >
+                📁 Escolher arquivo .json
+              </button>
+              <div className="text-xs text-white/40 text-center">ou cole o JSON aqui:</div>
+              <textarea
+                value={pasted}
+                onChange={e => setPasted(e.target.value)}
+                placeholder='{"months": {...}, ...}'
+                rows={3}
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "white",
+                  width: "100%",
+                  outline: "none",
+                  resize: "vertical",
+                  fontFamily: "JetBrains Mono, monospace",
+                  fontSize: "11px",
+                  boxSizing: "border-box",
+                }}
+                className="px-2 py-1.5 rounded placeholder:text-white/30 focus:border-amber-400"
+              />
+              <div className="flex gap-2">
+                <button onClick={cancelImport}
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs text-white/55 hover:text-white hover:bg-white/5 transition">
+                  Cancelar
+                </button>
+                <button onClick={() => tryImport(pasted, "texto")}
+                        disabled={!pasted.trim()}
+                        style={{ opacity: pasted.trim() ? 1 : 0.4 }}
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">
+                  Validar e importar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="mt-3 p-3 rounded-lg text-sm flex items-start gap-2"
+             style={{ background: "rgba(244,63,94,0.10)", border: "1px solid rgba(244,63,94,0.3)", color: "rgba(255,255,255,0.85)" }}>
+          <AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {confirmation && (
+        <div className="mt-4 p-4 rounded-lg"
+             style={{ background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.3)" }}>
+          <div className="flex items-start gap-2.5 mb-3">
+            <AlertTriangle size={16} className="text-amber-300 mt-0.5 shrink-0" />
+            <div className="text-sm text-white/85">
+              <strong>Confirma a importação?</strong>
+              <div className="text-xs text-white/65 mt-1">
+                Vou trazer: {confirmation.summary}
+              </div>
+              <div className="text-xs text-rose-300 mt-1">
+                Tudo que está salvo agora vai ser substituído.
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Btn variant="ghost" onClick={cancelImport} icon={X}>Cancelar</Btn>
+            <Btn onClick={confirmImport} icon={Check}>Sim, importar</Btn>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function CardsConfig({ config, setConfig }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [dueDay, setDueDay] = useState("");
+
+  const reset = () => { setName(""); setDueDay(""); setAdding(false); };
+  const submit = () => {
+    const n = name.trim();
+    if (!n) { reset(); return; }
+    if (config.cards.find(c => c.name === n)) { reset(); return; }
+    const accent = accentKeys[config.cards.length % accentKeys.length];
+    setConfig({
+      cards: [...config.cards, {
+        name: n,
+        accent,
+        dueDay: dueDay === "" ? null : Number(dueDay),
+      }],
+      paymentMethods: config.paymentMethods.includes(n)
+        ? config.paymentMethods
+        : [...config.paymentMethods, n],
+    });
+    reset();
+  };
+  const remove = (cardName) => {
+    setConfig({
+      cards: config.cards.filter(c => c.name !== cardName),
+      paymentMethods: config.paymentMethods.filter(p => p !== cardName),
+    });
+  };
+  const setAccent = (cardName, accent) => {
+    setConfig({ cards: config.cards.map(c => c.name === cardName ? { ...c, accent } : c) });
+  };
+  const setCardDueDay = (cardName, val) => {
+    setConfig({ cards: config.cards.map(c => c.name === cardName ? { ...c, dueDay: val === "" ? null : Number(val) } : c) });
+  };
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={CreditCard} title="Cartões"
+                    subtitle="Cadastre o dia de vencimento da fatura"
+                    accent="cyan"
+                    action={<AdderToggle open={adding} onToggle={setAdding} />} />
+
+      {/* Adder em bloco */}
+      {adding && (
+        <AdderShell accent="cyan" title="Novo cartão">
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Nome do cartão (ex: Safra, Nubank)"
+            onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") reset(); }}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "white",
+              width: "100%",
+              boxSizing: "border-box",
+              minWidth: 0,
+            }}
+            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-cyan-400 placeholder:text-white/30"
+          />
+          <div>
+            <div className="text-xs text-white/45 mb-1">Vence dia</div>
+            <input
+              type="number"
+              value={dueDay}
+              onChange={e => setDueDay(e.target.value)}
+              placeholder="ex: 5"
+              onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") reset(); }}
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                width: "100%",
+                boxSizing: "border-box",
+                minWidth: 0,
+              }}
+              className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-cyan-400 placeholder:text-white/30 tabular-nums"
+            />
+          </div>
+          <button onClick={submit} disabled={!name.trim()}
+                  style={{ opacity: name.trim() ? 1 : 0.4 }}
+                  className="w-full px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition flex items-center justify-center gap-1.5">
+            <Check size={14} /> <span className="text-sm">Salvar cartão</span>
+          </button>
+        </AdderShell>
+      )}
+
+      <div className="space-y-2">
+        {config.cards.length === 0 && !adding && (
+          <Empty text="Nenhum cartão cadastrado" />
+        )}
+        {config.cards.map(c => {
+          const a = accents[c.accent] || accents.cyan;
+          return (
+            <div key={c.name} className="p-3 rounded-lg bg-white/5">
+              {/* Header: ícone + nome + delete */}
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div style={{ background: a.soft, color: a.hex }}
+                       className="p-1.5 rounded-md shrink-0">
+                    <CreditCard size={14} />
+                  </div>
+                  <span className="font-medium truncate">{c.name}</span>
+                </div>
+                <DeleteIconBtn onClick={() => remove(c.name)} />
+              </div>
+              {/* Body: vence + cores */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-white/45">Vence dia</span>
+                  <MiniInput
+                    type="number"
+                    value={c.dueDay ?? ""}
+                    onChange={e => setCardDueDay(c.name, e.target.value)}
+                    placeholder="—"
+                    title="Dia de vencimento da fatura"
+                    width={48}
+                  />
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  {accentKeys.map(k => (
+                    <button key={k} onClick={() => setAccent(c.name, k)}
+                            className="w-5 h-5 rounded-full transition shrink-0"
+                            style={{
+                              background: accents[k].hex,
+                              outline: c.accent === k ? "2px solid white" : "none",
+                              outlineOffset: 1,
+                            }}
+                            title={k} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function PaymentMethodsConfig({ config, setConfig }) {
+  const [adding, setAdding] = useState(false);
+  const [val, setVal] = useState("");
+
+  const add = (name) => {
+    if (config.paymentMethods.includes(name)) return;
+    setConfig({ paymentMethods: [...config.paymentMethods, name] });
+  };
+  const submit = () => {
+    const v = val.trim();
+    if (v) add(v);
+    setVal(""); setAdding(false);
+  };
+  const remove = (name) => {
+    setConfig({ paymentMethods: config.paymentMethods.filter(p => p !== name) });
+  };
+  const cardNames = config.cards.map(c => c.name);
+  const cashOnly = config.paymentMethods.filter(p => !cardNames.includes(p));
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={Banknote} title="Métodos à vista"
+                    subtitle="Pix, Débito, Boleto. Cartões são gerenciados acima."
+                    accent="emerald"
+                    action={<AdderToggle open={adding} onToggle={setAdding} />} />
+      {adding && (
+        <AdderShell accent="emerald" title="Novo método">
+          <div className="flex gap-2 items-center">
+            <input
+              autoFocus
+              type="text"
+              value={val}
+              onChange={e => setVal(e.target.value)}
+              placeholder="Ex: Boleto, Dinheiro, Transferência"
+              onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setVal(""); setAdding(false); } }}
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                flex: 1,
+                minWidth: 0,
+                boxSizing: "border-box",
+              }}
+              className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-emerald-400 placeholder:text-white/30"
+            />
+            <button onClick={submit} disabled={!val.trim()}
+                    style={{ opacity: val.trim() ? 1 : 0.4 }}
+                    className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition shrink-0 flex items-center gap-1.5">
+              <Check size={14} /> <span className="text-sm">Salvar</span>
+            </button>
+          </div>
+        </AdderShell>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {cashOnly.length === 0 && !adding && <Empty text="Nenhum método à vista cadastrado" />}
+        {cashOnly.map(p => {
+          const a = accents[hashAccent(p)];
+          return (
+            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg"
+                 style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+              <span className="text-sm" style={{ color: a.hex }}>{p}</span>
+              <button onClick={() => remove(p)}
+                      title="Remover"
+                      className="p-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition">
+                <X size={12} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function CategoriesConfig({ config, setConfig }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [budget, setBudget] = useState("");
+
+  const reset = () => { setName(""); setBudget(""); setAdding(false); };
+  const add = () => {
+    const n = name.trim();
+    const b = Number(budget);
+    if (!n || !b || b <= 0) return;
+    if (config.categories.find(c => c.name === n)) { reset(); return; }
+    const accent = accentKeys[config.categories.length % accentKeys.length];
+    setConfig({ categories: [...config.categories, { name: n, budget: b, accent }] });
+    reset();
+  };
+  const remove = (name) => {
+    setConfig({ categories: config.categories.filter(c => c.name !== name) });
+  };
+  const updateBudget = (name, val) => {
+    setConfig({
+      categories: config.categories.map(c =>
+        c.name === name ? { ...c, budget: val === "" ? null : Number(val) } : c
+      ),
+    });
+  };
+  const setAccent = (name, accent) => {
+    setConfig({ categories: config.categories.map(c => c.name === name ? { ...c, accent } : c) });
+  };
+
+  const canSubmit = name.trim() && Number(budget) > 0;
+
+  return (
+    <Card className="p-4 sm:p-6 lg:col-span-2">
+      <SectionTitle icon={Target} title="Orçamentos"
+                    subtitle="Limite mensal pra controlar gastos variáveis"
+                    accent="rose"
+                    action={<AdderToggle open={adding} onToggle={setAdding} label="Novo orçamento" />} />
+
+      {/* Texto educativo */}
+      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed"
+           style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="flex items-start gap-2">
+          <Sparkles size={14} className="mt-0.5 shrink-0 text-rose-300" />
+          <div>
+            Crie um orçamento pra cada gasto <strong className="text-white/85">variável</strong> que você quer limitar
+            no mês — ex: <span className="text-rose-300">Mercado, Saídas, Lazer, Gasolina, Uber</span>.
+            <br />
+            <span className="text-white/45">
+              Aluguel, Netflix e conta de luz <strong>não precisam</strong> aqui — esses são "Gasto fixo"
+              e já são controlados em outro lugar.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Adder */}
+      {adding && (
+        <AdderShell accent="rose" title="Novo orçamento">
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Nome (ex: Mercado, Saídas, Gasolina)"
+            onKeyDown={e => { if (e.key === "Enter" && canSubmit) add(); if (e.key === "Escape") reset(); }}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "white",
+              width: "100%",
+              boxSizing: "border-box",
+              minWidth: 0,
+            }}
+            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-rose-400 placeholder:text-white/30"
+          />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg overflow-hidden flex-1"
+                 style={{
+                   background: "rgba(255,255,255,0.06)",
+                   border: "1px solid rgba(255,255,255,0.15)",
+                   minWidth: 0,
+                 }}>
+              <span className="pl-3 pr-1 text-sm text-white/50 shrink-0">R$</span>
+              <input
+                type="number"
+                value={budget}
+                onChange={e => setBudget(e.target.value)}
+                placeholder="0,00"
+                onKeyDown={e => { if (e.key === "Enter" && canSubmit) add(); if (e.key === "Escape") reset(); }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "white",
+                  outline: "none",
+                  flex: 1,
+                  minWidth: 0,
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+                className="px-1 py-2 text-sm placeholder:text-white/30"
+              />
+              <span className="pr-3 pl-1 text-xs text-white/40 shrink-0">/mês</span>
+            </div>
+            <button onClick={add} disabled={!canSubmit}
+                    style={{ opacity: canSubmit ? 1 : 0.4 }}
+                    className="px-3 py-2 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 transition shrink-0 flex items-center gap-1.5">
+              <Check size={14} /> <span className="text-sm">Criar</span>
+            </button>
+          </div>
+          <div className="text-xs text-white/45">
+            Sem valor de limite, não dá pra criar — orçamento sempre tem teto mensal.
+          </div>
+        </AdderShell>
+      )}
+
+      {config.categories.length === 0 && !adding && (
+        <Empty text="Nenhum orçamento ainda. Clique em &quot;Novo orçamento&quot; pra começar." />
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {config.categories.map(c => {
+          const a = accents[c.accent] || accents.rose;
+          return (
+            <div key={c.name} className="p-3 rounded-lg bg-white/5">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div style={{ background: a.soft, color: a.hex }}
+                       className="p-1.5 rounded-md shrink-0">
+                    <Target size={13} />
+                  </div>
+                  <span className="font-medium truncate">{c.name}</span>
+                </div>
+                <DeleteIconBtn onClick={() => remove(c.name)} />
+              </div>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-white/45">Limite</span>
+                  <span className="text-xs text-white/40">R$</span>
+                  <MiniInput
+                    type="number"
+                    value={c.budget ?? ""}
+                    onChange={e => updateBudget(c.name, e.target.value)}
+                    placeholder="—"
+                    width={70}
+                  />
+                  <span className="text-xs text-white/40">/mês</span>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  {accentKeys.map(k => (
+                    <button key={k} onClick={() => setAccent(c.name, k)}
+                            className="w-5 h-5 rounded-full transition shrink-0"
+                            style={{
+                              background: accents[k].hex,
+                              outline: c.accent === k ? "2px solid white" : "none",
+                              outlineOffset: 1,
+                            }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function AttributedConfig({ config, setConfig }) {
+  const [adding, setAdding] = useState(false);
+  const [val, setVal] = useState("");
+
+  const add = (name) => {
+    if (config.attributedTo.find(a => a.name === name)) return;
+    setConfig({ attributedTo: [...config.attributedTo, { name, isMine: true }] });
+  };
+  const submit = () => {
+    const v = val.trim();
+    if (v) add(v);
+    setVal(""); setAdding(false);
+  };
+  const remove = (name) => {
+    setConfig({ attributedTo: config.attributedTo.filter(p => p.name !== name) });
+  };
+  const toggleMine = (name) => {
+    setConfig({
+      attributedTo: config.attributedTo.map(a =>
+        a.name === name ? { ...a, isMine: a.isMine === false ? true : false } : a
+      ),
+    });
+  };
+
+  return (
+    <Card className="p-4 sm:p-6 lg:col-span-2">
+      <SectionTitle icon={Users} title="Atribuído a"
+                    subtitle="Quem é dono do gasto. 🤝 = de terceiros (vai pra A receber)"
+                    accent="fuchsia"
+                    action={<AdderToggle open={adding} onToggle={setAdding} />} />
+
+      {/* Texto educativo */}
+      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed"
+           style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
+        Marque com <strong className="text-emerald-300">👤 É meu</strong> os gastos que descontam do seu saldo (Eu, Casal, sua empresa).
+        Marque com <strong className="text-amber-300">🤝 Adiantamento</strong> os de terceiros (Pai, Sogro) — vão pra "A receber" e <strong>não descontam</strong>.
+      </div>
+
+      {adding && (
+        <AdderShell accent="fuchsia" title="Novo atribuído">
+          <div className="flex gap-2 items-center">
+            <input
+              autoFocus
+              type="text"
+              value={val}
+              onChange={e => setVal(e.target.value)}
+              placeholder="Ex: Esposa, Pai, Empresa X"
+              onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setVal(""); setAdding(false); } }}
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                flex: 1,
+                minWidth: 0,
+                boxSizing: "border-box",
+              }}
+              className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-fuchsia-400 placeholder:text-white/30"
+            />
+            <button onClick={submit} disabled={!val.trim()}
+                    style={{ opacity: val.trim() ? 1 : 0.4 }}
+                    className="px-3 py-2 rounded-lg bg-fuchsia-500/20 text-fuchsia-300 hover:bg-fuchsia-500/30 transition shrink-0 flex items-center gap-1.5">
+              <Check size={14} /> <span className="text-sm">Salvar</span>
+            </button>
+          </div>
+        </AdderShell>
+      )}
+
+      <div className="space-y-1.5">
+        {config.attributedTo.length === 0 && !adding && (
+          <Empty text="Nenhum atribuído cadastrado" />
+        )}
+        {config.attributedTo.map(p => {
+          const a = accents[hashAccent(p.name)];
+          const mine = p.isMine !== false;
+          return (
+            <div key={p.name} className="flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap"
+                 style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: a.hex }} />
+                <span className="font-medium truncate">{p.name}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => toggleMine(p.name)}
+                        className="text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition shrink-0"
+                        style={{
+                          background: mine ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                          color: mine ? accents.emerald.hex : accents.amber.hex,
+                          border: `1px solid ${mine ? accents.emerald.hex : accents.amber.hex}30`,
+                        }}>
+                  {mine ? "👤 É meu" : "🤝 Adiantamento"}
+                </button>
+                <DeleteIconBtn onClick={() => remove(p.name)} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function IncomeSourcesConfig({ config, setConfig }) {
+  const [adding, setAdding] = useState(false);
+  const [val, setVal] = useState("");
+
+  const add = (name) => {
+    if (config.incomeSources.includes(name)) return;
+    setConfig({ incomeSources: [...config.incomeSources, name] });
+  };
+  const submit = () => {
+    const v = val.trim();
+    if (v) add(v);
+    setVal(""); setAdding(false);
+  };
+  const remove = (name) => {
+    setConfig({ incomeSources: config.incomeSources.filter(s => s !== name) });
+  };
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={Wallet} title="Fontes de receita"
+                    subtitle="Empresas / origens das suas entradas"
+                    accent="emerald"
+                    action={<AdderToggle open={adding} onToggle={setAdding} label="Nova" />} />
+      {adding && (
+        <AdderShell accent="emerald" title="Nova fonte">
+          <div className="flex gap-2 items-center">
+            <input
+              autoFocus
+              type="text"
+              value={val}
+              onChange={e => setVal(e.target.value)}
+              placeholder="Ex: Alquimia Digital, Rico Seguros"
+              onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setVal(""); setAdding(false); } }}
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                flex: 1,
+                minWidth: 0,
+                boxSizing: "border-box",
+              }}
+              className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-emerald-400 placeholder:text-white/30"
+            />
+            <button onClick={submit} disabled={!val.trim()}
+                    style={{ opacity: val.trim() ? 1 : 0.4 }}
+                    className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition shrink-0 flex items-center gap-1.5">
+              <Check size={14} /> <span className="text-sm">Salvar</span>
+            </button>
+          </div>
+        </AdderShell>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {config.incomeSources.length === 0 && !adding && (
+          <Empty text="Nenhuma fonte cadastrada" />
+        )}
+        {config.incomeSources.map(p => {
+          const a = accents[hashAccent(p)];
+          return (
+            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg"
+                 style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+              <span className="text-sm">{p}</span>
+              <button onClick={() => remove(p)}
+                      title="Remover"
+                      className="p-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition">
+                <X size={12} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+    /* === APP CODE END === */
+
+    // Renderiza
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
