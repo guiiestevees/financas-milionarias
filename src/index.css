@@ -25,6 +25,13 @@ input[type='number'] {
 }
 
 /* Date input styling */
+input[type='date'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
 input[type='date']::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
   cursor: pointer;
