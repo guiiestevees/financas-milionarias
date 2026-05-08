@@ -1,18 +1,17 @@
 import { AlertTriangle, CheckCircle2, Circle, CreditCard, Banknote, Calendar, Bell, Pencil, Trash2 } from 'lucide-react'
 import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
-import { fmtBRL, todayDay } from '../../lib/utils'
+import { fmtBRL, dueDayStatus } from '../../lib/utils'
 
-export default function DespesaRow({ d, config, onTogglePaid, onEdit, onRemove }) {
+export default function DespesaRow({ d, config, activeMonth, onTogglePaid, onEdit, onRemove }) {
   const cardObj = config.cards.find((c) => c.name === d.paymentMethod)
   const catObj = config.categories.find((c) => c.name === d.category)
   const pmAccent = cardObj?.accent || (d.paymentMethod === 'Pix' ? 'emerald' : d.paymentMethod === 'Débito' ? 'sky' : d.paymentMethod ? hashAccent(d.paymentMethod) : 'sky')
   const pmA = accents[pmAccent]
   const catA = catObj ? accents[catObj.accent] : null
   const attA = d.attributedTo ? accents[attrAccentKey(d.attributedTo, config.attributedTo)] : null
-  const today = todayDay()
-  const dueDayN = d.dueDay ? Number(d.dueDay) : null
-  const overdue = !d.paid && dueDayN && dueDayN < today && !cardObj
-  const dueToday = !d.paid && dueDayN === today
+  const status = dueDayStatus(activeMonth, d.dueDay)
+  const overdue = !d.paid && status.overdue && !cardObj
+  const dueToday = !d.paid && status.isToday
 
   let bg = d.paid ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)'
   let border = '1px solid transparent'

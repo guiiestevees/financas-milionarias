@@ -7,7 +7,7 @@ import FilterBar from './FilterBar'
 import EditDespesaModal from './EditDespesaModal'
 import { uid, fmtBRL, isMineFor } from '../../lib/utils'
 
-export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
+export default function GastosTab({ month, setMonth, addDespesaPropagated, activeMonth }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
   const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
@@ -110,7 +110,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
         {fixos.length === 0 ? <Empty text={filterActive ? '—' : 'Nenhum gasto fixo neste mês'} /> : (
           <div className="space-y-1.5">
             {fixos.map((d) => (
-              <DespesaRow key={d.id} d={d} config={cfg} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
+              <DespesaRow key={d.id} d={d} config={cfg} activeMonth={activeMonth} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
             ))}
             <div className="border-t border-white/5 mt-3 pt-3 flex items-center justify-between text-sm">
               <span className="text-white/50">Total de fixos</span>
@@ -129,7 +129,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
         {eventuais.length === 0 ? <Empty text={filterActive ? '—' : 'Nenhum gasto eventual neste mês'} /> : (
           <div className="space-y-1.5">
             {eventuais.map((d) => (
-              <DespesaRow key={d.id} d={d} config={cfg} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
+              <DespesaRow key={d.id} d={d} config={cfg} activeMonth={activeMonth} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
             ))}
             <div className="border-t border-white/5 mt-3 pt-3 flex items-center justify-between text-sm">
               <span className="text-white/50">Total de eventuais</span>
@@ -148,7 +148,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated }) {
           />
           <div className="space-y-1.5">
             {atribuidos.map((d) => (
-              <DespesaRow key={d.id} d={d} config={cfg} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
+              <DespesaRow key={d.id} d={d} config={cfg} activeMonth={activeMonth} onTogglePaid={() => updateDespesa(d.id, { paid: !d.paid })} onEdit={() => setEditing(d)} onRemove={() => removeDespesa(d.id)} />
             ))}
             <div className="border-t border-white/5 mt-3 pt-3 flex items-center justify-between text-sm">
               <span className="text-white/50">Total atribuído</span>

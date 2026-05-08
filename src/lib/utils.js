@@ -39,3 +39,17 @@ export const cardDueDayFor = (cardName, config) => {
   const c = config?.cards?.find?.((x) => x.name === cardName)
   return c?.dueDay ? Number(c.dueDay) : null
 }
+
+// Returns { overdue, isToday } for a bill with the given dueDay in the given activeMonth (YYYY-MM).
+// Past months: every day is in the past — unpaid bills there are overdue.
+// Future months: nothing is overdue/today yet.
+// Current month: compare the day-of-month.
+export const dueDayStatus = (activeMonth, dueDay) => {
+  if (!dueDay) return { overdue: false, isToday: false }
+  const cur = getCurrentMonth()
+  if (activeMonth < cur) return { overdue: true, isToday: false }
+  if (activeMonth > cur) return { overdue: false, isToday: false }
+  const today = todayDay()
+  const day = Number(dueDay)
+  return { overdue: day < today, isToday: day === today }
+}

@@ -7,7 +7,7 @@ import {
 import { Card, Empty, SectionTitle, MetricCard } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
 import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
-import { fmtBRL, todayDay, isMineFor, uid } from '../../lib/utils'
+import { fmtBRL, todayDay, isMineFor, uid, dueDayStatus, getCurrentMonth } from '../../lib/utils'
 
 // ---------- aggregations ----------
 function useMonthAggregates(month) {
@@ -139,13 +139,15 @@ function BreakdownItem({ label, value, hint, accent, emphasis }) {
 }
 
 // ---------- CardsPanel ----------
-function CardsPanel({ cards, setMonth }) {
+function CardsPanel({ cards, setMonth, activeMonth }) {
   const totalAPagar = cards.reduce((s, c) => s + c.aPagar, 0)
+  const isCurrentMonth = activeMonth === getCurrentMonth()
   const today = todayDay()
   const sorted = [...cards].sort((a, b) => {
     if (!a.dueDay && !b.dueDay) return b.total - a.total
     if (!a.dueDay) return 1
     if (!b.dueDay) return -1
+    if (!isCurrentMonth) return a.dueDay - b.dueDay
     const da = a.dueDay >= today ? a.dueDay - today : 100 + a.dueDay
     const db = b.dueDay >= today ? b.dueDay - today : 100 + b.dueDay
     return da - db
@@ -163,7 +165,7 @@ function CardsPanel({ cards, setMonth }) {
         <div className="space-y-3">
           {sorted.map((c) => {
             const a = accents[c.accent] || accents.cyan
-            const isToday = c.dueDay === today && c.aPagar > 0
+            const isToday = isCurrentMonth && c.dueDay === today && c.aPagar > 0
             const pct = c.total > 0 ? ((c.total - c.aPagar) / c.total) * 100 : 0
             const isPaid = c.aPagar === 0 && c.total > 0
             const dueMsg = !c.dueDay ? 'sem vencimento cadastrado' : isToday ? `vence HOJE (dia ${c.dueDay})` : `vence dia ${c.dueDay}`
@@ -362,8 +364,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
 }
 
 // ---------- BillsReminderPanel ----------
-function BillsReminderPanel({ month, setMonth }) {
-  const today = todayDay()
+function BillsReminderPanel({ month, setMonth, activeMonth }) {
   const bills = useMemo(() => month.despesas.filter((d) => d.dueDay && isMineFor(d.attributedTo, month.config) && !month.config?.cards?.some((c) => c.name === d.paymentMethod)).sort((a, b) => (a.paid === b.paid ? Number(a.dueDay) - Number(b.dueDay) : a.paid ? 1 : -1)), [month.despesas, month.config])
   const pending = bills.filter((d) => !d.paid).length
   const togglePaid = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) }))
@@ -374,8 +375,9 @@ function BillsReminderPanel({ month, setMonth }) {
       {bills.length === 0 ? <Empty text="Nenhuma conta com vencimento neste mês" /> : (
         <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
           {bills.map((d) => {
-            const overdue = !d.paid && Number(d.dueDay) < today
-            const isToday = !d.paid && Number(d.dueDay) === today
+            const status = dueDayStatus(activeMonth, d.dueDay)
+            const overdue = !d.paid && status.overdue
+            const isToday = !d.paid && status.isToday
             return (
               <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5" style={{ opacity: d.paid ? 0.5 : 1 }}>
                 <button onClick={() => togglePaid(d.id)}>
@@ -422,7 +424,7 @@ function CashPanel({ aVista, total }) {
 }
 
 // ---------- PainelTab (export) ----------
-export default function PainelTab({ month, setMonth, setTab }) {
+export default function PainelTab({ month, setMonth, setTab, activeMonth }) {
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
 
@@ -468,9 +470,9 @@ export default function PainelTab({ month, setMonth, setTab }) {
       </div>
       {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BillsReminderPanel month={month} setMonth={setMonth} />
+          <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} />
           {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} />}
-          {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} />}
+          {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
       )}

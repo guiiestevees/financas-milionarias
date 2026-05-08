@@ -249,9 +249,9 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
         <ErrorBoundary key={tab + activeMonth}>
-          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} />}
+          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
-          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} />}
+          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} />}
           {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
         </ErrorBoundary>
       </main>
