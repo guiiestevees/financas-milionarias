@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Sparkles, Check, X, CreditCard, Banknote, Receipt, Calendar } from 'lucide-react'
 import { Chip, Toggle, Btn, Field, ModePicker } from '../../components/ui'
 import { MoneyInput, TextInput } from '../../components/ui'
-import { accents, accentKeys, attrAccentKey } from '../../lib/constants'
+import { accents, accentKeys, hashAccent, attrAccentKey } from '../../lib/constants'
 import { todayISO, cardDueDayFor } from '../../lib/utils'
 
 export default function DespesaForm({ config, initial, onSubmit, onCancel, isEditing = false }) {

@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, Circle, CreditCard, Banknote, Calendar, Bell, Pencil, Trash2 } from 'lucide-react'
-import { accents, attrAccentKey } from '../../lib/constants'
+import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 import { fmtBRL, todayDay } from '../../lib/utils'
 
 export default function DespesaRow({ d, config, onTogglePaid, onEdit, onRemove }) {

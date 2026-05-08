@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { storage } from '../../lib/storage'
 import { migrateData } from '../../lib/migrate'
-import { createEmptyMonth, createEmptyConfig } from '../../lib/constants'
+import { createEmptyMonth, createEmptyConfig, safeConfig, computeEffectiveConfig } from '../../lib/constants'
 import { getCurrentMonth, shiftMonth, formatMonthLabel, uid } from '../../lib/utils'
 import { Header } from '../../components/layout/Header'
 import { Footer } from '../../components/layout/Footer'
 import { Tabs } from '../../components/layout/Tabs'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
 import PainelTab from '../../features/painel/PainelTab'
 import ReceitasTab from '../../features/receitas/ReceitasTab'
 import GastosTab from '../../features/gastos/GastosTab'
@@ -64,33 +65,44 @@ export default function AppShell() {
   }, [data])
 
   const rawMonth = data ? (data.months?.[activeMonth] ?? createEmptyMonth()) : null
-  // Defensive: always ensure config/despesas/receitas exist regardless of stored data shape
+  // The displayed config is the GLOBAL effective config — same in every month.
+  // Past expenses keep their own paymentMethod/category/attributedTo values, so historical
+  // entries display correctly regardless of current config state.
+  const effectiveConfig = data ? computeEffectiveConfig(data) : safeConfig(null)
   const month = rawMonth ? {
     ...rawMonth,
-    config:   rawMonth.config   ?? createEmptyConfig(),
-    despesas: rawMonth.despesas ?? [],
-    receitas: rawMonth.receitas ?? [],
+    config:   effectiveConfig,
+    despesas: Array.isArray(rawMonth.despesas) ? rawMonth.despesas.filter(Boolean) : [],
+    receitas: Array.isArray(rawMonth.receitas) ? rawMonth.receitas.filter(Boolean) : [],
   } : null
 
-  // Applies config patch to the current month and all future months
+  // Applies a config patch globally — writes the new config to data.config (canonical source)
+  // AND mirrors it on every existing month so back-compat readers still work.
   const setConfig = useCallback((patch) => {
     setData((prev) => {
-      const curCfg = prev.months?.[activeMonth]?.config ?? createEmptyConfig()
+      const curCfg = computeEffectiveConfig(prev)
       const newCfg = { ...curCfg, ...patch }
-      const updatedMonths = {}
-      for (const ym of Object.keys(prev.months || {})) {
-        updatedMonths[ym] = ym >= activeMonth
-          ? { ...(prev.months[ym]), config: newCfg }
-          : prev.months[ym]
+      const updatedMonths = { ...(prev.months || {}) }
+      for (const ym of Object.keys(updatedMonths)) {
+        updatedMonths[ym] = { ...updatedMonths[ym], config: newCfg }
       }
-      return { ...prev, months: updatedMonths }
+      if (!updatedMonths[activeMonth]) {
+        updatedMonths[activeMonth] = { ...createEmptyMonth(), config: newCfg }
+      }
+      return { ...prev, config: newCfg, months: updatedMonths }
     })
   }, [activeMonth])
 
   const setMonth = useCallback((updater) => {
     setData((prev) => {
       const raw = prev.months?.[activeMonth] ?? createEmptyMonth()
-      const cur = { ...raw, config: raw.config ?? createEmptyConfig(), despesas: raw.despesas ?? [], receitas: raw.receitas ?? [] }
+      const effectiveCfg = computeEffectiveConfig(prev)
+      const cur = {
+        ...raw,
+        config: effectiveCfg,
+        despesas: Array.isArray(raw.despesas) ? raw.despesas.filter(Boolean) : [],
+        receitas: Array.isArray(raw.receitas) ? raw.receitas.filter(Boolean) : [],
+      }
       const updated = typeof updater === 'function' ? updater(cur) : updater
       return { ...prev, months: { ...prev.months, [activeMonth]: updated } }
     })
@@ -100,45 +112,45 @@ export default function AppShell() {
     const newKey = shiftMonth(activeMonth, dir)
     setData((prev) => {
       const prevData = prev.months?.[activeMonth] ?? createEmptyMonth()
-      const recurring = (prevData.despesas || [])
-        .filter((d) => d.recurring)
+      const sourceCfg = computeEffectiveConfig(prev)
+      const recurring = (Array.isArray(prevData.despesas) ? prevData.despesas : [])
+        .filter((d) => d && d.recurring)
         .map((d) => ({ ...d, id: uid(), paid: false }))
-      const recurringReceitas = (prevData.receitas || [])
-        .filter((r) => r.recurring)
+      const recurringReceitas = (Array.isArray(prevData.receitas) ? prevData.receitas : [])
+        .filter((r) => r && r.recurring)
         .map((r) => ({ ...r, id: uid() }))
 
       const existing = prev.months?.[newKey]
       if (existing) {
-        // Month exists — backfill recurring items if it's missing them
-        // (happens when the month was created only with installment entries)
-        const hasRecurringDespesas = (existing.despesas || []).some((d) => d.recurring)
-        const hasReceitas = (existing.receitas || []).length > 0
-        if (hasRecurringDespesas && hasReceitas) return prev  // already complete
-
+        const hasRecurringDespesas = (Array.isArray(existing.despesas) ? existing.despesas : []).some((d) => d?.recurring)
+        const hasReceitas = (Array.isArray(existing.receitas) ? existing.receitas : []).length > 0
+        // Always assign sourceCfg as the persisted config. Since computeEffectiveConfig already
+        // walks past months, this preserves any month-specific changes the user made via setConfig
+        // (those would already be reflected in sourceCfg's chain).
         return {
           ...prev,
           months: {
             ...prev.months,
             [newKey]: {
               ...existing,
-              config: existing.config ?? prevData.config ?? createEmptyConfig(),
+              config: sourceCfg,
               despesas: hasRecurringDespesas
-                ? (existing.despesas || [])
-                : [...recurring, ...(existing.despesas || [])],
+                ? (Array.isArray(existing.despesas) ? existing.despesas : [])
+                : [...recurring, ...(Array.isArray(existing.despesas) ? existing.despesas : [])],
               receitas: hasReceitas
-                ? (existing.receitas || [])
+                ? (Array.isArray(existing.receitas) ? existing.receitas : [])
                 : recurringReceitas,
             },
           },
         }
       }
 
-      // New month — create from scratch
+      // New month — create from scratch with the source month's effective config
       return {
         ...prev,
         months: {
           ...prev.months,
-          [newKey]: { receitas: recurringReceitas, despesas: recurring, config: { ...(prevData.config ?? createEmptyConfig()) } },
+          [newKey]: { receitas: recurringReceitas, despesas: recurring, config: sourceCfg },
         },
       }
     })
@@ -153,11 +165,13 @@ export default function AppShell() {
     setData((prev) => {
       const next = { ...prev, months: { ...prev.months } }
       const makeEntry = (extra) => ({ id: uid(), createdAt: Date.now(), ...despesa, ...extra })
+      const sourceCfg = computeEffectiveConfig(next)
 
       const curData = next.months[activeMonth] ?? createEmptyMonth()
       next.months[activeMonth] = {
         ...curData,
-        despesas: [makeEntry({}), ...(curData.despesas || [])],
+        config: curData.config || sourceCfg,
+        despesas: [makeEntry({}), ...(Array.isArray(curData.despesas) ? curData.despesas : [])],
       }
 
       for (let i = 1; i <= remaining; i++) {
@@ -172,17 +186,17 @@ export default function AppShell() {
             ...fmData,
             despesas: [
               makeEntry({ installmentCurrent: cur + i, paid: false, date: futureDate }),
-              ...(fmData.despesas || []),
+              ...(Array.isArray(fmData.despesas) ? fmData.despesas : []),
             ],
           }
         } else {
           // New month — copy recurring items from the previous month + add installment
           const srcData = next.months[shiftMonth(activeMonth, i - 1)] ?? createEmptyMonth()
-          const recurringDespesas = (srcData.despesas || [])
-            .filter((d) => d.recurring)
+          const recurringDespesas = (Array.isArray(srcData.despesas) ? srcData.despesas : [])
+            .filter((d) => d && d.recurring)
             .map((d) => ({ ...d, id: uid(), paid: false }))
-          const recurringReceitas = (srcData.receitas || [])
-            .filter((r) => r.recurring)
+          const recurringReceitas = (Array.isArray(srcData.receitas) ? srcData.receitas : [])
+            .filter((r) => r && r.recurring)
             .map((r) => ({ ...r, id: uid() }))
           next.months[fm] = {
             receitas: recurringReceitas,
@@ -190,7 +204,7 @@ export default function AppShell() {
               makeEntry({ installmentCurrent: cur + i, paid: false, date: futureDate }),
               ...recurringDespesas,
             ],
-            config: { ...(srcData.config ?? createEmptyConfig()) },
+            config: sourceCfg,
           }
         }
       }
@@ -234,10 +248,12 @@ export default function AppShell() {
       </div>
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
-        {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} />}
-        {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
-        {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} />}
-        {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
+        <ErrorBoundary key={tab + activeMonth}>
+          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} />}
+          {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
+          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} />}
+          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
+        </ErrorBoundary>
       </main>
 
       <div className="w-full max-w-4xl mx-auto px-4">

@@ -37,6 +37,69 @@ export const createEmptyConfig = () => ({
   incomeSources: [],
 })
 
+const objArr = (a) => Array.isArray(a) ? a.filter((x) => x && typeof x === 'object' && x.name) : []
+const strArr = (a) => Array.isArray(a) ? a.filter((x) => typeof x === 'string' && x) : []
+// Normalizes attributedTo: legacy strings become { name, isMine: true } objects
+const normalizeAttr = (a) => {
+  if (!Array.isArray(a)) return []
+  return a
+    .map((x) => typeof x === 'string' ? { name: x, isMine: true } : x)
+    .filter((x) => x && typeof x === 'object' && x.name)
+}
+
+// Merges stored config with defaults, guaranteeing all fields are real arrays of valid items
+export const safeConfig = (cfg) => {
+  const src = cfg || {}
+  const pm = strArr(src.paymentMethods)
+  return {
+    cards:          objArr(src.cards),
+    paymentMethods: pm.length > 0 ? pm : [...DEFAULT_PAYMENT_METHODS],
+    categories:     objArr(src.categories),
+    attributedTo:   normalizeAttr(src.attributedTo),
+    incomeSources:  strArr(src.incomeSources),
+  }
+}
+
+// Computes the effective (global) config by merging across ALL stored months.
+// For each field, takes the value from the latest month that has it set.
+// Result: a single complete config used in every month — same orçamentos, cartões,
+// atribuídos, etc. wherever you are. Past expenses keep their own paymentMethod/
+// category/attributedTo values (those live on each despesa, not on the config).
+export const computeEffectiveConfig = (data) => {
+  // Accept either {months, config} or just months (back-compat with old callers)
+  const months = data && data.months ? data.months : (data || {})
+  const topLevel = data && data.config ? safeConfig(data.config) : null
+
+  const sortedYms = Object.keys(months).sort()
+  const effective = {
+    cards: [],
+    paymentMethods: [...DEFAULT_PAYMENT_METHODS],
+    categories: [],
+    attributedTo: [],
+    incomeSources: [],
+  }
+
+  // Top-level config (if present) is treated as the earliest baseline
+  if (topLevel) {
+    if (topLevel.cards.length > 0)          effective.cards         = topLevel.cards
+    if (topLevel.categories.length > 0)     effective.categories    = topLevel.categories
+    if (topLevel.attributedTo.length > 0)   effective.attributedTo  = topLevel.attributedTo
+    if (topLevel.incomeSources.length > 0)  effective.incomeSources = topLevel.incomeSources
+    if (topLevel.paymentMethods.length > 0) effective.paymentMethods = topLevel.paymentMethods
+  }
+
+  // Latest month with a value for each field wins
+  for (const ym of sortedYms) {
+    const cfg = safeConfig(months[ym]?.config)
+    if (cfg.cards.length > 0)         effective.cards         = cfg.cards
+    if (cfg.categories.length > 0)    effective.categories    = cfg.categories
+    if (cfg.attributedTo.length > 0)  effective.attributedTo  = cfg.attributedTo
+    if (cfg.incomeSources.length > 0) effective.incomeSources = cfg.incomeSources
+    if (cfg.paymentMethods.length > 0) effective.paymentMethods = cfg.paymentMethods
+  }
+  return effective
+}
+
 export const createEmptyMonth = () => ({
   receitas: [],
   despesas: [],
