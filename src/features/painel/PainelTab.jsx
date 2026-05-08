@@ -478,11 +478,10 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       )}
     </div>
     {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => {
-      const oldTotal = Number(editing.installmentTotal) || 1
-      const newTotal = Number(patch.installmentTotal) || 1
       updateDespesa(editing.id, patch)
-      if (expandInstallments && newTotal > oldTotal) {
-        expandInstallments({ ...editing, ...patch }, oldTotal)
+      const merged = { ...editing, ...patch }
+      if (expandInstallments && (Number(merged.installmentTotal) || 1) > 1) {
+        expandInstallments(merged)
       }
       setEditing(null)
     }} onClose={() => setEditing(null)} />}

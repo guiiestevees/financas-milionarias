@@ -213,20 +213,20 @@ export default function AppShell() {
     })
   }, [activeMonth])
 
-  // After an edit increases installmentTotal, create any missing future parcels.
-  // Matches existing parcels by description so we don't duplicate.
-  const expandInstallments = useCallback((despesa, oldTotal) => {
+  // Ensure every expected future parcel (cur+1 .. newTotal) exists in its month.
+  // Skips parcels that already exist (matched by description + installmentCurrent),
+  // so this is safe to run on every edit — it only fills in what's missing.
+  const expandInstallments = useCallback((despesa) => {
     const newTotal = Number(despesa.installmentTotal) || 1
     const cur = Number(despesa.installmentCurrent) || 1
-    if (newTotal <= (oldTotal || 1)) return
+    if (newTotal <= cur) return
 
     setData((prev) => {
       const next = { ...prev, months: { ...prev.months } }
       const sourceCfg = computeEffectiveConfig(next)
       const day = despesa.date?.slice(8)
 
-      // Add parcels (oldTotal+1) through newTotal in their corresponding future months
-      for (let inst = (oldTotal || 1) + 1; inst <= newTotal; inst++) {
+      for (let inst = cur + 1; inst <= newTotal; inst++) {
         const monthsAhead = inst - cur
         if (monthsAhead <= 0) continue
         const fm = shiftMonth(activeMonth, monthsAhead)
