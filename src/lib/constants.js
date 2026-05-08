@@ -97,6 +97,13 @@ export const computeEffectiveConfig = (data) => {
     if (cfg.incomeSources.length > 0) effective.incomeSources = cfg.incomeSources
     if (cfg.paymentMethods.length > 0) effective.paymentMethods = cfg.paymentMethods
   }
+
+  // Ensure every registered card is also a payment method (fixes legacy months
+  // where paymentMethods was saved without the cards added later).
+  const cardNames = effective.cards.map((c) => c.name)
+  const pmSet = new Set(effective.paymentMethods)
+  for (const name of cardNames) if (!pmSet.has(name)) effective.paymentMethods = [...effective.paymentMethods, name]
+
   return effective
 }
 
