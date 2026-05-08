@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Wallet, Plus, Trash2, ArrowUpRight, Repeat2, Pencil, X } from 'lucide-react'
-import { Card, SectionTitle, Empty, Btn, MetricCard, MoneyInput, Select } from '../../components/ui'
+import { Card, SectionTitle, Empty, Btn, MetricCard, MoneyInput, Select, DateInput } from '../../components/ui'
 import { accents, hashAccent } from '../../lib/constants'
 import { uid, fmtBRL, todayISO } from '../../lib/utils'
 
@@ -14,51 +14,7 @@ const inputStyle = {
   display: 'block',
   padding: '8px 12px',
   borderRadius: '8px',
-  fontSize: '14px',
-}
-
-// YYYY-MM-DD → DD/MM/AAAA
-function toDisplay(iso) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  return d && m && y ? `${d}/${m}/${y}` : ''
-}
-
-// DD/MM/AAAA → YYYY-MM-DD (returns '' if incomplete)
-function toISO(display) {
-  const match = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : ''
-}
-
-// Auto-mask: only digits → DD/MM/AAAA
-function maskDate(raw) {
-  const d = raw.replace(/\D/g, '').slice(0, 8)
-  if (d.length <= 2) return d
-  if (d.length <= 4) return d.slice(0, 2) + '/' + d.slice(2)
-  return d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4)
-}
-
-function DateInput({ value, onChange }) {
-  const [display, setDisplay] = useState(() => toDisplay(value))
-
-  const handle = (e) => {
-    const masked = maskDate(e.target.value)
-    setDisplay(masked)
-    const iso = toISO(masked)
-    if (iso || masked === '') onChange(iso)
-  }
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      placeholder="DD/MM/AAAA"
-      value={display}
-      onChange={handle}
-      style={inputStyle}
-      className="placeholder:text-white/30"
-    />
-  )
+  fontSize: '16px',
 }
 
 function ReceitaForm({ config, values, onChange, onSave, onCancel, saveLabel = 'Salvar' }) {

@@ -424,7 +424,7 @@ function CashPanel({ aVista, total }) {
 }
 
 // ---------- PainelTab (export) ----------
-export default function PainelTab({ month, setMonth, setTab, activeMonth }) {
+export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments }) {
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
 
@@ -477,7 +477,15 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth }) {
         </div>
       )}
     </div>
-    {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => { updateDespesa(editing.id, patch); setEditing(null) }} onClose={() => setEditing(null)} />}
+    {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => {
+      const oldTotal = Number(editing.installmentTotal) || 1
+      const newTotal = Number(patch.installmentTotal) || 1
+      updateDespesa(editing.id, patch)
+      if (expandInstallments && newTotal > oldTotal) {
+        expandInstallments({ ...editing, ...patch }, oldTotal)
+      }
+      setEditing(null)
+    }} onClose={() => setEditing(null)} />}
     </>
   )
 }

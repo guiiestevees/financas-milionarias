@@ -213,6 +213,69 @@ export default function AppShell() {
     })
   }, [activeMonth])
 
+  // After an edit increases installmentTotal, create any missing future parcels.
+  // Matches existing parcels by description so we don't duplicate.
+  const expandInstallments = useCallback((despesa, oldTotal) => {
+    const newTotal = Number(despesa.installmentTotal) || 1
+    const cur = Number(despesa.installmentCurrent) || 1
+    if (newTotal <= (oldTotal || 1)) return
+
+    setData((prev) => {
+      const next = { ...prev, months: { ...prev.months } }
+      const sourceCfg = computeEffectiveConfig(next)
+      const day = despesa.date?.slice(8)
+
+      // Add parcels (oldTotal+1) through newTotal in their corresponding future months
+      for (let inst = (oldTotal || 1) + 1; inst <= newTotal; inst++) {
+        const monthsAhead = inst - cur
+        if (monthsAhead <= 0) continue
+        const fm = shiftMonth(activeMonth, monthsAhead)
+        const fmData = next.months[fm] ?? createEmptyMonth()
+
+        // Skip if a parcel for this purchase + installment already exists in that month
+        const existingList = Array.isArray(fmData.despesas) ? fmData.despesas : []
+        const already = existingList.some(
+          (d) => d && d.description === despesa.description && Number(d.installmentCurrent) === inst
+        )
+        if (already) continue
+
+        const futureDate = fm + (day ? '-' + day : '-01')
+        const newEntry = {
+          ...despesa,
+          id: uid(),
+          installmentCurrent: inst,
+          installmentTotal: newTotal,
+          paid: false,
+          date: futureDate,
+          createdAt: Date.now(),
+        }
+
+        if (next.months[fm]) {
+          next.months[fm] = {
+            ...fmData,
+            despesas: [newEntry, ...existingList],
+          }
+        } else {
+          // New month — also bring along recurring items from the previous month
+          const srcData = next.months[shiftMonth(activeMonth, monthsAhead - 1)] ?? createEmptyMonth()
+          const recurringDespesas = (Array.isArray(srcData.despesas) ? srcData.despesas : [])
+            .filter((d) => d && d.recurring)
+            .map((d) => ({ ...d, id: uid(), paid: false }))
+          const recurringReceitas = (Array.isArray(srcData.receitas) ? srcData.receitas : [])
+            .filter((r) => r && r.recurring)
+            .map((r) => ({ ...r, id: uid() }))
+          next.months[fm] = {
+            receitas: recurringReceitas,
+            despesas: [newEntry, ...recurringDespesas],
+            config: sourceCfg,
+          }
+        }
+      }
+
+      return next
+    })
+  }, [activeMonth])
+
   const updateBrand = useCallback((patch) => {
     setData((prev) => ({ ...prev, brand: { ...(prev.brand || {}), ...patch } }))
   }, [])
@@ -249,9 +312,9 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
         <ErrorBoundary key={tab + activeMonth}>
-          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} />}
+          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
-          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} />}
+          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} />}
           {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
         </ErrorBoundary>
       </main>

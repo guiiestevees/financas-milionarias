@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Sparkles, Check, X, CreditCard, Banknote, Receipt, Calendar } from 'lucide-react'
 import { Chip, Toggle, Btn, Field, ModePicker } from '../../components/ui'
-import { MoneyInput, TextInput } from '../../components/ui'
+import { MoneyInput, TextInput, DateInput } from '../../components/ui'
 import { accents, accentKeys, hashAccent, attrAccentKey } from '../../lib/constants'
 import { todayISO, cardDueDayFor } from '../../lib/utils'
 
@@ -120,8 +120,8 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
         <Field label={isParcelado ? 'Valor da parcela' : 'Valor'}>
           <MoneyInput value={d.amount} onChange={(v) => setD({ ...d, amount: v })} />
         </Field>
-        <Field label="Data" hint="toque pra abrir o calendário">
-          <TextInput type="date" value={d.date} onChange={(v) => setD({ ...d, date: v })} style={{ fontSize: 14, textAlign: 'center', padding: '10px 8px' }} />
+        <Field label="Data">
+          <DateInput value={d.date} onChange={(v) => setD({ ...d, date: v })} />
         </Field>
       </div>
 

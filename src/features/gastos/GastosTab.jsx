@@ -7,7 +7,7 @@ import FilterBar from './FilterBar'
 import EditDespesaModal from './EditDespesaModal'
 import { uid, fmtBRL, isMineFor } from '../../lib/utils'
 
-export default function GastosTab({ month, setMonth, addDespesaPropagated, activeMonth }) {
+export default function GastosTab({ month, setMonth, addDespesaPropagated, activeMonth, expandInstallments }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
   const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
@@ -158,7 +158,15 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
         </Card>
       )}
 
-      {editing && <EditDespesaModal despesa={editing} config={cfg} onSave={(patch) => { updateDespesa(editing.id, patch); setEditing(null) }} onClose={() => setEditing(null)} />}
+      {editing && <EditDespesaModal despesa={editing} config={cfg} onSave={(patch) => {
+        const oldTotal = Number(editing.installmentTotal) || 1
+        const newTotal = Number(patch.installmentTotal) || 1
+        updateDespesa(editing.id, patch)
+        if (expandInstallments && newTotal > oldTotal) {
+          expandInstallments({ ...editing, ...patch }, oldTotal)
+        }
+        setEditing(null)
+      }} onClose={() => setEditing(null)} />}
     </div>
   )
 }
