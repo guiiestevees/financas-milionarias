@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
-  X, Plus, Pencil, Trash2,
+  X, Plus, Pencil, Trash2, ChevronDown,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
@@ -55,9 +55,14 @@ function useMonthAggregates(month) {
     const attributedList = Object.entries(byAttributed).map(([name, total]) => ({ name, total, accent: attrAccentKey(name, cfg.attributedTo) })).sort((a, b) => b.total - a.total)
 
     const byCategory = {}
-    cfg.categories.forEach((c) => { byCategory[c.name] = 0 })
-    minhas.forEach((d) => { const k = d.category || 'Sem categoria'; byCategory[k] = (byCategory[k] || 0) + Number(d.amount || 0) })
-    const categoryList = cfg.categories.map((c) => ({ ...c, spent: byCategory[c.name] || 0 }))
+    const itemsByCategory = {}
+    cfg.categories.forEach((c) => { byCategory[c.name] = 0; itemsByCategory[c.name] = [] })
+    minhas.forEach((d) => {
+      const k = d.category || 'Sem categoria'
+      byCategory[k] = (byCategory[k] || 0) + Number(d.amount || 0)
+      if (itemsByCategory[k]) itemsByCategory[k].push(d)
+    })
+    const categoryList = cfg.categories.map((c) => ({ ...c, spent: byCategory[c.name] || 0, items: itemsByCategory[c.name] || [] }))
     const orcamentoReservado = categoryList.filter((c) => c.budget && c.budget > 0).reduce((s, c) => s + Math.max(0, c.budget - c.spent), 0)
     const disponivel = sobra - orcamentoReservado
 
@@ -286,21 +291,24 @@ function AttributedPanel({ list, total }) {
 }
 
 // ---------- BudgetCategoriesPanel ----------
-function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
+function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove }) {
   const [quickName, setQuickName] = useState(null)
   const [quickAmount, setQuickAmount] = useState('')
+  const [quickDesc, setQuickDesc] = useState('')
+  const [expanded, setExpanded] = useState(null)
 
   const submitQuick = (catName) => {
     const v = Number(quickAmount)
     if (!v) return
-    addQuickDespesa({ category: catName, amount: v })
+    addQuickDespesa({ category: catName, amount: v, description: quickDesc })
     setQuickAmount('')
+    setQuickDesc('')
     setQuickName(null)
   }
 
   return (
     <Card className="p-4 sm:p-6" accent="rose">
-      <SectionTitle icon={Target} title="Orçamentos do mês" subtitle="Quanto sobra de cada limite. Clique em + pra lançar gasto rápido." accent="rose" />
+      <SectionTitle icon={Target} title="Orçamentos do mês" subtitle="Clique no orçamento para ver lançamentos. Use o + pra adicionar." accent="rose" />
       {categories.length === 0 ? <Empty text="Cadastre orçamentos em Configurações pra controlar limites mensais" /> : (
         <div className="space-y-4">
           {categories.map((c) => {
@@ -309,19 +317,29 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
             const pct = c.budget > 0 ? (c.spent / c.budget) * 100 : 0
             const over = remaining < 0
             const quickOpen = quickName === c.name
+            const isExpanded = expanded === c.name
+            const items = c.items || []
             return (
               <div key={c.name}>
                 <div className="flex items-center justify-between mb-1.5 gap-2">
-                  <div className="flex items-center gap-2 text-sm min-w-0">
+                  <button
+                    onClick={() => setExpanded(isExpanded ? null : c.name)}
+                    className="flex items-center gap-2 text-sm min-w-0 flex-1 text-left hover:opacity-80 transition"
+                    title={items.length > 0 ? `${items.length} lançamento(s)` : 'Nenhum lançamento'}
+                  >
                     <div style={{ background: a.soft, color: a.hex }} className="p-1 rounded-md shrink-0"><Target size={12} /></div>
                     <span className="font-medium truncate">{c.name}</span>
-                  </div>
+                    {items.length > 0 && (
+                      <span className="text-xs text-white/35 shrink-0">{items.length}</span>
+                    )}
+                    <ChevronDown size={12} className={`text-white/30 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-xs tabular-nums">
                       <span style={{ color: over ? accents.rose.hex : 'white' }}>{fmtBRL(c.spent)}</span>
                       <span className="text-white/40"> / {fmtBRL(c.budget)}</span>
                     </span>
-                    <button onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount('') }}
+                    <button onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(''); setQuickDesc('') }}
                             className="p-1.5 rounded transition shrink-0"
                             style={{ background: quickOpen ? a.soft : 'rgba(255,255,255,0.05)', color: quickOpen ? a.hex : 'rgba(255,255,255,0.55)' }}>
                       {quickOpen ? <X size={12} /> : <Plus size={12} />}
@@ -340,19 +358,54 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
                   <span className={over ? 'text-rose-400' : ''}>{over ? 'Estourou ' : 'Sobra '}{fmtBRL(Math.abs(remaining))}</span>
                 </div>
                 {quickOpen && (
-                  <div className="mt-2.5 p-2.5 rounded-lg flex items-center gap-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
-                    <span className="text-xs text-white/65 shrink-0">Quanto gastou?</span>
-                    <div style={{ flex: 1, minWidth: 0 }} onKeyDown={(e) => { if (e.key === 'Enter') submitQuick(c.name); if (e.key === 'Escape') { setQuickName(null); setQuickAmount('') } }}>
-                      <input type="text" inputMode="numeric" value={quickAmount === '' ? '' : Number(quickAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                             onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setQuickAmount(d === '' ? '' : parseInt(d, 10) / 100) }}
-                             autoFocus placeholder="0,00"
-                             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', outline: 'none', fontFamily: 'JetBrains Mono, monospace', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+                  <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+                    <input
+                      type="text"
+                      value={quickDesc}
+                      onChange={(e) => setQuickDesc(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') submitQuick(c.name); if (e.key === 'Escape') { setQuickName(null); setQuickAmount(''); setQuickDesc('') } }}
+                      placeholder="Descrição (ex: Mercado Pão de Açúcar)"
+                      autoFocus
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', outline: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 14 }}
+                      className="placeholder:text-white/35"
+                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-white/65 shrink-0">R$</span>
+                      <div style={{ flex: 1, minWidth: 0 }} onKeyDown={(e) => { if (e.key === 'Enter') submitQuick(c.name); if (e.key === 'Escape') { setQuickName(null); setQuickAmount(''); setQuickDesc('') } }}>
+                        <input type="text" inputMode="numeric" value={quickAmount === '' ? '' : Number(quickAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                               onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setQuickAmount(d === '' ? '' : parseInt(d, 10) / 100) }}
+                               placeholder="0,00"
+                               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', outline: 'none', fontFamily: 'JetBrains Mono, monospace', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+                      </div>
+                      <button onClick={() => submitQuick(c.name)} disabled={!quickAmount}
+                              className="p-1.5 rounded bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/40 disabled:opacity-30 transition shrink-0">
+                        <Check size={13} />
+                      </button>
                     </div>
-                    <button onClick={() => submitQuick(c.name)} disabled={!quickAmount}
-                            className="p-1.5 rounded bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/40 disabled:opacity-30 transition shrink-0">
-                      <Check size={13} />
-                    </button>
                   </div>
+                )}
+                {isExpanded && (
+                  items.length === 0 ? (
+                    <div className="mt-2 text-xs text-white/35 italic px-2">Nenhum lançamento ainda</div>
+                  ) : (
+                    <div className="mt-2 space-y-0.5">
+                      {[...items].sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((d) => (
+                        <div key={d.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 group text-xs">
+                          <div className="flex-1 min-w-0">
+                            <div className={`truncate ${d.paid ? 'text-white/55' : 'text-white/85'}`}>{d.description || '—'}</div>
+                            <div className="text-white/35 text-[11px] truncate">
+                              {d.date ? new Date(d.date + 'T00:00').toLocaleDateString('pt-BR') : '—'}
+                              {d.paymentMethod ? ` · ${d.paymentMethod}` : ''}
+                              {d.installmentTotal > 1 ? ` · ${d.installmentCurrent}/${d.installmentTotal}` : ''}
+                            </div>
+                          </div>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums shrink-0">{fmtBRL(d.amount)}</span>
+                          {onEdit && <button onClick={() => onEdit(d)} className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition shrink-0"><Pencil size={12} /></button>}
+                          {onRemove && <button onClick={() => onRemove(d.id)} className="p-1 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition shrink-0"><Trash2 size={12} /></button>}
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             )
@@ -435,16 +488,25 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
   const removeDespesa = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) }))
 
-  const addQuickDespesa = ({ category, amount }) => {
+  const addQuickDespesa = ({ category, amount, description }) => {
     setMonth((m) => {
       const myAttrs = m.config.attributedTo.filter((a) => a.isMine !== false)
       const attributedTo = myAttrs[0]?.name || m.config.attributedTo[0]?.name || ''
       return {
         ...m,
         despesas: [{
-          id: uid(), description: category, amount, date: new Date().toISOString().slice(0, 10),
-          category, paymentMethod: m.config.paymentMethods[0] || '', attributedTo,
-          paid: true, dueDay: null, installmentCurrent: 1, installmentTotal: 1, recurring: false,
+          id: uid(),
+          description: (description && description.trim()) || category,
+          amount,
+          date: new Date().toISOString().slice(0, 10),
+          category,
+          paymentMethod: m.config.paymentMethods[0] || '',
+          attributedTo,
+          paid: true,
+          dueDay: null,
+          installmentCurrent: 1,
+          installmentTotal: 1,
+          recurring: false,
         }, ...m.despesas],
       }
     })
@@ -475,7 +537,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} />
-          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} />}
+          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
