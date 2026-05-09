@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PiggyBank, Plus, X, Check, Pencil, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, Target, Calendar } from 'lucide-react'
+import { PiggyBank, Plus, X, Check, Pencil, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, Target, Calendar, Wallet } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, Field, MoneyInput, TextInput, Select, DateInput } from '../../components/ui'
 import { accents, accentKeys, cofreBalance } from '../../lib/constants'
 import { fmtBRL, todayISO, uid } from '../../lib/utils'
@@ -13,6 +13,35 @@ const lastMov = (cofre) => movsSorted(cofre)[0]
 const formatDate = (iso) => {
   if (!iso) return '—'
   return new Date(iso + 'T00:00').toLocaleDateString('pt-BR')
+}
+
+const MONTH_LABELS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+
+const formatMonthLabel = (ym) => {
+  if (!ym) return 'Sem data'
+  const [y, m] = ym.split('-').map(Number)
+  if (!y || !m) return ym
+  return `${MONTH_LABELS[m - 1]} ${y}`
+}
+
+// Groups movements by YYYY-MM, returns sorted array of { ym, movements, totalEntrada, totalSaida }
+const groupMovementsByMonth = (movements) => {
+  const groups = {}
+  for (const m of movements) {
+    if (!m) continue
+    const ym = (m.date || '').slice(0, 7) || 'sem-data'
+    if (!groups[ym]) groups[ym] = { ym, movements: [], totalEntrada: 0, totalSaida: 0 }
+    groups[ym].movements.push(m)
+    if (m.type === 'entrada') groups[ym].totalEntrada += Number(m.amount) || 0
+    else groups[ym].totalSaida += Number(m.amount) || 0
+  }
+  // Sort movements within each group desc by date
+  Object.values(groups).forEach((g) => g.movements.sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+  // Sort groups desc by ym (most recent first)
+  return Object.values(groups).sort((a, b) => (b.ym || '').localeCompare(a.ym || ''))
 }
 
 const monthsUntil = (target) => {
@@ -113,7 +142,7 @@ function CofreForm({ initial, onSave, onCancel }) {
 
 // ---------- MovementForm ----------
 function MovementForm({ kind, cofres, currentCofreId, onSave, onCancel }) {
-  // kind: 'entrada' | 'saida' | 'transferencia'
+  // kind: 'entrada' | 'saida' | 'transferencia' | 'caixa'
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayISO())
   const [note, setNote] = useState('')
@@ -129,9 +158,21 @@ function MovementForm({ kind, cofres, currentCofreId, onSave, onCancel }) {
     onSave({ amount: v, date: date || todayISO(), note: note.trim(), destId })
   }
 
-  const title = kind === 'entrada' ? 'Nova entrada' : kind === 'saida' ? 'Nova saída' : 'Transferir'
-  const accent = kind === 'entrada' ? 'emerald' : kind === 'saida' ? 'rose' : 'amber'
-  const Icon = kind === 'entrada' ? ArrowUpRight : kind === 'saida' ? ArrowDownRight : ArrowLeftRight
+  const title =
+    kind === 'entrada' ? 'Nova entrada' :
+    kind === 'saida' ? 'Nova saída' :
+    kind === 'caixa' ? 'Devolver pro caixa' :
+    'Transferir'
+  const accent =
+    kind === 'entrada' ? 'emerald' :
+    kind === 'saida' ? 'rose' :
+    kind === 'caixa' ? 'gold' :
+    'amber'
+  const Icon =
+    kind === 'entrada' ? ArrowUpRight :
+    kind === 'saida' ? ArrowDownRight :
+    kind === 'caixa' ? Wallet :
+    ArrowLeftRight
 
   const others = cofres.filter((c) => c.id !== currentCofreId)
 
@@ -155,6 +196,12 @@ function MovementForm({ kind, cofres, currentCofreId, onSave, onCancel }) {
         )
       )}
 
+      {kind === 'caixa' && (
+        <div className="text-xs text-white/60 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid ${accents.gold.hex}25` }}>
+          O valor sai do cofre e entra como <strong className="text-white/85">receita do mês</strong> da data escolhida — aumentando a sua sobra disponível.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Valor">
           <MoneyInput value={amount} onChange={setAmount} />
@@ -170,7 +217,9 @@ function MovementForm({ kind, cofres, currentCofreId, onSave, onCancel }) {
 
       <div className="flex gap-2 justify-end pt-3 border-t border-white/5">
         {onCancel && <Btn variant="ghost" onClick={onCancel} icon={X}>Cancelar</Btn>}
-        <Btn onClick={submit} icon={Check} disabled={!Number(amount) || (kind === 'transferencia' && (!destId || others.length === 0))}>Salvar</Btn>
+        <Btn onClick={submit} icon={Check} disabled={!Number(amount) || (kind === 'transferencia' && (!destId || others.length === 0))}>
+          {kind === 'caixa' ? 'Devolver' : 'Salvar'}
+        </Btn>
       </div>
     </Card>
   )
@@ -231,7 +280,7 @@ function CofreCard({ cofre, onOpen, onQuickEntrada, onQuickSaida }) {
 }
 
 // ---------- CofreDetail (full screen-ish modal) ----------
-function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, onAddMovement, onTransfer, onUpdateMovement, onRemoveMovement }) {
+function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, onAddMovement, onTransfer, onTransferToCaixa, onUpdateMovement, onRemoveMovement }) {
   const [editing, setEditing] = useState(false)
   const [movKind, setMovKind] = useState(initialAction || null)  // 'entrada' | 'saida' | 'transferencia' | null
   const [editingMovId, setEditingMovId] = useState(null)
@@ -297,6 +346,7 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
           <div className="flex gap-2 flex-wrap">
             <Btn icon={ArrowUpRight} onClick={() => { setEditingMovId(null); setMovKind('entrada') }}>Entrada</Btn>
             <Btn icon={ArrowDownRight} onClick={() => { setEditingMovId(null); setMovKind('saida') }} variant="ghost">Saída</Btn>
+            <Btn icon={Wallet} onClick={() => { setEditingMovId(null); setMovKind('caixa') }} variant="ghost">Devolver pro caixa</Btn>
             {cofres.length > 1 && <Btn icon={ArrowLeftRight} onClick={() => { setEditingMovId(null); setMovKind('transferencia') }} variant="ghost">Transferir</Btn>}
           </div>
         )}
@@ -310,6 +360,8 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
             onSave={(payload) => {
               if (movKind === 'transferencia') {
                 onTransfer(cofre.id, payload.destId, payload.amount, payload.date, payload.note)
+              } else if (movKind === 'caixa') {
+                onTransferToCaixa && onTransferToCaixa(cofre.id, payload.amount, payload.date, payload.note)
               } else {
                 onAddMovement(cofre.id, { type: movKind, ...payload })
               }
@@ -339,41 +391,58 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
           {movs.length === 0 ? (
             <Empty text="Nenhuma movimentação ainda" />
           ) : (
-            <div className="space-y-1">
-              {movs.map((m) => {
-                const isEntry = m.type === 'entrada'
-                const c = isEntry ? accents.emerald : accents.rose
-                const otherCofre = m.transferPeerCofreId ? cofreById(m.transferPeerCofreId) : null
-                return editingMovId === m.id ? (
-                  <EditMovementInline
-                    key={m.id}
-                    movement={m}
-                    onSave={(patch) => { onUpdateMovement(cofre.id, m.id, patch); setEditingMovId(null) }}
-                    onCancel={() => setEditingMovId(null)}
-                  />
-                ) : (
-                  <div key={m.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5 group">
-                    <div style={{ background: c.soft, color: c.hex }} className="p-1.5 rounded-md shrink-0">
-                      {m.transferPeerCofreId ? <ArrowLeftRight size={12} /> : isEntry ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate">
-                        {m.note || (m.transferPeerCofreId
-                          ? (isEntry ? `Recebido de ${otherCofre?.name || 'outro cofre'}` : `Transferido para ${otherCofre?.name || 'outro cofre'}`)
-                          : isEntry ? 'Entrada' : 'Saída')}
-                      </div>
-                      <div className="text-xs text-white/40">{formatDate(m.date)}</div>
-                    </div>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', color: c.hex }} className="font-semibold tabular-nums shrink-0">
-                      {isEntry ? '+' : '−'}{fmtBRL(m.amount)}
+            <div className="space-y-4">
+              {groupMovementsByMonth(movs).map((group) => (
+                <div key={group.ym}>
+                  <div className="flex items-center justify-between gap-2 mb-1.5 pb-1.5 border-b border-white/5">
+                    <span className="text-xs font-medium text-white/70">{formatMonthLabel(group.ym)}</span>
+                    <span className="text-xs flex items-center gap-2 tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                      {group.totalEntrada > 0 && <span style={{ color: accents.emerald.hex }}>+{fmtBRL(group.totalEntrada)}</span>}
+                      {group.totalSaida > 0 && <span style={{ color: accents.rose.hex }}>−{fmtBRL(group.totalSaida)}</span>}
                     </span>
-                    <div className="flex gap-0.5 shrink-0">
-                      <button onClick={() => setEditingMovId(m.id)} className="p-1.5 rounded text-white/40 hover:text-amber-300 hover:bg-white/5"><Pencil size={12} /></button>
-                      <button onClick={() => onRemoveMovement(cofre.id, m.id)} className="p-1.5 rounded text-white/40 hover:text-rose-400 hover:bg-white/5"><Trash2 size={12} /></button>
-                    </div>
                   </div>
-                )
-              })}
+                  <div className="space-y-1">
+                    {group.movements.map((m) => {
+                      const isEntry = m.type === 'entrada'
+                      const c = isEntry ? accents.emerald : accents.rose
+                      const otherCofre = m.transferPeerCofreId ? cofreById(m.transferPeerCofreId) : null
+                      const isTransfer = !!m.transferPeerCofreId
+                      const isCaixa = !!m.linkedReceita
+                      return editingMovId === m.id ? (
+                        <EditMovementInline
+                          key={m.id}
+                          movement={m}
+                          onSave={(patch) => { onUpdateMovement(cofre.id, m.id, patch); setEditingMovId(null) }}
+                          onCancel={() => setEditingMovId(null)}
+                        />
+                      ) : (
+                        <div key={m.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5 group">
+                          <div style={{ background: c.soft, color: c.hex }} className="p-1.5 rounded-md shrink-0">
+                            {isCaixa ? <Wallet size={12} /> : isTransfer ? <ArrowLeftRight size={12} /> : isEntry ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm truncate">
+                              {m.note || (
+                                isCaixa ? 'Devolvido para o caixa' :
+                                isTransfer ? (isEntry ? `Recebido de ${otherCofre?.name || 'outro cofre'}` : `Transferido para ${otherCofre?.name || 'outro cofre'}`) :
+                                isEntry ? 'Entrada' : 'Saída'
+                              )}
+                            </div>
+                            <div className="text-xs text-white/40">{formatDate(m.date)}</div>
+                          </div>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', color: c.hex }} className="font-semibold tabular-nums shrink-0">
+                            {isEntry ? '+' : '−'}{fmtBRL(m.amount)}
+                          </span>
+                          <div className="flex gap-0.5 shrink-0">
+                            <button onClick={() => setEditingMovId(m.id)} className="p-1.5 rounded text-white/40 hover:text-amber-300 hover:bg-white/5"><Pencil size={12} /></button>
+                            <button onClick={() => onRemoveMovement(cofre.id, m.id)} className="p-1.5 rounded text-white/40 hover:text-rose-400 hover:bg-white/5"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -403,7 +472,7 @@ function EditMovementInline({ movement, onSave, onCancel }) {
 }
 
 // ---------- CofresTab (export) ----------
-export default function CofresTab({ cofres, addCofre, updateCofre, removeCofre, addMovement, transferBetweenCofres, updateMovement, removeMovement }) {
+export default function CofresTab({ cofres, addCofre, updateCofre, removeCofre, addMovement, transferBetweenCofres, transferCofreToCaixa, updateMovement, removeMovement }) {
   const [adding, setAdding] = useState(false)
   const [openId, setOpenId] = useState(null)
   const [quickFor, setQuickFor] = useState(null)  // { id, kind }
@@ -465,6 +534,7 @@ export default function CofresTab({ cofres, addCofre, updateCofre, removeCofre, 
           onRemove={removeCofre}
           onAddMovement={addMovement}
           onTransfer={transferBetweenCofres}
+          onTransferToCaixa={transferCofreToCaixa}
           onUpdateMovement={updateMovement}
           onRemoveMovement={removeMovement}
         />

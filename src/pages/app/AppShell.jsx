@@ -461,22 +461,87 @@ export default function AppShell() {
   const removeMovement = useCallback((cofreId, movId) => {
     setData((prev) => {
       const cofres = Array.isArray(prev.cofres) ? prev.cofres : []
-      // Find paired transfer (if any) and remove it too
       const target = cofres.find((c) => c.id === cofreId)
       const mov = target?.movements?.find((m) => m.id === movId)
       const peerCofreId = mov?.transferPeerCofreId
       const peerMovId = mov?.transferPeerMovId
+      const linkedReceita = mov?.linkedReceita  // { ym, id } when this saida fed a receita
+
+      const updatedCofres = cofres.map((c) => {
+        if (c.id === cofreId) {
+          return { ...c, movements: (c.movements || []).filter((m) => m.id !== movId) }
+        }
+        if (peerCofreId && c.id === peerCofreId) {
+          return { ...c, movements: (c.movements || []).filter((m) => m.id !== peerMovId) }
+        }
+        return c
+      })
+
+      // If this movement created a receita in some month, remove that receita too
+      let updatedMonths = prev.months
+      if (linkedReceita?.ym && linkedReceita?.id && prev.months?.[linkedReceita.ym]) {
+        const m = prev.months[linkedReceita.ym]
+        updatedMonths = {
+          ...prev.months,
+          [linkedReceita.ym]: {
+            ...m,
+            receitas: (Array.isArray(m.receitas) ? m.receitas : []).filter((r) => r?.id !== linkedReceita.id),
+          },
+        }
+      }
+
+      return { ...prev, cofres: updatedCofres, months: updatedMonths }
+    })
+  }, [])
+
+  // Devolver dinheiro do cofre para o caixa (sobra do mês).
+  // Cria uma saída no cofre vinculada a uma receita criada no mês da data.
+  const transferCofreToCaixa = useCallback((cofreId, amount, date, note) => {
+    const v = Number(amount) || 0
+    if (v <= 0 || !cofreId) return
+    const isoDate = date || new Date().toISOString().slice(0, 10)
+    const ym = isoDate.slice(0, 7)
+
+    setData((prev) => {
+      const cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+      const cofre = cofres.find((c) => c.id === cofreId)
+      if (!cofre) return prev
+
+      const movId = uid()
+      const receitaId = uid()
+      const sourceLabel = `Cofre ${cofre.name}`
+      const monthsCopy = { ...(prev.months || {}) }
+      const monthData = monthsCopy[ym] || { receitas: [], despesas: [], config: computeEffectiveConfig(prev) }
+      monthsCopy[ym] = {
+        ...monthData,
+        receitas: [
+          ...(Array.isArray(monthData.receitas) ? monthData.receitas : []),
+          {
+            id: receitaId,
+            source: sourceLabel,
+            amount: v,
+            date: isoDate,
+            notes: note || `Devolução do cofre ${cofre.name}`,
+            recurring: false,
+            linkedCofreMovId: movId,
+          },
+        ],
+      }
+
       return {
         ...prev,
-        cofres: cofres.map((c) => {
-          if (c.id === cofreId) {
-            return { ...c, movements: (c.movements || []).filter((m) => m.id !== movId) }
-          }
-          if (peerCofreId && c.id === peerCofreId) {
-            return { ...c, movements: (c.movements || []).filter((m) => m.id !== peerMovId) }
-          }
-          return c
-        }),
+        cofres: cofres.map((c) => c.id === cofreId
+          ? { ...c, movements: [...(c.movements || []), {
+              id: movId,
+              type: 'saida',
+              amount: v,
+              date: isoDate,
+              note: note || 'Devolvido para o caixa',
+              linkedReceita: { ym, id: receitaId },
+            }] }
+          : c
+        ),
+        months: monthsCopy,
       }
     })
   }, [])
@@ -543,7 +608,7 @@ export default function AppShell() {
           {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
           {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
-          {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} updateMovement={updateMovement} removeMovement={removeMovement} />}
+          {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} transferCofreToCaixa={transferCofreToCaixa} updateMovement={updateMovement} removeMovement={removeMovement} />}
           {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
         </ErrorBoundary>
       </main>
