@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { Sparkles, Check, X, CreditCard, Banknote, Receipt, Calendar } from 'lucide-react'
-import { Chip, Toggle, Btn, Field, ModePicker } from '../../components/ui'
+import { Sparkles, Check, X, CreditCard, Banknote, Receipt, Calendar, PiggyBank } from 'lucide-react'
+import { Chip, Toggle, Btn, Field, ModePicker, Select } from '../../components/ui'
 import { MoneyInput, TextInput, DateInput } from '../../components/ui'
 import { accents, accentKeys, hashAccent, attrAccentKey } from '../../lib/constants'
 import { todayISO, cardDueDayFor } from '../../lib/utils'
 
-export default function DespesaForm({ config, initial, onSubmit, onCancel, isEditing = false }) {
+export default function DespesaForm({ config, cofres = [], initial, onSubmit, onCancel, isEditing = false }) {
   const firstAttr = (config.attributedTo.find((a) => a.isMine !== false) ?? config.attributedTo[0])?.name || ''
   const [d, setD] = useState(initial || {
     description: '', amount: '', date: todayISO(),
     category: '', paymentMethod: '', attributedTo: firstAttr,
     paid: false, dueDay: '', installmentCurrent: 1, installmentTotal: 1, recurring: false,
+    cofreId: '',
   })
 
   const initialMode = initial
@@ -50,6 +51,7 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
       recurring: mode === 'recorrente',
       installmentCurrent: mode === 'parcelado' ? Number(d.installmentCurrent) || 1 : 1,
       installmentTotal: mode === 'parcelado' ? Number(d.installmentTotal) || 1 : 1,
+      cofreId: d.cofreId || '',
     })
   }
 
@@ -178,6 +180,16 @@ export default function DespesaForm({ config, initial, onSubmit, onCancel, isEdi
         {!chosenCard && (
           <Field label="Dia do mês que vence" hint="opcional · só o dia (1–31)">
             <TextInput type="number" inputMode="numeric" value={d.dueDay} onChange={(v) => setD({ ...d, dueDay: v })} placeholder="Ex: 5" style={{ maxWidth: 140 }} />
+          </Field>
+        )}
+        {cofres.length > 0 && (
+          <Field label="Alimenta um cofre?" hint="quando marcar como pago, o valor entra automaticamente nesse cofre">
+            <div className="flex flex-wrap gap-1.5">
+              <Chip selected={!d.cofreId} onClick={() => setD({ ...d, cofreId: '' })} accent="gold">— nenhum —</Chip>
+              {cofres.map((cofre) => (
+                <Chip key={cofre.id} selected={d.cofreId === cofre.id} onClick={() => setD({ ...d, cofreId: d.cofreId === cofre.id ? '' : cofre.id })} accent={cofre.accent || 'cyan'} icon={PiggyBank}>{cofre.name}</Chip>
+              ))}
+            </div>
           </Field>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import DespesaForm from './DespesaForm'
 
-export default function EditDespesaModal({ despesa, config, onSave, onClose }) {
+export default function EditDespesaModal({ despesa, config, cofres = [], onSave, onClose }) {
   return (
     <div
       onClick={onClose}
@@ -17,7 +17,7 @@ export default function EditDespesaModal({ despesa, config, onSave, onClose }) {
           <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-2xl">Editar lançamento</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5"><X size={18} /></button>
         </div>
-        <DespesaForm config={config} initial={despesa} onSubmit={onSave} onCancel={onClose} isEditing />
+        <DespesaForm config={config} cofres={cofres} initial={despesa} onSubmit={onSave} onCancel={onClose} isEditing />
       </div>
     </div>
   )

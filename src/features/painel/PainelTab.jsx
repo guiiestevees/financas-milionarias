@@ -144,7 +144,7 @@ function BreakdownItem({ label, value, hint, accent, emphasis }) {
 }
 
 // ---------- CardsPanel ----------
-function CardsPanel({ cards, setMonth, activeMonth }) {
+function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
   const totalAPagar = cards.reduce((s, c) => s + c.aPagar, 0)
   const isCurrentMonth = activeMonth === getCurrentMonth()
   const today = todayDay()
@@ -159,8 +159,9 @@ function CardsPanel({ cards, setMonth, activeMonth }) {
   })
 
   const markAll = (items, paid) => {
-    const ids = new Set(items.map((i) => i.id))
-    setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => ids.has(d.id) ? { ...d, paid } : d) }))
+    const ids = items.map((i) => i.id)
+    if (setPaidBulk) setPaidBulk(ids, paid)
+    else setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => ids.includes(d.id) ? { ...d, paid } : d) }))
   }
 
   return (
@@ -417,10 +418,10 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove }
 }
 
 // ---------- BillsReminderPanel ----------
-function BillsReminderPanel({ month, setMonth, activeMonth, onEdit, onRemove }) {
+function BillsReminderPanel({ month, setMonth, activeMonth, onEdit, onRemove, togglePaidDespesa }) {
   const bills = useMemo(() => month.despesas.filter((d) => d.dueDay && isMineFor(d.attributedTo, month.config) && !month.config?.cards?.some((c) => c.name === d.paymentMethod)).sort((a, b) => (a.paid === b.paid ? Number(a.dueDay) - Number(b.dueDay) : a.paid ? 1 : -1)), [month.despesas, month.config])
   const pending = bills.filter((d) => !d.paid).length
-  const togglePaid = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) }))
+  const togglePaid = togglePaidDespesa || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) })))
 
   return (
     <Card className="p-4 sm:p-6" accent="amber" glow>
@@ -523,12 +524,13 @@ function CofresPanel({ cofres, setTab }) {
 }
 
 // ---------- PainelTab (export) ----------
-export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments, cofres = [] }) {
+export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments, cofres = [], togglePaidDespesa, setPaidBulk, removeDespesaCentral }) {
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
 
   const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
-  const removeDespesa = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) }))
+  const removeDespesa = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
+  const togglePaid = togglePaidDespesa || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) })))
 
   const addQuickDespesa = ({ category, amount, description }) => {
     setMonth((m) => {
@@ -578,15 +580,15 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       </div>
       {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} />
+          <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} togglePaidDespesa={togglePaid} />
           {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} />}
-          {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} />}
+          {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} setPaidBulk={setPaidBulk} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
       )}
       {cofres.length > 0 && <CofresPanel cofres={cofres} setTab={setTab} />}
     </div>
-    {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => {
+    {editing && <EditDespesaModal despesa={editing} config={month.config} cofres={cofres} onSave={(patch) => {
       updateDespesa(editing.id, patch)
       const merged = { ...editing, ...patch }
       if (expandInstallments && (Number(merged.installmentTotal) || 1) > 1) {

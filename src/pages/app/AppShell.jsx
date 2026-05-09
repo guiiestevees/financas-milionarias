@@ -277,6 +277,146 @@ export default function AppShell() {
     })
   }, [activeMonth])
 
+  // ----- Despesa side-effects with Cofre sync -----
+  // Toggling paid on a despesa with a linked cofre creates/removes the matching entrada in the cofre.
+  const togglePaidDespesa = useCallback((despesaId) => {
+    setData((prev) => {
+      const monthData = prev.months?.[activeMonth]
+      if (!monthData) return prev
+      const despesas = Array.isArray(monthData.despesas) ? monthData.despesas : []
+      const despesa = despesas.find((d) => d?.id === despesaId)
+      if (!despesa) return prev
+
+      const becomingPaid = !despesa.paid
+      const cofreId = despesa.cofreId
+      let cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+      let linkedMovementId = despesa.linkedMovementId || null
+
+      const cofreExists = cofreId && cofres.some((c) => c.id === cofreId)
+
+      if (cofreExists) {
+        if (becomingPaid && !linkedMovementId) {
+          const movId = uid()
+          cofres = cofres.map((c) => c.id === cofreId
+            ? { ...c, movements: [...(c.movements || []), {
+                id: movId,
+                type: 'entrada',
+                amount: Number(despesa.amount) || 0,
+                date: despesa.date || new Date().toISOString().slice(0, 10),
+                note: `${despesa.description || 'Lançamento'} (auto)`,
+                linkedDespesaId: despesaId,
+              }] }
+            : c
+          )
+          linkedMovementId = movId
+        } else if (!becomingPaid && linkedMovementId) {
+          cofres = cofres.map((c) => c.id === cofreId
+            ? { ...c, movements: (c.movements || []).filter((m) => m.id !== linkedMovementId) }
+            : c
+          )
+          linkedMovementId = null
+        }
+      }
+
+      return {
+        ...prev,
+        cofres,
+        months: {
+          ...prev.months,
+          [activeMonth]: {
+            ...monthData,
+            despesas: despesas.map((d) => d.id === despesaId
+              ? { ...d, paid: becomingPaid, linkedMovementId }
+              : d
+            ),
+          },
+        },
+      }
+    })
+  }, [activeMonth])
+
+  // Bulk version for "marcar todos pagos" buttons. paidValue: target state for all ids.
+  const setPaidBulk = useCallback((despesaIds, paidValue) => {
+    if (!Array.isArray(despesaIds) || despesaIds.length === 0) return
+    const idSet = new Set(despesaIds)
+    setData((prev) => {
+      const monthData = prev.months?.[activeMonth]
+      if (!monthData) return prev
+      const despesas = Array.isArray(monthData.despesas) ? monthData.despesas : []
+      let cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+
+      const updatedDespesas = despesas.map((d) => {
+        if (!idSet.has(d.id)) return d
+        if (!!d.paid === paidValue) return d  // already in target state
+        const cofreId = d.cofreId
+        const cofreExists = cofreId && cofres.some((c) => c.id === cofreId)
+        let linkedMovementId = d.linkedMovementId || null
+
+        if (cofreExists) {
+          if (paidValue && !linkedMovementId) {
+            const movId = uid()
+            cofres = cofres.map((c) => c.id === cofreId
+              ? { ...c, movements: [...(c.movements || []), {
+                  id: movId,
+                  type: 'entrada',
+                  amount: Number(d.amount) || 0,
+                  date: d.date || new Date().toISOString().slice(0, 10),
+                  note: `${d.description || 'Lançamento'} (auto)`,
+                  linkedDespesaId: d.id,
+                }] }
+              : c
+            )
+            linkedMovementId = movId
+          } else if (!paidValue && linkedMovementId) {
+            cofres = cofres.map((c) => c.id === cofreId
+              ? { ...c, movements: (c.movements || []).filter((m) => m.id !== linkedMovementId) }
+              : c
+            )
+            linkedMovementId = null
+          }
+        }
+
+        return { ...d, paid: paidValue, linkedMovementId }
+      })
+
+      return {
+        ...prev,
+        cofres,
+        months: {
+          ...prev.months,
+          [activeMonth]: { ...monthData, despesas: updatedDespesas },
+        },
+      }
+    })
+  }, [activeMonth])
+
+  // Remove despesa AND any linked cofre movement
+  const removeDespesa = useCallback((despesaId) => {
+    setData((prev) => {
+      const monthData = prev.months?.[activeMonth]
+      if (!monthData) return prev
+      const despesas = Array.isArray(monthData.despesas) ? monthData.despesas : []
+      const despesa = despesas.find((d) => d?.id === despesaId)
+      let cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+
+      if (despesa?.linkedMovementId && despesa.cofreId) {
+        cofres = cofres.map((c) => c.id === despesa.cofreId
+          ? { ...c, movements: (c.movements || []).filter((m) => m.id !== despesa.linkedMovementId) }
+          : c
+        )
+      }
+
+      return {
+        ...prev,
+        cofres,
+        months: {
+          ...prev.months,
+          [activeMonth]: { ...monthData, despesas: despesas.filter((d) => d.id !== despesaId) },
+        },
+      }
+    })
+  }, [activeMonth])
+
   // ----- Cofres -----
   const addCofre = useCallback((cofre) => {
     setData((prev) => ({ ...prev, cofres: [...(Array.isArray(prev.cofres) ? prev.cofres : []), cofre] }))
@@ -400,9 +540,9 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
         <ErrorBoundary key={tab + activeMonth}>
-          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} />}
+          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
-          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} />}
+          {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} updateMovement={updateMovement} removeMovement={removeMovement} />}
           {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
         </ErrorBoundary>
