@@ -183,14 +183,20 @@ export default function DespesaForm({ config, cofres = [], initial, onSubmit, on
           </Field>
         )}
         {cofres.length > 0 && (
-          <Field label="Alimenta um cofre?" hint="quando marcar como pago, o valor entra automaticamente nesse cofre">
-            <div className="flex flex-wrap gap-1.5">
+          <div>
+            <label className="uppercase text-white/40 block mb-1.5" style={{ fontSize: '11px', letterSpacing: '0.08em' }}>
+              Cofre destino
+            </label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
               <Chip selected={!d.cofreId} onClick={() => setD({ ...d, cofreId: '' })} accent="gold">— nenhum —</Chip>
               {cofres.map((cofre) => (
                 <Chip key={cofre.id} selected={d.cofreId === cofre.id} onClick={() => setD({ ...d, cofreId: d.cofreId === cofre.id ? '' : cofre.id })} accent={cofre.accent || 'cyan'} icon={PiggyBank}>{cofre.name}</Chip>
               ))}
             </div>
-          </Field>
+            <p className="text-xs text-white/40 leading-relaxed">
+              Ao marcar este gasto como pago, o valor entra automaticamente no cofre selecionado.
+            </p>
+          </div>
         )}
       </div>
 
