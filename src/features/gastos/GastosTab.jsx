@@ -10,7 +10,7 @@ import { uid, fmtBRL, isMineFor } from '../../lib/utils'
 export default function GastosTab({ month, setMonth, addDespesaPropagated, activeMonth, expandInstallments }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
+  const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [], text: '' })
   const [confirmMarkAll, setConfirmMarkAll] = useState(false)
   const cfg = month.config
 
@@ -28,20 +28,25 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
     return { paymentMethods: [...pm], categories: [...cat], attributedTo: [...att] }
   }, [month.despesas])
 
-  const filtered = useMemo(() => month.despesas.filter((d) => {
-    if (filters.paymentMethods.length > 0 && !filters.paymentMethods.includes(d.paymentMethod)) return false
-    if (filters.categories.length > 0 && !filters.categories.includes(d.category)) return false
-    if (filters.attributedTo.length > 0 && !filters.attributedTo.includes(d.attributedTo)) return false
-    if (filters.types.includes('parcelado') && !(Number(d.installmentTotal) > 1)) return false
-    if (filters.types.includes('fixo') && !d.recurring) return false
-    if (filters.types.includes('recente') && !(d.createdAt && (Date.now() - d.createdAt) < 3 * 24 * 60 * 60 * 1000)) return false
-    return true
-  }), [month.despesas, filters])
+  const filtered = useMemo(() => {
+    const q = (filters.text || '').trim().toLowerCase()
+    return month.despesas.filter((d) => {
+      if (filters.paymentMethods.length > 0 && !filters.paymentMethods.includes(d.paymentMethod)) return false
+      if (filters.categories.length > 0 && !filters.categories.includes(d.category)) return false
+      if (filters.attributedTo.length > 0 && !filters.attributedTo.includes(d.attributedTo)) return false
+      if (filters.types.includes('parcelado') && !(Number(d.installmentTotal) > 1)) return false
+      if (filters.types.includes('fixo') && !d.recurring) return false
+      if (filters.types.includes('recente') && !(d.createdAt && (Date.now() - d.createdAt) < 3 * 24 * 60 * 60 * 1000)) return false
+      if (q && !(d.description || '').toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [month.despesas, filters])
 
   const totalFiltros = filters.paymentMethods.length + filters.categories.length + filters.attributedTo.length + filters.types.length
-  const filterActive = totalFiltros > 0
+  const filterActive = totalFiltros > 0 || (filters.text || '').trim().length > 0
   const toggleFilter = (dim, val) => setFilters((f) => { const arr = f[dim] || []; return { ...f, [dim]: arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val] } })
-  const clearFilters = () => setFilters({ paymentMethods: [], categories: [], attributedTo: [], types: [] })
+  const setTextFilter = (v) => setFilters((f) => ({ ...f, text: v }))
+  const clearFilters = () => setFilters((f) => ({ ...f, paymentMethods: [], categories: [], attributedTo: [], types: [] }))
 
   const fixos = useMemo(() => filtered.filter((d) => d.recurring && isMineFor(d.attributedTo, cfg)).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; return (a.dueDay ?? 99) - (b.dueDay ?? 99) }), [filtered, cfg])
   const eventuais = useMemo(() => filtered.filter((d) => !d.recurring && isMineFor(d.attributedTo, cfg)).sort((a, b) => { if (a.paid !== b.paid) return a.paid ? 1 : -1; if (!a.date && !b.date) return 0; if (!a.date) return 1; if (!b.date) return -1; return b.date.localeCompare(a.date) }), [filtered, cfg])
@@ -77,7 +82,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
 
       {adding && <DespesaForm config={cfg} onSubmit={addDespesa} onCancel={() => setAdding(false)} />}
 
-      {minhas.length > 0 && <FilterBar used={usedValues} filters={filters} toggleFilter={toggleFilter} clearFilters={clearFilters} totalFiltros={totalFiltros} config={cfg} />}
+      {minhas.length > 0 && <FilterBar used={usedValues} filters={filters} toggleFilter={toggleFilter} setTextFilter={setTextFilter} clearFilters={clearFilters} totalFiltros={totalFiltros} config={cfg} />}
 
       {noConfig && month.despesas.length === 0 && !adding && (
         <Card className="p-5" accent="violet">

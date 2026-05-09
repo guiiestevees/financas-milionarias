@@ -364,7 +364,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa }) {
 }
 
 // ---------- BillsReminderPanel ----------
-function BillsReminderPanel({ month, setMonth, activeMonth }) {
+function BillsReminderPanel({ month, setMonth, activeMonth, onEdit, onRemove }) {
   const bills = useMemo(() => month.despesas.filter((d) => d.dueDay && isMineFor(d.attributedTo, month.config) && !month.config?.cards?.some((c) => c.name === d.paymentMethod)).sort((a, b) => (a.paid === b.paid ? Number(a.dueDay) - Number(b.dueDay) : a.paid ? 1 : -1)), [month.despesas, month.config])
   const pending = bills.filter((d) => !d.paid).length
   const togglePaid = (id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) }))
@@ -379,8 +379,8 @@ function BillsReminderPanel({ month, setMonth, activeMonth }) {
             const overdue = !d.paid && status.overdue
             const isToday = !d.paid && status.isToday
             return (
-              <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5" style={{ opacity: d.paid ? 0.5 : 1 }}>
-                <button onClick={() => togglePaid(d.id)}>
+              <div key={d.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5 group" style={{ opacity: d.paid ? 0.5 : 1 }}>
+                <button onClick={() => togglePaid(d.id)} className="shrink-0">
                   {d.paid ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Circle size={16} className="text-white/30 hover:text-emerald-400 transition" />}
                 </button>
                 <div className="w-8 text-center shrink-0">
@@ -392,6 +392,10 @@ function BillsReminderPanel({ month, setMonth, activeMonth }) {
                   <div className="text-xs text-white/40 truncate">{d.paymentMethod || '—'}{d.attributedTo ? ` · ${d.attributedTo}` : ''}</div>
                 </div>
                 <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className={`text-sm font-semibold tabular-nums shrink-0 ${d.paid ? 'text-white/40' : ''}`}>{fmtBRL(d.amount)}</div>
+                <div className="shrink-0 flex gap-0.5">
+                  {onEdit && <button onClick={() => onEdit(d)} className="p-1.5 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition" title="Editar"><Pencil size={13} /></button>}
+                  {onRemove && <button onClick={() => onRemove(d.id)} className="p-1.5 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition" title="Remover"><Trash2 size={13} /></button>}
+                </div>
               </div>
             )
           })}
@@ -470,7 +474,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       </div>
       {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} />
+          <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} />
           {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}

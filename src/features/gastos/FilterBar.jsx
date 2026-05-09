@@ -3,8 +3,9 @@ import { Search, X, Check, Banknote, Target, Users, Receipt, ChevronDown } from 
 import { Card } from '../../components/ui'
 import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
 
-export default function FilterBar({ used, filters, toggleFilter, clearFilters, totalFiltros, config }) {
+export default function FilterBar({ used, filters, toggleFilter, setTextFilter, clearFilters, totalFiltros, config }) {
   const [open, setOpen] = useState(false)
+  const text = filters.text || ''
 
   const pmAccent = (name) => {
     const card = config.cards.find((c) => c.name === name)
@@ -43,27 +44,40 @@ export default function FilterBar({ used, filters, toggleFilter, clearFilters, t
 
   return (
     <Card className="p-3 sm:p-4">
-      <div className="flex items-center justify-between gap-2 cursor-pointer select-none" onClick={() => setOpen((o) => !o)}>
-        <div className="flex items-center gap-2 text-xs text-white/55">
-          <Search size={12} />
-          <span className="uppercase" style={{ letterSpacing: '0.12em' }}>Filtrar</span>
+      <div className="flex items-center gap-2">
+        <Search size={14} className="text-white/45 shrink-0" />
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setTextFilter && setTextFilter(e.target.value)}
+          placeholder="Buscar por descrição..."
+          style={{ background: 'transparent', color: 'white', flex: 1, minWidth: 0, outline: 'none', fontSize: 14, padding: '4px 0' }}
+          className="placeholder:text-white/30"
+        />
+        {text && (
+          <button onClick={() => setTextFilter && setTextFilter('')} className="text-white/40 hover:text-white transition shrink-0" title="Limpar busca">
+            <X size={13} />
+          </button>
+        )}
+        <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5 text-xs text-white/55 hover:text-white transition shrink-0 pl-2 ml-1 border-l border-white/10">
+          <span className="uppercase" style={{ letterSpacing: '0.12em' }}>Filtros</span>
           {totalFiltros > 0 && (
-            <span className="px-1.5 rounded-full text-xs" style={{ background: accents.gold.soft, color: accents.gold.hex, fontSize: '10px' }}>
-              {totalFiltros} ativo{totalFiltros > 1 ? 's' : ''}
+            <span className="px-1.5 rounded-full" style={{ background: accents.gold.soft, color: accents.gold.hex, fontSize: '10px' }}>
+              {totalFiltros}
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {totalFiltros > 0 && (
-            <button onClick={(e) => { e.stopPropagation(); clearFilters() }} className="text-xs text-white/55 hover:text-white transition flex items-center gap-1">
-              <X size={11} /> limpar
-            </button>
-          )}
           <ChevronDown size={13} className={`text-white/30 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-        </div>
+        </button>
       </div>
       {open && (
         <div className="space-y-2 mt-3 pt-3 border-t border-white/5">
+          {totalFiltros > 0 && (
+            <div className="flex justify-end -mt-1">
+              <button onClick={clearFilters} className="text-xs text-white/55 hover:text-white transition flex items-center gap-1">
+                <X size={11} /> limpar filtros
+              </button>
+            </div>
+          )}
           <Section label="Pagamento" dim="paymentMethods" items={used.paymentMethods} accentFn={pmAccent} icon={Banknote} />
           <Section label="Categoria" dim="categories" items={used.categories} accentFn={catAccent} icon={Target} />
           <Section label="Atribuído" dim="attributedTo" items={used.attributedTo} accentFn={attrAccent} labelFn={(n) => isThird(n) ? `🤝 ${n}` : n} icon={Users} />
