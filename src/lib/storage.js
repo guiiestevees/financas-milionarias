@@ -27,7 +27,7 @@ async function supabaseLoad() {
       .eq('user_id', user.id),
     supabase
       .from('user_profiles')
-      .select('brand')
+      .select('brand, cofres')
       .eq('user_id', user.id)
       .maybeSingle(),
   ])
@@ -43,6 +43,7 @@ async function supabaseLoad() {
   return {
     months,
     brand: profileRes.data?.brand ?? { name: '', subtitle: 'Finanças Milionárias' },
+    cofres: Array.isArray(profileRes.data?.cofres) ? profileRes.data.cofres : [],
   }
 }
 
@@ -74,7 +75,12 @@ async function supabaseSave(appData) {
     supabase
       .from('user_profiles')
       .upsert(
-        { user_id: user.id, brand: appData.brand ?? { name: '', subtitle: 'Finanças Milionárias' }, updated_at: now },
+        {
+          user_id: user.id,
+          brand: appData.brand ?? { name: '', subtitle: 'Finanças Milionárias' },
+          cofres: Array.isArray(appData.cofres) ? appData.cofres : [],
+          updated_at: now,
+        },
         { onConflict: 'user_id' }
       )
       .then(({ error }) => { if (error) console.error('storage.save profile:', error) })

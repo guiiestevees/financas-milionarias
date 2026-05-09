@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react'
 import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
-  X, Plus, Pencil, Trash2, ChevronDown,
+  X, Plus, Pencil, Trash2, ChevronDown, PiggyBank,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
-import { accents, hashAccent, attrAccentKey } from '../../lib/constants'
+import { accents, hashAccent, attrAccentKey, cofreBalance } from '../../lib/constants'
 import { fmtBRL, todayDay, isMineFor, uid, dueDayStatus, getCurrentMonth } from '../../lib/utils'
 
 // ---------- aggregations ----------
@@ -480,8 +480,50 @@ function CashPanel({ aVista, total }) {
   )
 }
 
+// ---------- CofresPanel ----------
+function CofresPanel({ cofres, setTab }) {
+  const total = cofres.reduce((s, c) => s + cofreBalance(c), 0)
+  const sorted = [...cofres].sort((a, b) => cofreBalance(b) - cofreBalance(a))
+  return (
+    <Card className="p-4 sm:p-6 cursor-pointer hover:bg-white/[0.015] transition" accent="cyan" onClick={() => setTab?.('cofres')}>
+      <SectionTitle icon={PiggyBank} title="Cofres" subtitle={`${fmtBRL(total)} guardado em ${cofres.length} cofre${cofres.length !== 1 ? 's' : ''}`} accent="cyan" />
+      <div className="space-y-2">
+        {sorted.map((c) => {
+          const a = accents[c.accent] || accents.cyan
+          const balance = cofreBalance(c)
+          const negative = balance < 0
+          const goal = c.goal
+          const pct = goal && goal.amount > 0 ? Math.min(100, (balance / goal.amount) * 100) : null
+          return (
+            <div key={c.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><PiggyBank size={13} /></div>
+                  <span className="font-medium truncate">{c.name}</span>
+                </div>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', color: negative ? accents.rose.hex : a.hex }} className="font-semibold tabular-nums shrink-0">{fmtBRL(balance)}</span>
+              </div>
+              {pct !== null && (
+                <div className="mt-2">
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    <div className="h-full" style={{ width: `${Math.max(0, pct)}%`, background: a.hex }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-white/40 mt-1">
+                    <span>{pct.toFixed(0)}% da meta</span>
+                    <span>{fmtBRL(goal.amount)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
 // ---------- PainelTab (export) ----------
-export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments }) {
+export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments, cofres = [] }) {
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
 
@@ -542,6 +584,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
       )}
+      {cofres.length > 0 && <CofresPanel cofres={cofres} setTab={setTab} />}
     </div>
     {editing && <EditDespesaModal despesa={editing} config={month.config} onSave={(patch) => {
       updateDespesa(editing.id, patch)

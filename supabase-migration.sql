@@ -10,8 +10,13 @@
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   user_id   UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   brand     JSONB NOT NULL DEFAULT '{"name":"","subtitle":"Finanças Milionárias"}',
+  cofres    JSONB NOT NULL DEFAULT '[]',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- For existing databases: add the cofres column if missing
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS cofres JSONB NOT NULL DEFAULT '[]';
 
 -- ----------------------------------------------------------------
 -- Tabela: user_months

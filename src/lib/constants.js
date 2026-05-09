@@ -112,3 +112,31 @@ export const createEmptyMonth = () => ({
   despesas: [],
   config: createEmptyConfig(),
 })
+
+// Saldo do cofre = saldo inicial + entradas (incl. transferências recebidas) − saídas (incl. transferências enviadas)
+export const cofreBalance = (cofre) => {
+  if (!cofre) return 0
+  const initial = Number(cofre.initialBalance) || 0
+  const movs = Array.isArray(cofre.movements) ? cofre.movements : []
+  return movs.reduce((s, m) => {
+    if (!m) return s
+    const v = Number(m.amount) || 0
+    return s + (m.type === 'entrada' ? v : -v)
+  }, initial)
+}
+
+export const safeCofre = (c) => {
+  if (!c || typeof c !== 'object') return null
+  return {
+    id: c.id,
+    name: typeof c.name === 'string' ? c.name : '',
+    accent: typeof c.accent === 'string' ? c.accent : 'cyan',
+    initialBalance: Number(c.initialBalance) || 0,
+    initialDate: typeof c.initialDate === 'string' ? c.initialDate : '',
+    goal: c.goal && typeof c.goal === 'object' && Number(c.goal.amount) > 0
+      ? { amount: Number(c.goal.amount), targetDate: typeof c.goal.targetDate === 'string' ? c.goal.targetDate : '' }
+      : null,
+    movements: Array.isArray(c.movements) ? c.movements.filter((m) => m && typeof m === 'object' && m.id) : [],
+    archived: !!c.archived,
+  }
+}

@@ -1,9 +1,10 @@
-import { LayoutDashboard, Wallet, Receipt, Settings } from 'lucide-react'
+import { LayoutDashboard, Wallet, Receipt, PiggyBank, Settings } from 'lucide-react'
 
 const TABS = [
   { id: 'painel',   label: 'Painel',        icon: LayoutDashboard },
   { id: 'receitas', label: 'Receitas',       icon: Wallet },
   { id: 'gastos',   label: 'Gastos',         icon: Receipt },
+  { id: 'cofres',   label: 'Cofres',         icon: PiggyBank },
   { id: 'config',   label: 'Configurações',  icon: Settings },
 ]
 

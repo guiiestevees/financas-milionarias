@@ -1,8 +1,9 @@
-import { safeConfig } from './constants'
+import { safeConfig, safeCofre } from './constants'
 
 const DEFAULT_DATA = () => ({
   months: {},
   brand: { name: '', subtitle: 'Finanças Milionárias' },
+  cofres: [],
   _fixJun2026ToMay: true,
 })
 
@@ -74,11 +75,17 @@ export const migrateData = (data) => {
   // Strip top-level config so it never comes back
   const { config: _dropped, ...dataRest } = data
 
+  // Normalize cofres
+  const cofres = Array.isArray(data.cofres)
+    ? data.cofres.map(safeCofre).filter(Boolean)
+    : []
+
   return {
     ...dataRest,
     brand: data.brand || { name: '', subtitle: 'Finanças Milionárias' },
     months,
     currentMonth,
+    cofres,
     _fixJun2026ToMay: true,
   }
 }

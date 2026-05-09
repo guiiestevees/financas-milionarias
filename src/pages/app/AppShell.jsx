@@ -12,6 +12,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary'
 import PainelTab from '../../features/painel/PainelTab'
 import ReceitasTab from '../../features/receitas/ReceitasTab'
 import GastosTab from '../../features/gastos/GastosTab'
+import CofresTab from '../../features/cofres/CofresTab'
 import ConfigTab from '../../features/config/ConfigTab'
 
 export default function AppShell() {
@@ -276,6 +277,93 @@ export default function AppShell() {
     })
   }, [activeMonth])
 
+  // ----- Cofres -----
+  const addCofre = useCallback((cofre) => {
+    setData((prev) => ({ ...prev, cofres: [...(Array.isArray(prev.cofres) ? prev.cofres : []), cofre] }))
+  }, [])
+
+  const updateCofre = useCallback((cofre) => {
+    setData((prev) => ({
+      ...prev,
+      cofres: (Array.isArray(prev.cofres) ? prev.cofres : []).map((c) => c.id === cofre.id ? cofre : c),
+    }))
+  }, [])
+
+  const removeCofre = useCallback((id) => {
+    setData((prev) => ({
+      ...prev,
+      cofres: (Array.isArray(prev.cofres) ? prev.cofres : []).filter((c) => c.id !== id),
+    }))
+  }, [])
+
+  const addMovement = useCallback((cofreId, mov) => {
+    setData((prev) => ({
+      ...prev,
+      cofres: (Array.isArray(prev.cofres) ? prev.cofres : []).map((c) =>
+        c.id === cofreId
+          ? { ...c, movements: [...(c.movements || []), { id: uid(), ...mov }] }
+          : c
+      ),
+    }))
+  }, [])
+
+  const updateMovement = useCallback((cofreId, movId, patch) => {
+    setData((prev) => ({
+      ...prev,
+      cofres: (Array.isArray(prev.cofres) ? prev.cofres : []).map((c) =>
+        c.id === cofreId
+          ? { ...c, movements: (c.movements || []).map((m) => m.id === movId ? { ...m, ...patch } : m) }
+          : c
+      ),
+    }))
+  }, [])
+
+  const removeMovement = useCallback((cofreId, movId) => {
+    setData((prev) => {
+      const cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+      // Find paired transfer (if any) and remove it too
+      const target = cofres.find((c) => c.id === cofreId)
+      const mov = target?.movements?.find((m) => m.id === movId)
+      const peerCofreId = mov?.transferPeerCofreId
+      const peerMovId = mov?.transferPeerMovId
+      return {
+        ...prev,
+        cofres: cofres.map((c) => {
+          if (c.id === cofreId) {
+            return { ...c, movements: (c.movements || []).filter((m) => m.id !== movId) }
+          }
+          if (peerCofreId && c.id === peerCofreId) {
+            return { ...c, movements: (c.movements || []).filter((m) => m.id !== peerMovId) }
+          }
+          return c
+        }),
+      }
+    })
+  }, [])
+
+  const transferBetweenCofres = useCallback((fromId, toId, amount, date, note) => {
+    if (!fromId || !toId || fromId === toId) return
+    const v = Number(amount) || 0
+    if (v <= 0) return
+    setData((prev) => {
+      const cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+      const from = cofres.find((c) => c.id === fromId)
+      const to = cofres.find((c) => c.id === toId)
+      if (!from || !to) return prev
+      const outId = uid(), inId = uid()
+      const outMov = { id: outId, type: 'saida', amount: v, date: date || new Date().toISOString().slice(0, 10), note: note || `Transferência → ${to.name}`, transferPeerCofreId: toId, transferPeerMovId: inId }
+      const inMov  = { id: inId,  type: 'entrada', amount: v, date: date || new Date().toISOString().slice(0, 10), note: note || `Transferência ← ${from.name}`, transferPeerCofreId: fromId, transferPeerMovId: outId }
+      return {
+        ...prev,
+        cofres: cofres.map((c) => {
+          if (c.id === fromId) return { ...c, movements: [...(c.movements || []), outMov] }
+          if (c.id === toId)   return { ...c, movements: [...(c.movements || []), inMov] }
+          return c
+        }),
+      }
+    })
+  }, [])
+
   const updateBrand = useCallback((patch) => {
     setData((prev) => ({ ...prev, brand: { ...(prev.brand || {}), ...patch } }))
   }, [])
@@ -312,9 +400,10 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
         <ErrorBoundary key={tab + activeMonth}>
-          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} />}
+          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
           {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} />}
+          {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} updateMovement={updateMovement} removeMovement={removeMovement} />}
           {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
         </ErrorBoundary>
       </main>
