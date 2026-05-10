@@ -1,25 +1,17 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Sparkles, Pencil, Loader2 } from 'lucide-react'
 
 const MONTH_LABELS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 function MonthPicker({ activeMonth, onJumpTo, onClose }) {
   const [year, setYear] = useState(() => Number(activeMonth?.slice(0, 4)) || new Date().getFullYear())
-  const ref = useRef(null)
   const activeY = Number(activeMonth?.slice(0, 4))
   const activeM = Number(activeMonth?.slice(5, 7))
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose()
-    }
     const handleEsc = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleEsc)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEsc)
-    }
+    return () => document.removeEventListener('keydown', handleEsc)
   }, [onClose])
 
   const pick = (mIdx) => {
@@ -30,43 +22,49 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
 
   return (
     <div
-      ref={ref}
-      style={{
-        position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50,
-        background: 'linear-gradient(180deg, #0f1525, #0a0d18)',
-        border: '1px solid rgba(212,175,55,0.25)',
-        borderRadius: 14,
-        padding: 12,
-        minWidth: 260,
-        boxShadow: '0 20px 50px -10px rgba(0,0,0,0.5)',
-      }}
+      onClick={onClose}
+      style={{ background: 'rgba(7,9,18,0.7)', backdropFilter: 'blur(8px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <div className="flex items-center justify-between mb-3">
-        <button onClick={() => setYear((y) => y - 1)} className="p-1 rounded hover:bg-white/5 transition" aria-label="Ano anterior">
-          <ChevronLeft size={14} className="text-white/55" />
-        </button>
-        <span style={{ fontFamily: 'Fraunces, serif' }} className="text-base font-medium tabular-nums">{year}</span>
-        <button onClick={() => setYear((y) => y + 1)} className="p-1 rounded hover:bg-white/5 transition" aria-label="Próximo ano">
-          <ChevronRight size={14} className="text-white/55" />
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {MONTH_LABELS_SHORT.map((label, idx) => {
-          const isActive = year === activeY && (idx + 1) === activeM
-          return (
-            <button
-              key={idx}
-              onClick={() => pick(idx)}
-              className="px-2 py-2 rounded-lg text-xs font-medium transition"
-              style={isActive
-                ? { background: 'rgba(212,175,55,0.2)', color: '#d4af37', border: '1px solid rgba(212,175,55,0.5)' }
-                : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.7)', border: '1px solid transparent' }
-              }
-            >
-              {label}
-            </button>
-          )
-        })}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'linear-gradient(180deg, #0f1525, #0a0d18)',
+          border: '1px solid rgba(212,175,55,0.25)',
+          borderRadius: 16,
+          padding: 16,
+          width: '100%',
+          maxWidth: 320,
+          boxShadow: '0 20px 60px -10px rgba(0,0,0,0.6)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => setYear((y) => y - 1)} className="p-2 rounded-lg hover:bg-white/5 transition" aria-label="Ano anterior">
+            <ChevronLeft size={16} className="text-white/55" />
+          </button>
+          <span style={{ fontFamily: 'Fraunces, serif' }} className="text-xl font-medium tabular-nums">{year}</span>
+          <button onClick={() => setYear((y) => y + 1)} className="p-2 rounded-lg hover:bg-white/5 transition" aria-label="Próximo ano">
+            <ChevronRight size={16} className="text-white/55" />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {MONTH_LABELS_SHORT.map((label, idx) => {
+            const isActive = year === activeY && (idx + 1) === activeM
+            return (
+              <button
+                key={idx}
+                onClick={() => pick(idx)}
+                className="py-3 rounded-lg text-sm font-medium transition"
+                style={isActive
+                  ? { background: 'rgba(212,175,55,0.2)', color: '#d4af37', border: '1px solid rgba(212,175,55,0.5)' }
+                  : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.05)' }
+                }
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

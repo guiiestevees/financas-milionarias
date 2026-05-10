@@ -246,17 +246,9 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
             {!last && <div className="text-xs text-white/35">sem movimentações</div>}
           </div>
         </div>
-        <div className="flex gap-1 shrink-0">
-          <button onClick={(e) => { e.stopPropagation(); onEdit() }} title="Editar cofre" className="p-1.5 rounded transition text-white/55 hover:text-amber-300 hover:bg-white/5">
-            <Pencil size={13} />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onQuickEntrada() }} title="Entrada" className="p-1.5 rounded transition" style={{ background: accents.emerald.soft, color: accents.emerald.hex }}>
-            <Plus size={13} />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onQuickSaida() }} title="Saída" className="p-1.5 rounded transition" style={{ background: accents.rose.soft, color: accents.rose.hex }}>
-            <ArrowDownRight size={13} />
-          </button>
-        </div>
+        <button onClick={(e) => { e.stopPropagation(); onEdit() }} title="Editar cofre" className="p-2 rounded-lg transition text-white/55 hover:text-amber-300 hover:bg-white/5 shrink-0">
+          <Pencil size={14} />
+        </button>
       </div>
 
       <div style={{ fontFamily: 'Fraunces, serif', color: negative ? accents.rose.hex : a.hex }} className="text-3xl font-medium tabular-nums leading-none mb-1">
@@ -278,6 +270,23 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onQuickEntrada() }}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
+          style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}25` }}
+        >
+          <Plus size={15} /> Entrada
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onQuickSaida() }}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
+          style={{ background: accents.rose.soft, color: accents.rose.hex, border: `1px solid ${accents.rose.hex}25` }}
+        >
+          <ArrowDownRight size={15} /> Saída
+        </button>
+      </div>
     </Card>
   )
 }
