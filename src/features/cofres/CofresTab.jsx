@@ -226,7 +226,7 @@ function MovementForm({ kind, cofres, currentCofreId, onSave, onCancel }) {
 }
 
 // ---------- CofreCard ----------
-function CofreCard({ cofre, onOpen, onQuickEntrada, onQuickSaida }) {
+function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
   const a = accents[cofre.accent] || accents.cyan
   const balance = cofreBalance(cofre)
   const negative = balance < 0
@@ -247,6 +247,9 @@ function CofreCard({ cofre, onOpen, onQuickEntrada, onQuickSaida }) {
           </div>
         </div>
         <div className="flex gap-1 shrink-0">
+          <button onClick={(e) => { e.stopPropagation(); onEdit() }} title="Editar cofre" className="p-1.5 rounded transition text-white/55 hover:text-amber-300 hover:bg-white/5">
+            <Pencil size={13} />
+          </button>
           <button onClick={(e) => { e.stopPropagation(); onQuickEntrada() }} title="Entrada" className="p-1.5 rounded transition" style={{ background: accents.emerald.soft, color: accents.emerald.hex }}>
             <Plus size={13} />
           </button>
@@ -281,8 +284,8 @@ function CofreCard({ cofre, onOpen, onQuickEntrada, onQuickSaida }) {
 
 // ---------- CofreDetail (full screen-ish modal) ----------
 function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, onAddMovement, onTransfer, onTransferToCaixa, onUpdateMovement, onRemoveMovement }) {
-  const [editing, setEditing] = useState(false)
-  const [movKind, setMovKind] = useState(initialAction || null)  // 'entrada' | 'saida' | 'transferencia' | null
+  const [editing, setEditing] = useState(initialAction === 'edit')
+  const [movKind, setMovKind] = useState(initialAction && initialAction !== 'edit' ? initialAction : null)
   const [editingMovId, setEditingMovId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -517,6 +520,7 @@ export default function CofresTab({ cofres, addCofre, updateCofre, removeCofre, 
               key={c.id}
               cofre={c}
               onOpen={() => setOpenId(c.id)}
+              onEdit={() => { setOpenId(c.id); setQuickFor({ id: c.id, kind: 'edit' }) }}
               onQuickEntrada={() => { setOpenId(c.id); setQuickFor({ id: c.id, kind: 'entrada' }) }}
               onQuickSaida={() => { setOpenId(c.id); setQuickFor({ id: c.id, kind: 'saida' }) }}
             />

@@ -158,6 +158,53 @@ export default function AppShell() {
     setActiveMonth(newKey)
   }
 
+  // Jumps directly to a target month (YYYY-MM). For forward jumps, walks each
+  // intermediate month populating recurring items, all in a single setData call.
+  const navigateToMonth = useCallback((targetYm) => {
+    if (!targetYm || targetYm === activeMonth) return
+    if (targetYm < activeMonth) {
+      // Backward: data already exists or is empty; just switch active
+      setActiveMonth(targetYm)
+      return
+    }
+    setData((prev) => {
+      const next = { ...prev, months: { ...(prev.months || {}) } }
+      let cursor = activeMonth
+      while (cursor < targetYm) {
+        const nextYm = shiftMonth(cursor, 1)
+        const cursorData = next.months[cursor] ?? createEmptyMonth()
+        const recurringDespesas = (Array.isArray(cursorData.despesas) ? cursorData.despesas : [])
+          .filter((d) => d && d.recurring)
+          .map((d) => ({ ...d, id: uid(), paid: false }))
+        const recurringReceitas = (Array.isArray(cursorData.receitas) ? cursorData.receitas : [])
+          .filter((r) => r && r.recurring)
+          .map((r) => ({ ...r, id: uid() }))
+        const sourceCfg = computeEffectiveConfig(next)
+
+        if (next.months[nextYm]) {
+          const existing = next.months[nextYm]
+          const hasRecurringDespesas = (Array.isArray(existing.despesas) ? existing.despesas : []).some((d) => d?.recurring)
+          const hasReceitas = (Array.isArray(existing.receitas) ? existing.receitas : []).length > 0
+          next.months[nextYm] = {
+            ...existing,
+            config: sourceCfg,
+            despesas: hasRecurringDespesas
+              ? (Array.isArray(existing.despesas) ? existing.despesas : [])
+              : [...recurringDespesas, ...(Array.isArray(existing.despesas) ? existing.despesas : [])],
+            receitas: hasReceitas
+              ? (Array.isArray(existing.receitas) ? existing.receitas : [])
+              : recurringReceitas,
+          }
+        } else {
+          next.months[nextYm] = { receitas: recurringReceitas, despesas: recurringDespesas, config: sourceCfg }
+        }
+        cursor = nextYm
+      }
+      return next
+    })
+    setActiveMonth(targetYm)
+  }, [activeMonth])
+
   const addDespesaPropagated = useCallback((despesa) => {
     const total = Number(despesa.installmentTotal) || 1
     const cur = Number(despesa.installmentCurrent) || 1
@@ -595,8 +642,10 @@ export default function AppShell() {
           brand={brand}
           updateBrand={updateBrand}
           monthLabel={formatMonthLabel(activeMonth)}
+          activeMonth={activeMonth}
           onPrev={() => navigateMonth(-1)}
           onNext={() => navigateMonth(1)}
+          onJumpTo={navigateToMonth}
           saving={saving}
           onSignOut={handleSignOut}
         />
