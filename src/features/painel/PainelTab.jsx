@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react'
 import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
-  X, Plus, Pencil, Trash2, ChevronDown, PiggyBank,
+  X, Plus, Pencil, Trash2, ChevronDown, PiggyBank, ArrowLeftRight, Wallet,
 } from 'lucide-react'
-import { Card, Empty, SectionTitle, MetricCard } from '../../components/ui'
+import { Card, Empty, SectionTitle, MetricCard, Btn, Field, MoneyInput, Select } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
 import { accents, hashAccent, attrAccentKey, cofreBalance } from '../../lib/constants'
 import { fmtBRL, todayDay, isMineFor, uid, dueDayStatus, getCurrentMonth } from '../../lib/utils'
@@ -62,7 +62,20 @@ function useMonthAggregates(month) {
       byCategory[k] = (byCategory[k] || 0) + Number(d.amount || 0)
       if (itemsByCategory[k]) itemsByCategory[k].push(d)
     })
-    const categoryList = cfg.categories.map((c) => ({ ...c, spent: byCategory[c.name] || 0, items: itemsByCategory[c.name] || [] }))
+    // Apply per-month budget overrides on top of config budgets (only for this month)
+    const overrides = (month && typeof month.budgetOverrides === 'object' && month.budgetOverrides) || {}
+    const categoryList = cfg.categories.map((c) => {
+      const hasOverride = Object.prototype.hasOwnProperty.call(overrides, c.name)
+      const effectiveBudget = hasOverride ? Number(overrides[c.name]) || 0 : (c.budget || 0)
+      return {
+        ...c,
+        budget: effectiveBudget,
+        originalBudget: c.budget || 0,
+        adjusted: hasOverride && effectiveBudget !== (c.budget || 0),
+        spent: byCategory[c.name] || 0,
+        items: itemsByCategory[c.name] || [],
+      }
+    })
     const orcamentoReservado = categoryList.filter((c) => c.budget && c.budget > 0).reduce((s, c) => s + Math.max(0, c.budget - c.spent), 0)
     const disponivel = sobra - orcamentoReservado
 
@@ -291,12 +304,116 @@ function AttributedPanel({ list, total }) {
   )
 }
 
+// ---------- BudgetTransferModal ----------
+function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, onClose }) {
+  const [mode, setMode] = useState('outro')  // 'outro' | 'caixa'
+  const [destName, setDestName] = useState(() => {
+    const others = allCategories.filter((c) => c.name !== fromCat.name && c.budget && c.budget > 0)
+    return others[0]?.name || ''
+  })
+  const [amount, setAmount] = useState('')
+
+  const sobraDisp = Math.max(0, (Number(fromCat.budget) || 0) - (Number(fromCat.spent) || 0))
+  const v = Number(amount) || 0
+  const exceeds = v > sobraDisp
+  const others = allCategories.filter((c) => c.name !== fromCat.name && c.budget && c.budget > 0)
+  const a = accents[fromCat.accent] || accents.rose
+
+  const submit = () => {
+    if (!v || v <= 0 || exceeds) return
+    if (mode === 'outro') {
+      if (!destName) return
+      onTransfer(fromCat.name, destName, v)
+    } else {
+      onRelease(fromCat.name, v)
+    }
+    onClose()
+  }
+
+  return (
+    <div onClick={onClose} style={{ background: 'rgba(7,9,18,0.7)', backdropFilter: 'blur(8px)' }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'linear-gradient(180deg, #0f1525, #0a0d18)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, maxWidth: 460, width: '100%' }} className="p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div style={{ background: a.soft, color: a.hex }} className="p-2 rounded-lg shrink-0"><ArrowLeftRight size={16} /></div>
+            <div className="min-w-0">
+              <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg truncate">Mover de {fromCat.name}</div>
+              <div className="text-xs text-white/45">sobra disponível: {fmtBRL(sobraDisp)}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded text-white/55 hover:text-white hover:bg-white/5"><X size={16} /></button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setMode('outro')}
+            disabled={others.length === 0}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-30"
+            style={mode === 'outro'
+              ? { background: accents.rose.soft, color: accents.rose.hex, border: `1px solid ${accents.rose.hex}50` }
+              : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }
+            }
+          >
+            <ArrowLeftRight size={13} /> Outro orçamento
+          </button>
+          <button
+            onClick={() => setMode('caixa')}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
+            style={mode === 'caixa'
+              ? { background: accents.gold.soft, color: accents.gold.hex, border: `1px solid ${accents.gold.hex}50` }
+              : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }
+            }
+          >
+            <Wallet size={13} /> Pro caixa
+          </button>
+        </div>
+
+        {mode === 'outro' && (
+          others.length === 0 ? (
+            <div className="text-sm text-amber-300/80 p-3 rounded-lg" style={{ background: accents.amber.soft, border: `1px solid ${accents.amber.hex}25` }}>
+              Você precisa de pelo menos 2 orçamentos com valor pra transferir entre eles.
+            </div>
+          ) : (
+            <Field label="Para qual orçamento">
+              <Select value={destName} onChange={setDestName} options={others.map((c) => c.name)} />
+            </Field>
+          )
+        )}
+
+        {mode === 'caixa' && (
+          <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid ${accents.gold.hex}25` }}>
+            Ao liberar pro caixa, o orçamento de <strong className="text-white/85">{fromCat.name}</strong> diminui só nesse mês e o valor entra no <strong className="text-white/85">disponível pra gastar</strong>. Não cria receita nem mexe nos gastos.
+          </div>
+        )}
+
+        <Field label="Valor">
+          <MoneyInput value={amount} onChange={setAmount} autoFocus />
+        </Field>
+
+        {exceeds && (
+          <div className="text-xs text-rose-300 px-1">Valor maior que a sobra disponível ({fmtBRL(sobraDisp)})</div>
+        )}
+
+        <div className="text-xs text-white/45 leading-relaxed">
+          Ajuste vale só pra esse mês. No mês seguinte, os orçamentos voltam ao original.
+        </div>
+
+        <div className="flex gap-2 justify-end pt-3 border-t border-white/5">
+          <Btn variant="ghost" onClick={onClose} icon={X}>Cancelar</Btn>
+          <Btn onClick={submit} icon={Check} disabled={!v || exceeds || (mode === 'outro' && (!destName || others.length === 0))}>Mover</Btn>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---------- BudgetCategoriesPanel ----------
-function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove }) {
+function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease }) {
   const [quickName, setQuickName] = useState(null)
   const [quickAmount, setQuickAmount] = useState('')
   const [quickDesc, setQuickDesc] = useState('')
   const [expanded, setExpanded] = useState(null)
+  const [transferFrom, setTransferFrom] = useState(null)
 
   const submitQuick = (catName) => {
     const v = Number(quickAmount)
@@ -340,6 +457,13 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove }
                       <span style={{ color: over ? accents.rose.hex : 'white' }}>{fmtBRL(c.spent)}</span>
                       <span className="text-white/40"> / {fmtBRL(c.budget)}</span>
                     </span>
+                    <button
+                      onClick={() => setTransferFrom(c)}
+                      title="Transferir ou liberar"
+                      className="p-1.5 rounded transition shrink-0 text-white/55 hover:text-white hover:bg-white/5"
+                    >
+                      <ArrowLeftRight size={12} />
+                    </button>
                     <button onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(''); setQuickDesc('') }}
                             className="p-1.5 rounded transition shrink-0"
                             style={{ background: quickOpen ? a.soft : 'rgba(255,255,255,0.05)', color: quickOpen ? a.hex : 'rgba(255,255,255,0.55)' }}>
@@ -358,6 +482,12 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove }
                   <span>{pct.toFixed(0)}% gasto</span>
                   <span className={over ? 'text-rose-400' : ''}>{over ? 'Estourou ' : 'Sobra '}{fmtBRL(Math.abs(remaining))}</span>
                 </div>
+                {c.adjusted && (
+                  <div className="text-xs text-amber-300/75 mt-1 flex items-center gap-1">
+                    <ArrowLeftRight size={10} />
+                    Ajustado esse mês (era {fmtBRL(c.originalBudget)})
+                  </div>
+                )}
                 {quickOpen && (
                   <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
                     <input
@@ -412,6 +542,15 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove }
             )
           })}
         </div>
+      )}
+      {transferFrom && (
+        <BudgetTransferModal
+          fromCat={transferFrom}
+          allCategories={categories}
+          onTransfer={onTransfer}
+          onRelease={onRelease}
+          onClose={() => setTransferFrom(null)}
+        />
       )}
     </Card>
   )
@@ -532,6 +671,36 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   const removeDespesa = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
   const togglePaid = togglePaidDespesa || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) })))
 
+  // Transfer one budget's leftover to another budget (this month only).
+  // Reduces source budget by amount, increases destination by amount.
+  const transferBudget = (fromCat, toCat, amount) => {
+    setMonth((m) => {
+      const cfg = m.config || {}
+      const cats = Array.isArray(cfg.categories) ? cfg.categories : []
+      const overrides = (m.budgetOverrides && typeof m.budgetOverrides === 'object') ? { ...m.budgetOverrides } : {}
+      const get = (name) => Object.prototype.hasOwnProperty.call(overrides, name)
+        ? Number(overrides[name]) || 0
+        : Number(cats.find((c) => c.name === name)?.budget) || 0
+      overrides[fromCat] = Math.max(0, get(fromCat) - amount)
+      overrides[toCat] = get(toCat) + amount
+      return { ...m, budgetOverrides: overrides }
+    })
+  }
+
+  // Release budget back to cashflow (just reduces the source budget for this month).
+  const releaseBudget = (fromCat, amount) => {
+    setMonth((m) => {
+      const cfg = m.config || {}
+      const cats = Array.isArray(cfg.categories) ? cfg.categories : []
+      const overrides = (m.budgetOverrides && typeof m.budgetOverrides === 'object') ? { ...m.budgetOverrides } : {}
+      const get = (name) => Object.prototype.hasOwnProperty.call(overrides, name)
+        ? Number(overrides[name]) || 0
+        : Number(cats.find((c) => c.name === name)?.budget) || 0
+      overrides[fromCat] = Math.max(0, get(fromCat) - amount)
+      return { ...m, budgetOverrides: overrides }
+    })
+  }
+
   const addQuickDespesa = ({ category, amount, description }) => {
     setMonth((m) => {
       const myAttrs = m.config.attributedTo.filter((a) => a.isMine !== false)
@@ -581,7 +750,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} togglePaidDespesa={togglePaid} />
-          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} />}
+          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} setPaidBulk={setPaidBulk} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
