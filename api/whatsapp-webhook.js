@@ -291,7 +291,7 @@ async function appendPendingAction(admin, userId, pending) {
 function formatPendingNotice(pending) {
   const d = pending.data || {}
   const valor = Number(d.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  const lines = [`📲 Recebi: *${d.description}* — ${valor}`]
+  const lines = [`💸 Gasto entendido: *${d.description}* — ${valor}`]
   const meta = []
   if (d.paymentMethod) meta.push(d.paymentMethod)
   if (d.installmentTotal > 1) meta.push(`parcela ${d.installmentCurrent}/${d.installmentTotal}`)
@@ -300,7 +300,7 @@ function formatPendingNotice(pending) {
   if (d.attributedTo) meta.push(d.attributedTo)
   if (meta.length) lines.push(meta.join(' · '))
   lines.push('')
-  lines.push('👀 Abre o app pra *confirmar*, *editar* ou *descartar* o lançamento.')
+  lines.push('👀 Abre o app pra *confirmar*, *editar* ou *descartar*.')
   return lines.join('\n')
 }
 
