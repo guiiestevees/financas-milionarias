@@ -626,34 +626,85 @@ export default function AppShell() {
 
   // ----- Pending actions (lançamentos via WhatsApp aguardando confirmação) -----
 
-  // Confirma um pending: move a despesa pro mês correto e remove do buffer.
+  // Confirma um pending: salva no mês correto (despesa ou receita) e remove do buffer.
+  // Para parcelados, cria automaticamente as parcelas futuras.
   // Aceita override (caso o user tenha editado antes de confirmar).
-  const confirmPending = useCallback((pendingId, override = null) => {
+  const confirmPending = useCallback((pendingOrId, override = null) => {
     setData((prev) => {
       const list = Array.isArray(prev.pendingActions) ? prev.pendingActions : []
-      const pending = list.find((p) => p?.id === pendingId)
+      const pendingId = typeof pendingOrId === 'string' ? pendingOrId : pendingOrId?.id
+      const pending = (typeof pendingOrId === 'object' && pendingOrId !== null)
+        ? pendingOrId
+        : list.find((p) => p?.id === pendingId)
       if (!pending) return prev
 
-      const finalData = override || pending.data
-      const finalYm = (override?.date || pending.data?.date || new Date().toISOString().slice(0, 10)).slice(0, 7)
+      const finalData = override || pending.data || {}
+      const isIncome = pending.type === 'income'
+      const baseDate = finalData.date || pending.data?.date || new Date().toISOString().slice(0, 10)
+      const finalYm = baseDate.slice(0, 7)
 
       const monthsCopy = { ...(prev.months || {}) }
-      const existing = monthsCopy[finalYm] || createEmptyMonth()
-      // Garante campos seguros sem mexer no que já tem
-      const newDespesa = {
-        id: uid(),
-        createdAt: Date.now(),
-        ...finalData,
-      }
-      monthsCopy[finalYm] = {
-        ...existing,
-        despesas: [newDespesa, ...(Array.isArray(existing.despesas) ? existing.despesas : [])],
+
+      if (isIncome) {
+        // Adiciona receita no mês
+        const existing = monthsCopy[finalYm] || createEmptyMonth()
+        const newReceita = { id: uid(), ...finalData }
+        monthsCopy[finalYm] = {
+          ...existing,
+          receitas: [newReceita, ...(Array.isArray(existing.receitas) ? existing.receitas : [])],
+        }
+      } else {
+        // Adiciona despesa no mês
+        const existing = monthsCopy[finalYm] || createEmptyMonth()
+        const newDespesa = { id: uid(), createdAt: Date.now(), ...finalData }
+        monthsCopy[finalYm] = {
+          ...existing,
+          despesas: [newDespesa, ...(Array.isArray(existing.despesas) ? existing.despesas : [])],
+        }
+
+        // Se for parcelado e ainda faltam parcelas, cria as próximas
+        const total = Number(finalData.installmentTotal) || 1
+        const cur = Number(finalData.installmentCurrent) || 1
+        if (total > 1 && cur < total) {
+          const sourceCfg = computeEffectiveConfig(prev)
+          const day = String(baseDate).slice(8)
+          for (let inst = cur + 1; inst <= total; inst++) {
+            const monthsAhead = inst - cur
+            const fm = shiftMonth(finalYm, monthsAhead)
+            const fmData = monthsCopy[fm] || createEmptyMonth()
+            const existingList = Array.isArray(fmData.despesas) ? fmData.despesas : []
+            // Não duplica se já existir uma parcela com mesma descrição e número
+            const already = existingList.some(
+              (d) => d && d.description === finalData.description && Number(d.installmentCurrent) === inst
+            )
+            if (already) continue
+            const futureDate = fm + (day ? '-' + day : '-01')
+            const futureDespesa = {
+              ...finalData,
+              id: uid(),
+              installmentCurrent: inst,
+              installmentTotal: total,
+              paid: false,
+              date: futureDate,
+              createdAt: Date.now(),
+            }
+            if (monthsCopy[fm]) {
+              monthsCopy[fm] = { ...fmData, despesas: [futureDespesa, ...existingList] }
+            } else {
+              monthsCopy[fm] = {
+                receitas: [],
+                despesas: [futureDespesa],
+                config: sourceCfg,
+              }
+            }
+          }
+        }
       }
 
       return {
         ...prev,
         months: monthsCopy,
-        pendingActions: list.filter((p) => p?.id !== pendingId),
+        pendingActions: list.filter((p) => p?.id !== pending.id),
       }
     })
   }, [])

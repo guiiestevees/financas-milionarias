@@ -88,8 +88,8 @@ export default async function handler(req, res) {
     }
 
     // 4b) Outras intenções (saudação, etc)
-    if (extraction.intent !== 'register_expense') {
-      await sendWhatsApp(from, `🤖 ${extraction.reply || 'Manda um gasto ("almoço 25 pix") ou uma pergunta ("quanto sobra do mês?").'}`)
+    if (extraction.intent !== 'register_expense' && extraction.intent !== 'register_income') {
+      await sendWhatsApp(from, `🤖 ${extraction.reply || 'Manda um gasto, uma receita ou uma pergunta sobre suas finanças.'}`)
       return res.status(200).json({ ok: true })
     }
 
@@ -102,16 +102,18 @@ export default async function handler(req, res) {
     const today = new Date().toISOString().slice(0, 10)
     const date = extraction.date || today
     const ym = date.slice(0, 7)
-    const despesa = buildDespesa(extraction, date)
+    const isIncome = extraction.intent === 'register_income'
+
+    const pendingData = isIncome ? buildReceita(extraction, date) : buildDespesa(extraction, date)
 
     const pending = {
       id: 'pend_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4),
-      type: 'expense',
+      type: isIncome ? 'income' : 'expense',
       source: 'whatsapp',
       createdAt: Date.now(),
       ym,
       raw: text,
-      data: despesa,
+      data: pendingData,
     }
 
     await appendPendingAction(admin, userId, pending)
@@ -192,42 +194,63 @@ Categorias cadastradas: ${ctx.categories.length ? ctx.categories.join(', ') : 'n
 Atribuídos cadastrados: ${ctx.attributedTo.length ? ctx.attributedTo.join(', ') : 'nenhum'}
 Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhum'}
 
-Sua tarefa: dada uma mensagem do usuário, retorne APENAS um JSON válido (sem markdown, sem explicações fora do JSON) com esta estrutura:
+Sua tarefa: dada uma mensagem do usuário, retorne APENAS um JSON válido (sem markdown, sem explicações fora do JSON).
 
+INTENTS POSSÍVEIS:
+- "register_expense" → gasto/saída (ex: "calça 200 nubank")
+- "register_income" → receita/entrada (ex: "recebi 500 do cliente", "salário caiu 8000")
+- "query" → pergunta sobre finanças (ex: "quanto sobra do mês")
+- "other" → saudação, dúvida não-financeira
+
+FORMATO POR INTENT:
+
+Se "register_expense":
 {
-  "intent": "register_expense" | "query" | "other",
-  "reply": "string curta em PT-BR caso intent seja 'other' (saudação, dúvida não-financeira, etc)",
-  "description": "descrição curta do gasto (ex: 'Calça', 'Almoço restaurante X')",
-  "amount": número (valor em reais, decimal),
-  "paymentMethod": "exatamente como na lista acima, ou null se não mencionado",
-  "category": "exatamente como na lista acima, ou null",
-  "attributedTo": "exatamente como na lista acima, ou null",
-  "date": "YYYY-MM-DD ou null se for hoje",
+  "intent": "register_expense",
+  "description": "descrição curta",
+  "amount": número,
+  "paymentMethod": "valor da lista acima ou null",
+  "category": "valor da lista ou null",
+  "attributedTo": "valor da lista ou null",
+  "date": "YYYY-MM-DD ou null (=hoje)",
   "installmentCurrent": número (1 se à vista),
   "installmentTotal": número (1 se à vista),
-  "recurring": boolean (true se for fixo mensal),
-  "cofreName": "nome do cofre se mencionado, ou null"
+  "recurring": boolean,
+  "cofreName": "nome do cofre ou null"
 }
 
-REGRAS:
-- Se a mensagem é um gasto novo a registrar: intent="register_expense", preenche os campos.
-- Se é uma PERGUNTA sobre finanças (saldo, sobra, orçamentos, parcelas, cofres, totais, comparações): intent="query". Não precisa preencher os outros campos.
-- Se é saudação, agradecimento ou pergunta NÃO-financeira: intent="other" e use "reply".
-- Mesmo se a frase tem só uma palavra que parece despesa (ex: "jangada 100"), trate como register_expense — palavra solta + valor = gasto.
-- paymentMethod, category, attributedTo: SÓ retorne se o usuário mencionou explicitamente E o valor existe na lista acima. Não invente.
-- Se a mensagem diz "parcelado em 4x" ou "4/6": preenche installmentTotal e installmentCurrent corretamente.
-- Se diz "todo mês" ou "fixo" ou "assinatura": recurring=true.
-- Se diz "ontem", "hoje", "anteontem", "dia 15": calcule a data ISO. Hoje é ${todayISO}.
-- Valor: aceite formatos como "200", "R$200", "200 reais", "200,50". Sempre como número (sem aspas).
+Se "register_income":
+{
+  "intent": "register_income",
+  "source": "origem da receita (ex: 'Salário', 'Freelance', 'Cliente X')",
+  "amount": número,
+  "date": "YYYY-MM-DD ou null (=hoje)",
+  "notes": "observação adicional ou string vazia",
+  "recurring": boolean
+}
 
-Exemplos:
+Se "query":
+{ "intent": "query" }
+
+Se "other":
+{ "intent": "other", "reply": "resposta curta em PT-BR" }
+
+REGRAS:
+- Distinção entre expense e income: palavras como "recebi", "ganhei", "caiu", "entrou", "me pagaram", "vendi" → income. Palavras como "comprei", "paguei", "gastei", "fui no" → expense. Palavra solta + valor sem contexto = expense.
+- paymentMethod/category/attributedTo: SÓ retorne se o usuário mencionou explicitamente E o valor existe na lista. NÃO INVENTE.
+- "parcelado em 4x" ou "4/6": preenche installmentTotal e installmentCurrent (default 1 se não disser parcela atual).
+- "todo mês", "fixo", "assinatura", "mensal": recurring=true.
+- Datas: "ontem", "hoje", "anteontem", "dia 15 do mês que vem", "15/06": calcule data ISO. Hoje é ${todayISO}.
+- Valor: aceita "200", "R$200", "200 reais", "200,50".
+
+EXEMPLOS:
 - "calça 200 nubank" → {"intent":"register_expense","description":"Calça","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
-- "almoço de 35 reais hoje no pix" → {"intent":"register_expense","description":"Almoço","amount":35,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
-- "quanto sobra do orçamento de mercado" → {"intent":"query"}
-- "quantas parcelas faltam do fifa" → {"intent":"query"}
-- "quanto eu já gastei esse mês" → {"intent":"query"}
-- "como tá meu cofre do casamento" → {"intent":"query"}
-- "oi" → {"intent":"other","reply":"Oi! Manda um gasto pra eu registrar ou uma pergunta sobre suas finanças."}`
+- "comprei tv 10x de 200 nubank" → {"intent":"register_expense","description":"TV","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":10,"recurring":false,"cofreName":null}
+- "recebi 500 do cliente x hoje" → {"intent":"register_income","source":"Cliente X","amount":500,"date":null,"notes":"","recurring":false}
+- "salário 8000" → {"intent":"register_income","source":"Salário","amount":8000,"date":null,"notes":"","recurring":true}
+- "ipva dia 5 do mês que vem 250 pix" → {"intent":"register_expense","description":"IPVA","amount":250,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":"<calcula dia 5 do próximo mês>","installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
+- "quanto sobra do mês" → {"intent":"query"}
+- "oi" → {"intent":"other","reply":"Oi! Manda um gasto, receita ou pergunta."}`
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -283,6 +306,29 @@ function buildDespesa(extraction, date) {
   }
 }
 
+// ---------- Constrói o objeto receita ----------
+function buildReceita(extraction, date) {
+  const uid = () => Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4)
+  return {
+    id: uid(),
+    source: (extraction.source || '').trim() || 'Recebimento',
+    amount: Number(extraction.amount) || 0,
+    date,
+    notes: (extraction.notes || '').trim(),
+    recurring: !!extraction.recurring,
+  }
+}
+
+// ---------- Formata data como "31 de março de 2026" ----------
+function formatDateLongPT(iso) {
+  if (!iso) return ''
+  const parts = iso.split('-').map(Number)
+  if (parts.length !== 3) return iso
+  const [y, m, d] = parts
+  const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+  return `${d} de ${months[m - 1] || ''} de ${y}`
+}
+
 // ---------- Adiciona ação pendente no perfil do usuário ----------
 async function appendPendingAction(admin, userId, pending) {
   // Lê o array atual, adiciona o novo, grava de volta.
@@ -304,17 +350,29 @@ async function appendPendingAction(admin, userId, pending) {
 // ---------- Formata a notificação de pendência ----------
 function formatPendingNotice(pending) {
   const d = pending.data || {}
+  const isIncome = pending.type === 'income'
   const valor = Number(d.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  const lines = [`💸 Gasto entendido: *${d.description}* — ${valor}`]
-  const meta = []
-  if (d.paymentMethod) meta.push(d.paymentMethod)
-  if (d.installmentTotal > 1) meta.push(`parcela ${d.installmentCurrent}/${d.installmentTotal}`)
-  if (d.recurring) meta.push('fixo mensal')
-  if (d.category) meta.push(d.category)
-  if (d.attributedTo) meta.push(d.attributedTo)
-  if (meta.length) lines.push(meta.join(' · '))
+  const dataStr = formatDateLongPT(d.date)
+
+  const lines = ['✅ *Transação Registrada com Sucesso*', '']
+  lines.push(`🏷 *Tipo:* ${isIncome ? 'Entrada' : 'Saída'}${!isIncome && d.installmentTotal > 1 ? ` (parcelado ${d.installmentCurrent}/${d.installmentTotal})` : ''}${!isIncome && d.recurring ? ' (fixo mensal)' : ''}${isIncome && d.recurring ? ' (recorrente)' : ''}`)
+  lines.push(`📝 *Descrição:* ${isIncome ? d.source : d.description}`)
+  lines.push(`💰 *Valor:* ${valor}${!isIncome && d.installmentTotal > 1 ? ' por parcela' : ''}`)
+
+  if (isIncome) {
+    if (d.notes) lines.push(`💬 *Obs:* ${d.notes}`)
+  } else {
+    if (d.paymentMethod) lines.push(`💳 *Pagamento:* ${d.paymentMethod}`)
+    if (d.category) lines.push(`🏷 *Categoria:* ${d.category}`)
+    if (d.attributedTo) lines.push(`👤 *Atribuído:* ${d.attributedTo}`)
+  }
+  if (dataStr) lines.push(`📅 *Data:* ${dataStr}`)
+
   lines.push('')
-  lines.push('👀 Abre o app pra *confirmar*, *editar* ou *descartar*.')
+  lines.push('👀 _Aguardando confirmação no app._')
+  if (!isIncome && d.installmentTotal > 1) {
+    lines.push(`_(Ao confirmar, criarei as ${d.installmentTotal - d.installmentCurrent} parcelas restantes nos próximos meses.)_`)
+  }
   return lines.join('\n')
 }
 

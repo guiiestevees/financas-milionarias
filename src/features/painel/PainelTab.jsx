@@ -684,21 +684,38 @@ function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
       <div className="space-y-2">
         {pendings.map((p) => {
           const d = p.data || {}
+          const isIncome = p.type === 'income'
+          const accent = isIncome ? accents.emerald : accents.rose
           const valor = fmtBRL(d.amount)
+          const title = isIncome ? (d.source || 'Receita') : (d.description || 'Sem descrição')
+
           const meta = []
-          if (d.paymentMethod) meta.push(d.paymentMethod)
-          if (d.installmentTotal > 1) meta.push(`${d.installmentCurrent}/${d.installmentTotal}`)
-          if (d.recurring) meta.push('mensal')
-          if (d.category) meta.push(d.category)
-          if (d.attributedTo) meta.push(d.attributedTo)
+          if (isIncome) {
+            if (d.recurring) meta.push('recorrente')
+            if (d.notes) meta.push(d.notes)
+          } else {
+            if (d.paymentMethod) meta.push(d.paymentMethod)
+            if (d.installmentTotal > 1) meta.push(`parcela ${d.installmentCurrent}/${d.installmentTotal}`)
+            if (d.recurring) meta.push('fixo mensal')
+            if (d.category) meta.push(d.category)
+            if (d.attributedTo) meta.push(d.attributedTo)
+          }
 
           return (
-            <div key={p.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(16,185,129,0.18)' }}>
+            <div key={p.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${accent.hex}30` }}>
               <div className="flex items-start justify-between gap-2 mb-2.5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="font-medium truncate">{d.description || 'Sem descrição'}</span>
-                    <span style={{ color: accents.emerald.hex, fontFamily: 'JetBrains Mono, monospace' }} className="text-sm font-semibold tabular-nums">{valor}</span>
+                    <span
+                      className="text-[10px] uppercase px-1.5 py-0.5 rounded font-semibold shrink-0"
+                      style={{ background: accent.soft, color: accent.hex, letterSpacing: '0.08em' }}
+                    >
+                      {isIncome ? 'Entrada' : 'Saída'}
+                    </span>
+                    <span className="font-medium truncate">{title}</span>
+                    <span style={{ color: accent.hex, fontFamily: 'JetBrains Mono, monospace' }} className="text-sm font-semibold tabular-nums">
+                      {isIncome ? '+' : '−'}{valor}
+                    </span>
                   </div>
                   {meta.length > 0 && (
                     <div className="text-xs text-white/45 truncate">{meta.join(' · ')}</div>
@@ -711,21 +728,23 @@ function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className={`grid gap-1.5 ${isIncome ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 <button
-                  onClick={() => onConfirm(p.id)}
+                  onClick={() => onConfirm(p)}
                   className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
                   style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}30` }}
                 >
                   <Check size={13} /> Confirmar
                 </button>
-                <button
-                  onClick={() => onEdit(p)}
-                  className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
-                  style={{ background: 'rgba(245,158,11,0.1)', color: accents.amber.hex, border: `1px solid ${accents.amber.hex}30` }}
-                >
-                  <Pencil size={13} /> Editar
-                </button>
+                {!isIncome && (
+                  <button
+                    onClick={() => onEdit(p)}
+                    className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
+                    style={{ background: 'rgba(245,158,11,0.1)', color: accents.amber.hex, border: `1px solid ${accents.amber.hex}30` }}
+                  >
+                    <Pencil size={13} /> Editar
+                  </button>
+                )}
                 <button
                   onClick={() => onDiscard(p.id)}
                   className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition text-white/50 hover:text-rose-400"
@@ -860,7 +879,10 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       cofres={cofres}
       onSave={(patch) => {
         // Aplica a edição e confirma o pending de uma vez
-        confirmPending(editingPending.id, { ...editingPending.data, ...patch })
+        const fullPending = pendingActions.find((p) => p.id === editingPending.id)
+        if (fullPending) {
+          confirmPending(fullPending, { ...editingPending.data, ...patch })
+        }
         setEditingPending(null)
       }}
       onClose={() => setEditingPending(null)}
