@@ -1,8 +1,11 @@
 import { useState, useRef } from 'react'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2 } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 
 // ---------- BrandConfig ----------
 function BrandConfig({ brand, updateBrand }) {
@@ -288,6 +291,123 @@ function IncomeSourcesConfig({ config, setConfig }) {
   )
 }
 
+// ---------- DangerZone ----------
+function DangerZone() {
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const canConfirm = confirmText.trim().toUpperCase() === 'EXCLUIR'
+
+  const reset = () => { setOpen(false); setConfirmText(''); setError(''); setLoading(false) }
+
+  const handleDelete = async () => {
+    if (!canConfirm || loading) return
+    setError('')
+    setLoading(true)
+    try {
+      if (!supabase) {
+        setError('Modo local — não há conta pra excluir.')
+        setLoading(false)
+        return
+      }
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setError('Sessão expirada. Faça login novamente.')
+        setLoading(false)
+        return
+      }
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(body.error || 'Falha ao excluir conta.')
+        setLoading(false)
+        return
+      }
+      // Conta excluída — desloga e manda pro login
+      await signOut()
+      navigate('/login', { replace: true })
+    } catch (e) {
+      setError('Erro de rede. Tente novamente.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card className="p-4 sm:p-6" accent="rose">
+      <SectionTitle icon={AlertTriangle} title="Zona de perigo" subtitle="Ações irreversíveis. Cuidado." accent="rose" />
+
+      {!open ? (
+        <div className="space-y-3">
+          <div className="text-sm text-white/65 leading-relaxed">
+            Excluir sua conta apaga permanentemente <strong className="text-white/85">todos os seus dados</strong>:
+            receitas, despesas, orçamentos, cofres e perfil. Esta ação não pode ser desfeita.
+          </div>
+          <Btn icon={Trash2} variant="ghost" onClick={() => setOpen(true)}>
+            Excluir minha conta
+          </Btn>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="p-3 rounded-lg text-sm leading-relaxed" style={{ background: accents.rose.soft, border: `1px solid ${accents.rose.hex}40`, color: 'rgba(255,255,255,0.85)' }}>
+            <strong className="text-rose-200">Tem certeza?</strong> Todos os seus dados serão apagados imediatamente
+            e não há como recuperar. Para confirmar, digite <strong className="text-white">EXCLUIR</strong> no campo abaixo.
+          </div>
+
+          <input
+            type="text"
+            autoFocus
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder='Digite "EXCLUIR" para confirmar'
+            style={{
+              background: 'rgba(244,63,94,0.06)',
+              border: `1px solid ${accents.rose.hex}40`,
+              color: 'white',
+              width: '100%',
+              outline: 'none',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 14,
+            }}
+            className="placeholder:text-white/30 focus:border-rose-400"
+          />
+
+          {error && (
+            <div className="text-sm text-rose-300 p-2 rounded" style={{ background: 'rgba(244,63,94,0.08)' }}>
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <Btn variant="ghost" onClick={reset} icon={X} disabled={loading}>Cancelar</Btn>
+            <button
+              onClick={handleDelete}
+              disabled={!canConfirm || loading}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5"
+              style={{
+                background: canConfirm && !loading ? accents.rose.hex : 'rgba(244,63,94,0.2)',
+                color: canConfirm && !loading ? 'white' : 'rgba(255,255,255,0.4)',
+                cursor: canConfirm && !loading ? 'pointer' : 'not-allowed',
+                border: 'none',
+              }}
+            >
+              <Trash2 size={14} />
+              {loading ? 'Excluindo…' : 'Excluir conta permanentemente'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 // ---------- ConfigTab (export) ----------
 export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig }) {
   return (
@@ -303,6 +423,15 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
         <CategoriesConfig config={month.config} setConfig={setConfig} />
         <AttributedConfig config={month.config} setConfig={setConfig} />
         <IncomeSourcesConfig config={month.config} setConfig={setConfig} />
+      </div>
+
+      <div className="pt-4 border-t border-white/5">
+        <DangerZone />
+        <div className="mt-3 text-xs text-white/35 text-center">
+          <Link to="/privacidade" className="hover:text-white/60 underline underline-offset-2 transition">
+            Política de Privacidade
+          </Link>
+        </div>
       </div>
     </div>
   )

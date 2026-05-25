@@ -20,6 +20,7 @@ export default function Signup() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -27,6 +28,7 @@ export default function Signup() {
     e.preventDefault()
     setError('')
     if (password.length < 6) { setError('Senha deve ter ao menos 6 caracteres'); return }
+    if (!acceptedPrivacy) { setError('Você precisa aceitar a Política de Privacidade pra continuar'); return }
     setLoading(true)
     const { error: err } = await signUp(email, password, name)
     setLoading(false)
@@ -96,18 +98,34 @@ export default function Signup() {
         </div>
       </div>
 
+      <label className="flex items-start gap-2.5 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={acceptedPrivacy}
+          onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+          style={{ width: 16, height: 16, marginTop: 2, accentColor: '#d4af37', cursor: 'pointer' }}
+        />
+        <span className="text-xs text-white/55 leading-relaxed">
+          Li e concordo com a{' '}
+          <Link to="/privacidade" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
+            Política de Privacidade
+          </Link>
+          .
+        </span>
+      </label>
+
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !acceptedPrivacy}
         style={{
-          background: loading ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
+          background: (loading || !acceptedPrivacy) ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
           color: '#070912',
           fontWeight: 600,
           width: '100%',
           padding: '11px',
           borderRadius: 10,
           fontSize: 14,
-          cursor: loading ? 'not-allowed' : 'pointer',
+          cursor: (loading || !acceptedPrivacy) ? 'not-allowed' : 'pointer',
           border: 'none',
           transition: 'opacity 0.15s',
         }}
