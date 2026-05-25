@@ -367,71 +367,160 @@ async function loadFullUserContext(admin, userId) {
 function buildContextSummary(fullCtx) {
   const today = fullCtx.today
   const currentYM = today.slice(0, 7)
+  const sortedYms = Object.keys(fullCtx.months).sort()
   const lines = []
-  lines.push(`Hoje: ${today} (mês ${currentYM})`)
+  lines.push(`Hoje: ${today} (mês atual ${currentYM})`)
   lines.push('')
 
-  const sortedYms = Object.keys(fullCtx.months).sort()
   if (sortedYms.length === 0) {
     lines.push('Nenhum mês registrado ainda.')
-  } else {
-    for (const ym of sortedYms) {
-      const m = fullCtx.months[ym] || {}
-      const despesas = Array.isArray(m.despesas) ? m.despesas : []
-      const receitas = Array.isArray(m.receitas) ? m.receitas : []
-      const totalReceitas = receitas.reduce((s, r) => s + (Number(r.amount) || 0), 0)
-      const totalDespesas = despesas.reduce((s, d) => s + (Number(d.amount) || 0), 0)
-      lines.push(`=== ${ym}${ym === currentYM ? ' (atual)' : ''} ===`)
-      lines.push(`Receitas: R$ ${totalReceitas.toFixed(2)} (${receitas.length} entradas)`)
-      lines.push(`Despesas: R$ ${totalDespesas.toFixed(2)} (${despesas.length} lançamentos)`)
+    return lines.join('\n')
+  }
 
-      // Orçamentos do mês
-      const cats = Array.isArray(m.config?.categories) ? m.config.categories : []
-      if (cats.length) {
-        const overrides = m.budgetOverrides || {}
-        lines.push('Orçamentos:')
-        for (const c of cats) {
-          const budget = Object.prototype.hasOwnProperty.call(overrides, c.name)
-            ? Number(overrides[c.name]) || 0
-            : Number(c.budget) || 0
-          if (budget <= 0) continue
-          const spent = despesas
-            .filter((d) => d.category === c.name)
-            .reduce((s, d) => s + (Number(d.amount) || 0), 0)
-          lines.push(`  - ${c.name}: gastou R$ ${spent.toFixed(2)} de R$ ${budget.toFixed(2)} (sobra R$ ${(budget - spent).toFixed(2)})`)
-        }
+  // ---------- Effective config (toma o último mês com dados não vazios) ----------
+  let cfg = null
+  for (const ym of sortedYms) {
+    const c = fullCtx.months[ym]?.config
+    if (c && (c.categories?.length || c.cards?.length || c.attributedTo?.length)) cfg = c
+  }
+  cfg = cfg || { categories: [], cards: [], paymentMethods: [], attributedTo: [] }
+  const terceirosNames = (Array.isArray(cfg.attributedTo) ? cfg.attributedTo : [])
+    .filter((a) => a?.isMine === false)
+    .map((a) => a.name)
+
+  // ---------- Resumo por mês (totais) ----------
+  lines.push('=== RESUMO POR MÊS ===')
+  for (const ym of sortedYms) {
+    const m = fullCtx.months[ym] || {}
+    const despesas = Array.isArray(m.despesas) ? m.despesas : []
+    const receitas = Array.isArray(m.receitas) ? m.receitas : []
+    // Distingue "minhas" (próprias) das atribuídas a terceiros
+    const minhas = despesas.filter((d) => !d?.attributedTo || !terceirosNames.includes(d.attributedTo))
+    const totalReceitas = receitas.reduce((s, r) => s + (Number(r.amount) || 0), 0)
+    const totalDespesas = minhas.reduce((s, d) => s + (Number(d.amount) || 0), 0)
+    const sobra = totalReceitas - totalDespesas
+    const tag = ym === currentYM ? ' (ATUAL)' : ''
+    lines.push(`- ${ym}${tag}: receitas R$ ${totalReceitas.toFixed(2)} | despesas R$ ${totalDespesas.toFixed(2)} | sobra R$ ${sobra.toFixed(2)}`)
+  }
+  lines.push('')
+
+  // ---------- Orçamentos do mês atual ----------
+  const currentMonth = fullCtx.months[currentYM] || {}
+  const currentCats = Array.isArray(currentMonth.config?.categories)
+    ? currentMonth.config.categories
+    : (cfg.categories || [])
+  const currentDespesas = Array.isArray(currentMonth.despesas) ? currentMonth.despesas : []
+  const overrides = currentMonth.budgetOverrides || {}
+  const budgetsWithBudget = currentCats.filter((c) => {
+    const b = Object.prototype.hasOwnProperty.call(overrides, c.name)
+      ? Number(overrides[c.name]) || 0
+      : Number(c?.budget) || 0
+    return b > 0
+  })
+  if (budgetsWithBudget.length) {
+    lines.push(`=== ORÇAMENTOS DO MÊS ATUAL (${currentYM}) ===`)
+    for (const c of budgetsWithBudget) {
+      const budget = Object.prototype.hasOwnProperty.call(overrides, c.name)
+        ? Number(overrides[c.name]) || 0
+        : Number(c.budget) || 0
+      const spent = currentDespesas
+        .filter((d) => d.category === c.name)
+        .reduce((s, d) => s + (Number(d.amount) || 0), 0)
+      const left = budget - spent
+      lines.push(`- ${c.name}: gastou R$ ${spent.toFixed(2)} de R$ ${budget.toFixed(2)} | SOBRA R$ ${left.toFixed(2)}`)
+    }
+    lines.push('')
+  }
+
+  // ---------- Parcelados em andamento (pré-calculado) ----------
+  // Agrupa por description (case-insensitive). Faltam = installmentTotal - max(installmentCurrent já registrada).
+  const parceladosByKey = new Map()
+  for (const ym of sortedYms) {
+    const despesas = Array.isArray(fullCtx.months[ym]?.despesas) ? fullCtx.months[ym].despesas : []
+    for (const d of despesas) {
+      const total = Number(d?.installmentTotal) || 0
+      if (total <= 1) continue
+      const desc = (d.description || '').trim()
+      const key = desc.toLowerCase()
+      if (!key) continue
+      const cur = Number(d.installmentCurrent) || 0
+      const group = parceladosByKey.get(key) || {
+        description: desc, total: 0, maxCurrent: 0, amountPerParcela: 0, entries: [],
       }
+      group.total = Math.max(group.total, total)
+      group.maxCurrent = Math.max(group.maxCurrent, cur)
+      group.amountPerParcela = Number(d.amount) || group.amountPerParcela
+      group.entries.push({ ym, cur, paid: !!d.paid })
+      parceladosByKey.set(key, group)
+    }
+  }
+  const activeParcelados = [...parceladosByKey.values()].filter((g) => g.maxCurrent < g.total)
+  if (activeParcelados.length) {
+    lines.push('=== PARCELADOS EM ANDAMENTO ===')
+    for (const p of activeParcelados) {
+      const remaining = p.total - p.maxCurrent
+      lines.push(`- ${p.description}: total ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | última registrada ${p.maxCurrent}/${p.total} | FALTAM ${remaining}`)
+    }
+    lines.push('')
+  }
 
-      // Despesas detalhadas (limit pra não estourar contexto)
-      const detailedDespesas = despesas.slice(0, 30)
-      if (detailedDespesas.length) {
-        lines.push('Lançamentos:')
-        for (const d of detailedDespesas) {
-          const parts = []
-          parts.push(d.description || 'sem-descrição')
-          parts.push(`R$ ${Number(d.amount || 0).toFixed(2)}`)
-          if (d.paymentMethod) parts.push(d.paymentMethod)
-          if (d.installmentTotal > 1) parts.push(`parcela ${d.installmentCurrent}/${d.installmentTotal}`)
-          if (d.recurring) parts.push('fixo')
-          if (d.category) parts.push(`cat:${d.category}`)
-          if (d.attributedTo) parts.push(`atr:${d.attributedTo}`)
-          parts.push(d.paid ? 'pago' : 'pendente')
-          lines.push(`  - ${parts.join(' · ')}`)
+  // ---------- A receber de terceiros (pré-calculado) ----------
+  if (terceirosNames.length) {
+    const receberByPerson = new Map()
+    for (const ym of sortedYms) {
+      const despesas = Array.isArray(fullCtx.months[ym]?.despesas) ? fullCtx.months[ym].despesas : []
+      for (const d of despesas) {
+        if (!d?.attributedTo || !terceirosNames.includes(d.attributedTo)) continue
+        const g = receberByPerson.get(d.attributedTo) || {
+          name: d.attributedTo, pending: 0, paid: 0, pendingItems: 0,
         }
-        if (despesas.length > 30) lines.push(`  (... +${despesas.length - 30} despesas omitidas)`)
+        const v = Number(d.amount) || 0
+        if (d.reimbursed) g.paid += v
+        else { g.pending += v; g.pendingItems += 1 }
+        receberByPerson.set(d.attributedTo, g)
+      }
+    }
+    if (receberByPerson.size) {
+      lines.push('=== A RECEBER DE TERCEIROS ===')
+      for (const g of receberByPerson.values()) {
+        lines.push(`- ${g.name}: PENDENTE R$ ${g.pending.toFixed(2)} (${g.pendingItems} itens) | já recebido R$ ${g.paid.toFixed(2)}`)
       }
       lines.push('')
     }
   }
 
+  // ---------- Cofres (pré-calculado) ----------
   if (fullCtx.cofres.length) {
-    lines.push('=== Cofres ===')
+    lines.push('=== COFRES ===')
+    let totalGuardado = 0
     for (const c of fullCtx.cofres) {
-      const goalStr = c.goal
-        ? ` (meta R$ ${Number(c.goal.amount).toFixed(2)}${c.goal.targetDate ? ` até ${c.goal.targetDate}` : ''})`
-        : ''
-      lines.push(`- ${c.name}: saldo R$ ${Number(c.balance).toFixed(2)}${goalStr}`)
+      totalGuardado += Number(c.balance) || 0
+      const parts = [`saldo R$ ${Number(c.balance).toFixed(2)}`]
+      if (c.goal) {
+        const pct = c.goal.amount > 0 ? Math.round((c.balance / c.goal.amount) * 100) : 0
+        parts.push(`meta R$ ${Number(c.goal.amount).toFixed(2)} (${pct}%)`)
+        if (c.goal.targetDate) parts.push(`alvo ${c.goal.targetDate}`)
+      }
+      lines.push(`- ${c.name}: ${parts.join(' | ')}`)
     }
+    lines.push(`TOTAL guardado em cofres: R$ ${totalGuardado.toFixed(2)}`)
+    lines.push('')
+  }
+
+  // ---------- Despesas detalhadas do mês atual ----------
+  if (currentDespesas.length) {
+    lines.push(`=== LANÇAMENTOS DO MÊS ATUAL (${currentYM}) ===`)
+    for (const d of currentDespesas.slice(0, 40)) {
+      const parts = [d.description || 'sem-desc', `R$ ${Number(d.amount || 0).toFixed(2)}`]
+      if (d.paymentMethod) parts.push(d.paymentMethod)
+      if (d.installmentTotal > 1) parts.push(`parc ${d.installmentCurrent}/${d.installmentTotal}`)
+      if (d.recurring) parts.push('fixo')
+      if (d.category) parts.push(`cat:${d.category}`)
+      if (d.attributedTo) parts.push(`atr:${d.attributedTo}`)
+      parts.push(d.paid ? 'pago' : 'pendente')
+      lines.push(`- ${parts.join(' · ')}`)
+    }
+    if (currentDespesas.length > 40) lines.push(`(... +${currentDespesas.length - 40} omitidos)`)
   }
 
   return lines.join('\n')
@@ -445,29 +534,36 @@ async function answerQuery(question, fullCtx) {
   const system = `Você é um assistente financeiro pra WhatsApp. Responda APENAS o que foi perguntado, em UMA frase curta.
 
 REGRAS CRÍTICAS:
-- Responda em 1 frase, máximo 2. NÃO liste dados que não foram pedidos.
-- Vá direto ao número/resposta. Sem rodeios tipo "vou calcular pra você".
-- Use *negrito* pra destacar o valor principal da resposta.
-- Valores em R$ formatados ex "R$ 1.234,56".
-- Assume mês atual quando ambíguo. Pra parcelas: conte quantas faltam.
-- Se faltar dado pra responder: 1 frase explicando o que falta.
-- Se não for sobre finanças: peça reformular.
+- 1 frase, máximo 2. NÃO liste dados extras.
+- Vá direto ao número. Sem rodeios.
+- Use *negrito* no valor principal.
+- R$ formatado: "R$ 1.234,56".
+- Mês ambíguo = mês ATUAL.
+- Pra parcelas: USE EXATAMENTE o "FALTAM N" da seção PARCELADOS. Não tente recalcular.
+- Pra "a receber": USE EXATAMENTE o "PENDENTE R$ X" por pessoa da seção A RECEBER.
+- Pra orçamentos: USE EXATAMENTE o "SOBRA R$ X" da seção ORÇAMENTOS.
+- Match de nomes (parcelados, pessoas, categorias): case-insensitive.
+- Se faltar dado: explique em 1 frase o que falta.
+- Se não for finanças: peça reformular.
 
 EXEMPLOS:
 
-Pergunta: "quanto sobra do orçamento de mercado?"
-RUIM: "Olhando seus dados, em maio você gastou R$ 800 de mercado de um orçamento de R$ 1.000, então sobra R$ 200."
-BOM: "Sobram *R$ 200,00* do orçamento de Mercado esse mês."
+P: "quanto sobra do orçamento de mercado?"
+R: "Sobram *R$ 200,00* do orçamento de Mercado esse mês."
 
-Pergunta: "quantas parcelas faltam do fifa?"
-RUIM: "O FIFA está na parcela 2/4, então faltam 2 parcelas pra terminar."
-BOM: "Faltam *2 parcelas* do FIFA."
+P: "quantas parcelas faltam do fifa?"
+R: "Faltam *2 parcelas* do FIFA (próximas em jun e jul)."
 
-Pergunta: "quanto tenho guardado?"
-RUIM: "Você tem 3 cofres: Casamento com R$ 8.400, IPVA com R$ 1.200 e Investimentos com R$ 2.000, totalizando R$ 11.600."
-BOM: "Você tem *R$ 11.600,00* guardado entre 3 cofres."
+P: "quanto o sogro me deve?"
+R: "Sogro tem *R$ 450,00* pendentes (3 itens em aberto)."
 
-Dados do usuário (use só o necessário pra responder):
+P: "quanto tenho guardado?"
+R: "Você tem *R$ 11.600,00* guardado entre 3 cofres."
+
+P: "como tá o cofre do casamento?"
+R: "Cofre Casamento: *R$ 8.400,00* (28% da meta de R$ 30.000)."
+
+DADOS DO USUÁRIO:
 
 ${summary}`
 
