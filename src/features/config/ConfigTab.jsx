@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2 } from 'lucide-react'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
@@ -291,6 +291,94 @@ function IncomeSourcesConfig({ config, setConfig }) {
   )
 }
 
+// ---------- WhatsAppConfig ----------
+function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
+  const [draft, setDraft] = useState(whatsappPhone || '')
+  const [savedJustNow, setSavedJustNow] = useState(false)
+
+  const normalize = (input) => {
+    const digits = (input || '').replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.startsWith('55') && digits.length >= 12) return digits
+    if (digits.length === 10 || digits.length === 11) return '55' + digits
+    if (digits.length >= 10) return digits
+    return null
+  }
+
+  const formatBR = (digits) => {
+    if (!digits) return ''
+    const d = digits.replace(/\D/g, '')
+    // 5511999998888 → +55 (11) 99999-8888
+    if (d.length === 13 && d.startsWith('55')) return `+55 (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9)}`
+    if (d.length === 12 && d.startsWith('55')) return `+55 (${d.slice(2,4)}) ${d.slice(4,8)}-${d.slice(8)}`
+    return '+' + d
+  }
+
+  const save = () => {
+    const normalized = normalize(draft)
+    updateWhatsappPhone(normalized)
+    setSavedJustNow(true)
+    setTimeout(() => setSavedJustNow(false), 2500)
+  }
+
+  const remove = () => {
+    setDraft('')
+    updateWhatsappPhone(null)
+  }
+
+  const current = whatsappPhone
+
+  return (
+    <Card className="p-4 sm:p-6" accent="emerald">
+      <SectionTitle icon={MessageCircle} title="WhatsApp" subtitle="Registre gastos mandando mensagem direto pro app" accent="emerald" />
+
+      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
+        Salve seu WhatsApp aqui e mande mensagem pra <strong className="text-emerald-300">+1 (555) 650-4979</strong> com gastos no formato livre — ex: <em>"calça 200 nubank parcelado 4x"</em>. A IA reconhece e lança.
+      </div>
+
+      {current ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div style={{ background: accents.emerald.soft, color: accents.emerald.hex }} className="p-1.5 rounded-md shrink-0"><MessageCircle size={14} /></div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate">{formatBR(current)}</div>
+                <div className="text-xs text-white/45">vinculado a essa conta</div>
+              </div>
+            </div>
+            <button onClick={remove} className="text-xs text-white/45 hover:text-rose-400 transition shrink-0">Desvincular</button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            type="text"
+            inputMode="tel"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="(11) 99999-8888"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: 'white',
+              width: '100%',
+              outline: 'none',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 14,
+              boxSizing: 'border-box',
+            }}
+            className="placeholder:text-white/35 focus:border-emerald-400"
+          />
+          <Btn icon={Check} onClick={save} disabled={!draft.trim()}>
+            {savedJustNow ? 'Salvo!' : 'Salvar número'}
+          </Btn>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 // ---------- DangerZone ----------
 function DangerZone() {
   const { signOut } = useAuth()
@@ -409,7 +497,7 @@ function DangerZone() {
 }
 
 // ---------- ConfigTab (export) ----------
-export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig }) {
+export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig, whatsappPhone, updateWhatsappPhone }) {
   return (
     <div className="space-y-6">
       <Card className="p-4 sm:p-6">
@@ -417,6 +505,7 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
         <div className="text-sm text-white/55 leading-relaxed">Estas configurações são globais — valem para todos os meses.</div>
       </Card>
       <BrandConfig brand={brand} updateBrand={updateBrand} />
+      <WhatsAppConfig whatsappPhone={whatsappPhone} updateWhatsappPhone={updateWhatsappPhone} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CardsConfig config={month.config} setConfig={setConfig} />
         <PaymentMethodsConfig config={month.config} setConfig={setConfig} />

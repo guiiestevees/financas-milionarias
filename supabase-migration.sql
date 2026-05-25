@@ -19,6 +19,16 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS cofres JSONB NOT NULL DEFAULT '[]';
 
+-- Coluna pra vincular o WhatsApp do usuário (formato: só dígitos, com código do país)
+-- Ex: 5511999998888
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
+
+-- Índice único pra busca rápida + impedir 2 usuários com o mesmo número
+CREATE UNIQUE INDEX IF NOT EXISTS user_profiles_whatsapp_phone_uniq
+  ON public.user_profiles (whatsapp_phone)
+  WHERE whatsapp_phone IS NOT NULL;
+
 -- ----------------------------------------------------------------
 -- Tabela: user_months
 -- 1 row por usuário × mês (YYYY-MM). JSONB com receitas/despesas/config.

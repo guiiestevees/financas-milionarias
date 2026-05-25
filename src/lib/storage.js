@@ -27,7 +27,7 @@ async function supabaseLoad() {
       .eq('user_id', user.id),
     supabase
       .from('user_profiles')
-      .select('brand, cofres')
+      .select('brand, cofres, whatsapp_phone')
       .eq('user_id', user.id)
       .maybeSingle(),
   ])
@@ -44,6 +44,7 @@ async function supabaseLoad() {
     months,
     brand: profileRes.data?.brand ?? { name: '', subtitle: 'Finanças Milionárias' },
     cofres: Array.isArray(profileRes.data?.cofres) ? profileRes.data.cofres : [],
+    whatsappPhone: profileRes.data?.whatsapp_phone || null,
   }
 }
 
@@ -79,6 +80,7 @@ async function supabaseSave(appData) {
           user_id: user.id,
           brand: appData.brand ?? { name: '', subtitle: 'Finanças Milionárias' },
           cofres: Array.isArray(appData.cofres) ? appData.cofres : [],
+          whatsapp_phone: appData.whatsappPhone || null,
           updated_at: now,
         },
         { onConflict: 'user_id' }

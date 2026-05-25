@@ -620,6 +620,10 @@ export default function AppShell() {
     setData((prev) => ({ ...prev, brand: { ...(prev.brand || {}), ...patch } }))
   }, [])
 
+  const updateWhatsappPhone = useCallback((phone) => {
+    setData((prev) => ({ ...prev, whatsappPhone: phone || null }))
+  }, [])
+
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
@@ -658,7 +662,7 @@ export default function AppShell() {
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
           {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} transferCofreToCaixa={transferCofreToCaixa} updateMovement={updateMovement} removeMovement={removeMovement} />}
-          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} />}
+          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} whatsappPhone={data.whatsappPhone || ''} updateWhatsappPhone={updateWhatsappPhone} />}
         </ErrorBoundary>
       </main>
 
