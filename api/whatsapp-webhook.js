@@ -490,8 +490,8 @@ function buildContextSummary(fullCtx) {
     lines.push('')
   }
 
-  // ---------- Parcelados em andamento (pré-calculado) ----------
-  // Agrupa por description (case-insensitive). Faltam = installmentTotal - max(installmentCurrent já registrada).
+  // ---------- Parcelados (TODOS, com paid vs unpaid pré-calculado) ----------
+  // Agrupa por description (case-insensitive). Mostra inclusive os finalizados.
   const parceladosByKey = new Map()
   for (const ym of sortedYms) {
     const despesas = Array.isArray(fullCtx.months[ym]?.despesas) ? fullCtx.months[ym].despesas : []
@@ -502,46 +502,78 @@ function buildContextSummary(fullCtx) {
       const key = desc.toLowerCase()
       if (!key) continue
       const cur = Number(d.installmentCurrent) || 0
-      const group = parceladosByKey.get(key) || {
-        description: desc, total: 0, maxCurrent: 0, amountPerParcela: 0, entries: [],
+      const g = parceladosByKey.get(key) || {
+        description: desc, total: 0, amountPerParcela: 0,
+        existingNums: new Set(), paidNums: new Set(),
+        unpaidEntries: [],  // [{ num, ym }]
       }
-      group.total = Math.max(group.total, total)
-      group.maxCurrent = Math.max(group.maxCurrent, cur)
-      group.amountPerParcela = Number(d.amount) || group.amountPerParcela
-      group.entries.push({ ym, cur, paid: !!d.paid })
-      parceladosByKey.set(key, group)
+      g.total = Math.max(g.total, total)
+      g.amountPerParcela = Number(d.amount) || g.amountPerParcela
+      g.existingNums.add(cur)
+      if (d.paid) g.paidNums.add(cur)
+      else g.unpaidEntries.push({ num: cur, ym })
+      parceladosByKey.set(key, g)
     }
   }
-  const activeParcelados = [...parceladosByKey.values()].filter((g) => g.maxCurrent < g.total)
-  if (activeParcelados.length) {
-    lines.push('=== PARCELADOS EM ANDAMENTO ===')
-    for (const p of activeParcelados) {
-      const remaining = p.total - p.maxCurrent
-      lines.push(`- ${p.description}: total ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | última registrada ${p.maxCurrent}/${p.total} | FALTAM ${remaining}`)
+  if (parceladosByKey.size) {
+    lines.push('=== PARCELADOS ===')
+    for (const p of parceladosByKey.values()) {
+      const paidCount = p.paidNums.size
+      const existingCount = p.existingNums.size
+      const notYetCreated = Math.max(0, p.total - existingCount)
+      const unpaidExisting = existingCount - paidCount
+      const totalFaltam = unpaidExisting + notYetCreated
+
+      if (totalFaltam === 0) {
+        lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | TODAS PAGAS (concluído)`)
+      } else {
+        const unpaidPreview = p.unpaidEntries
+          .sort((a, b) => a.num - b.num)
+          .slice(0, 4)
+          .map((e) => `${e.num}/${p.total} em ${e.ym}`)
+          .join(', ')
+        const notCreatedInfo = notYetCreated > 0 ? ` (+${notYetCreated} ainda não criadas)` : ''
+        lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | pagas ${paidCount}/${p.total} | FALTAM PAGAR ${totalFaltam}${notCreatedInfo}${unpaidPreview ? ` — próximas: ${unpaidPreview}` : ''}`)
+      }
     }
     lines.push('')
   }
 
-  // ---------- A receber de terceiros (pré-calculado) ----------
+  // ---------- A receber de terceiros (POR MÊS ATUAL + TOTAL HISTÓRICO) ----------
   if (terceirosNames.length) {
-    const receberByPerson = new Map()
+    const byPerson = new Map()
     for (const ym of sortedYms) {
       const despesas = Array.isArray(fullCtx.months[ym]?.despesas) ? fullCtx.months[ym].despesas : []
       for (const d of despesas) {
         if (!d?.attributedTo || !terceirosNames.includes(d.attributedTo)) continue
-        const g = receberByPerson.get(d.attributedTo) || {
-          name: d.attributedTo, pending: 0, paid: 0, pendingItems: 0,
+        const g = byPerson.get(d.attributedTo) || {
+          name: d.attributedTo,
+          currentMonth: { pending: 0, paid: 0, pendingItems: 0 },
+          total: { pending: 0, paid: 0, pendingItems: 0 },
+          items: [],
         }
         const v = Number(d.amount) || 0
-        if (d.reimbursed) g.paid += v
-        else { g.pending += v; g.pendingItems += 1 }
-        receberByPerson.set(d.attributedTo, g)
+        const bucket = ym === currentYM ? 'currentMonth' : null
+        if (d.reimbursed) {
+          g.total.paid += v
+          if (bucket) g[bucket].paid += v
+        } else {
+          g.total.pending += v
+          g.total.pendingItems += 1
+          if (bucket) { g[bucket].pending += v; g[bucket].pendingItems += 1 }
+        }
+        g.items.push({ ym, desc: d.description, amount: v, paid: !!d.reimbursed })
+        byPerson.set(d.attributedTo, g)
       }
     }
-    if (receberByPerson.size) {
+    if (byPerson.size) {
       lines.push('=== A RECEBER DE TERCEIROS ===')
-      for (const g of receberByPerson.values()) {
-        lines.push(`- ${g.name}: PENDENTE R$ ${g.pending.toFixed(2)} (${g.pendingItems} itens) | já recebido R$ ${g.paid.toFixed(2)}`)
+      for (const g of byPerson.values()) {
+        const cm = g.currentMonth
+        const t = g.total
+        lines.push(`- ${g.name}:`)
+        lines.push(`    Esse mês (${currentYM}): pendente R$ ${cm.pending.toFixed(2)} (${cm.pendingItems} itens) | já recebido R$ ${cm.paid.toFixed(2)}`)
+        lines.push(`    Total histórico: pendente R$ ${t.pending.toFixed(2)} (${t.pendingItems} itens) | já recebido R$ ${t.paid.toFixed(2)}`)
       }
       lines.push('')
     }
@@ -596,13 +628,23 @@ REGRAS CRÍTICAS:
 - Vá direto ao número. Sem rodeios.
 - Use *negrito* no valor principal.
 - R$ formatado: "R$ 1.234,56".
-- Mês ambíguo = mês ATUAL.
-- Pra parcelas: USE EXATAMENTE o "FALTAM N" da seção PARCELADOS. Não tente recalcular.
-- Pra "a receber": USE EXATAMENTE o "PENDENTE R$ X" por pessoa da seção A RECEBER.
-- Pra orçamentos: USE EXATAMENTE o "SOBRA R$ X" da seção ORÇAMENTOS.
-- Match de nomes (parcelados, pessoas, categorias): case-insensitive.
-- Se faltar dado: explique em 1 frase o que falta.
-- Se não for finanças: peça reformular.
+- Match de nomes (parcelados, pessoas, categorias) é CASE-INSENSITIVE e tolerante a acentos.
+
+REGRAS POR TIPO DE PERGUNTA:
+
+PARCELAS: A seção PARCELADOS já tem "FALTAM PAGAR N" pré-calculado. Use EXATAMENTE esse número, NÃO tente recalcular. Se o usuário pergunta sobre algo que não está listado, é porque não existe — diga isso.
+
+A RECEBER de uma pessoa:
+- Se a pergunta inclui "esse mês" ou só fala do mês: use o valor "Esse mês: pendente R$ X" da pessoa.
+- Se a pergunta fala "no total" ou "tudo" ou sem qualificar tempo: use o valor "Total histórico: pendente R$ X".
+- Se o usuário pede o valor "essas mês" ou similar e há R$ 0 pendentes no mês, mas tem histórico: responda com mês atual e mencione o total.
+- Se a pessoa não está na seção A RECEBER: ela não está cadastrada como terceiro (isMine=false).
+
+ORÇAMENTOS: USE EXATAMENTE o "SOBRA R$ X" da seção ORÇAMENTOS DO MÊS ATUAL.
+
+COFRES: USE EXATAMENTE o saldo/% da seção COFRES.
+
+Se faltar dado: explique em 1 frase o que falta. Se não for finanças: peça reformular.
 
 EXEMPLOS:
 
@@ -610,13 +652,13 @@ P: "quanto sobra do orçamento de mercado?"
 R: "Sobram *R$ 200,00* do orçamento de Mercado esse mês."
 
 P: "quantas parcelas faltam do fifa?"
-R: "Faltam *2 parcelas* do FIFA (próximas em jun e jul)."
+R: "Faltam *1 parcela* do FIFA (4/4 em junho)."
 
-P: "quanto o sogro me deve?"
-R: "Sogro tem *R$ 450,00* pendentes (3 itens em aberto)."
+P: "quanto o consultório juju tem que me pagar esse mês?"
+R: "Consultório Juju tem *R$ 2.500,00* pendentes esse mês."
 
-P: "quanto tenho guardado?"
-R: "Você tem *R$ 11.600,00* guardado entre 3 cofres."
+P: "quanto a clínica tem pra me pagar no total?"
+R: "Consultório Juju acumula *R$ 5.000,00* pendentes no histórico."
 
 P: "como tá o cofre do casamento?"
 R: "Cofre Casamento: *R$ 8.400,00* (28% da meta de R$ 30.000)."
