@@ -118,7 +118,35 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
-    // 4c) Outras intenções (saudação, conversa, etc)
+    // 4c) Batch: múltiplos lançamentos numa mensagem
+    if (extraction.intent === 'register_batch') {
+      const items = Array.isArray(extraction.items) ? extraction.items.filter((i) => i && Number(i.amount) > 0) : []
+      if (items.length === 0) {
+        await sendWhatsApp(from, '🤖 Não consegui identificar valores nos lançamentos. Reformula?')
+        return res.status(200).json({ ok: true })
+      }
+      const today = new Date().toISOString().slice(0, 10)
+      const pendings = items.map((item) => {
+        const isIncome = item.kind === 'income'
+        const date = item.date || today
+        const ym = date.slice(0, 7)
+        const data = isIncome ? buildReceita(item, date) : buildDespesa(item, date)
+        return {
+          id: 'pend_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 5),
+          type: isIncome ? 'income' : 'expense',
+          source: 'whatsapp',
+          createdAt: Date.now(),
+          ym,
+          raw: text,
+          data,
+        }
+      })
+      await appendPendingActions(admin, userId, pendings)
+      await sendWhatsApp(from, formatBatchNotice(pendings))
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4d) Outras intenções (saudação, conversa, etc)
     if (extraction.intent !== 'register_expense' && extraction.intent !== 'register_income') {
       await sendWhatsApp(from, `🤖 ${extraction.reply || 'Manda um gasto, uma receita ou uma pergunta sobre suas finanças.'}`)
       return res.status(200).json({ ok: true })
@@ -245,8 +273,9 @@ Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhu
 
 SUA TAREFA: retorne APENAS um JSON válido (sem markdown, sem texto fora do JSON), classificando a mensagem em um destes intents:
 
-- "register_expense" → gasto / saída de dinheiro
-- "register_income" → receita / entrada de dinheiro
+- "register_expense" → 1 gasto / saída de dinheiro
+- "register_income" → 1 receita / entrada de dinheiro
+- "register_batch" → MÚLTIPLOS lançamentos numa mensagem (mistura de saídas e entradas permitida)
 - "query" → pergunta sobre finanças (saldos, parcelas, orçamentos, cofres, totais)
 - "clarify" → você entendeu a intenção mas falta um dado essencial (valor ou se é gasto/receita)
 - "other" → saudação, conversa casual, ou dúvida fora de finanças
@@ -277,6 +306,16 @@ register_income (mesma lógica de data):
   "notes": "observação ou ''",
   "recurring": boolean
 }
+
+register_batch (use SÓ quando o usuário menciona 2 ou mais lançamentos numa mensagem):
+{
+  "intent": "register_batch",
+  "items": [
+    { "kind": "expense", "description": "...", "amount": número, "paymentMethod": ..., "category": ..., "attributedTo": ..., "date": ..., "installmentCurrent": 1, "installmentTotal": 1, "recurring": false, "cofreName": null },
+    { "kind": "income", "source": "...", "amount": número, "date": ..., "notes": "", "recurring": false }
+  ]
+}
+Cada item tem "kind": "expense" ou "income" e os mesmos campos do intent equivalente. Se algum atributo (paymentMethod, category, etc) foi mencionado uma vez e claramente vale pra todos os itens, propague pra todos. Ex: "calça 200, tênis 350 nubank" → ambos com paymentMethod="Nubank".
 
 query:
 { "intent": "query" }
@@ -339,6 +378,12 @@ NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mê
 "quanto sobra do mês" → {"intent":"query"}
 
 "como tá meu cofre do casamento" → {"intent":"query"}
+
+"almoço 50 pix e uber 30 pix" → {"intent":"register_batch","items":[{"kind":"expense","description":"Almoço","amount":50,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null},{"kind":"expense","description":"Uber","amount":30,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}]}
+
+"calça 200, tênis 350 e camisa 80 tudo no nubank" → {"intent":"register_batch","items":[{"kind":"expense","description":"Calça","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null},{"kind":"expense","description":"Tênis","amount":350,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null},{"kind":"expense","description":"Camisa","amount":80,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}]}
+
+"gastei 80 no mercado pix e recebi 200 do consultório juju" → {"intent":"register_batch","items":[{"kind":"expense","description":"Mercado","amount":80,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null},{"kind":"income","source":"Consultório Juju","amount":200,"date":null,"notes":"","recurring":false}]}
 
 "lança um gasto pro mês que vem" → {"intent":"clarify","reply":"Claro! Me passa a descrição, o valor e o método (pix, cartão, etc)."}
 
@@ -429,7 +474,12 @@ function formatDateLongPT(iso) {
 
 // ---------- Adiciona ação pendente no perfil do usuário ----------
 async function appendPendingAction(admin, userId, pending) {
-  // Lê o array atual, adiciona o novo, grava de volta.
+  return appendPendingActions(admin, userId, [pending])
+}
+
+async function appendPendingActions(admin, userId, newPendings) {
+  if (!Array.isArray(newPendings) || newPendings.length === 0) return
+  // Lê o array atual, adiciona os novos, grava de volta.
   const { data: profile } = await admin
     .from('user_profiles')
     .select('pending_actions')
@@ -437,12 +487,43 @@ async function appendPendingAction(admin, userId, pending) {
     .maybeSingle()
 
   const current = Array.isArray(profile?.pending_actions) ? profile.pending_actions : []
-  const updated = [pending, ...current].slice(0, 50)  // limite de 50 pendings pra evitar buffer enorme
+  const updated = [...newPendings, ...current].slice(0, 50)  // limite de 50
 
   await admin
     .from('user_profiles')
     .update({ pending_actions: updated, updated_at: new Date().toISOString() })
     .eq('user_id', userId)
+}
+
+// ---------- Formata notificação de batch (múltiplos lançamentos) ----------
+function formatBatchNotice(pendings) {
+  const totalIn = pendings.filter((p) => p.type === 'income').reduce((s, p) => s + (Number(p.data?.amount) || 0), 0)
+  const totalOut = pendings.filter((p) => p.type !== 'income').reduce((s, p) => s + (Number(p.data?.amount) || 0), 0)
+  const lines = [`✅ *${pendings.length} transações registradas*`, '']
+  pendings.forEach((p, i) => {
+    const d = p.data || {}
+    const isIncome = p.type === 'income'
+    const valor = Number(d.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    const num = `${i + 1}.`
+    const tipo = isIncome ? '📥 Entrada' : '📤 Saída'
+    const desc = isIncome ? (d.source || 'Recebimento') : (d.description || 'Gasto')
+    const extra = []
+    if (!isIncome) {
+      if (d.paymentMethod) extra.push(d.paymentMethod)
+      if (d.installmentTotal > 1) extra.push(`${d.installmentCurrent}/${d.installmentTotal}`)
+      if (d.recurring) extra.push('fixo')
+    } else if (d.recurring) {
+      extra.push('recorrente')
+    }
+    const extraStr = extra.length ? ` _(${extra.join(' · ')})_` : ''
+    lines.push(`${num} ${tipo}: *${desc}* — ${valor}${extraStr}`)
+  })
+  lines.push('')
+  if (totalOut > 0) lines.push(`💸 Total saídas: ${totalOut.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`)
+  if (totalIn > 0) lines.push(`💰 Total entradas: ${totalIn.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`)
+  lines.push('')
+  lines.push('👀 _Confirma cada uma no app._')
+  return lines.join('\n')
 }
 
 // ---------- Formata a notificação de pendência ----------
