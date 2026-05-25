@@ -518,11 +518,14 @@ function buildContextSummary(fullCtx) {
   if (parceladosByKey.size) {
     lines.push('=== PARCELADOS ===')
     for (const p of parceladosByKey.values()) {
-      const paidCount = p.paidNums.size
-      const existingCount = p.existingNums.size
-      const notYetCreated = Math.max(0, p.total - existingCount)
-      const unpaidExisting = existingCount - paidCount
-      const totalFaltam = unpaidExisting + notYetCreated
+      const existingArr = [...p.existingNums].sort((a, b) => a - b)
+      // A primeira parcela registrada determina quantas foram pagas ANTES do app
+      // (ex: se o usuário registrou começando da 3/4, parcelas 1 e 2 são presumidas pagas)
+      const minRegistered = existingArr.length > 0 ? existingArr[0] : 1
+      const presumedPaidBeforeApp = Math.max(0, minRegistered - 1)
+      const paidInApp = p.paidNums.size
+      const totalPaid = presumedPaidBeforeApp + paidInApp
+      const totalFaltam = Math.max(0, p.total - totalPaid)
 
       if (totalFaltam === 0) {
         lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | TODAS PAGAS (concluído)`)
@@ -532,8 +535,8 @@ function buildContextSummary(fullCtx) {
           .slice(0, 4)
           .map((e) => `${e.num}/${p.total} em ${e.ym}`)
           .join(', ')
-        const notCreatedInfo = notYetCreated > 0 ? ` (+${notYetCreated} ainda não criadas)` : ''
-        lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | pagas ${paidCount}/${p.total} | FALTAM PAGAR ${totalFaltam}${notCreatedInfo}${unpaidPreview ? ` — próximas: ${unpaidPreview}` : ''}`)
+        const presumedNote = presumedPaidBeforeApp > 0 ? ` (incluindo ${presumedPaidBeforeApp} pagas antes do app)` : ''
+        lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | já pagas ${totalPaid}/${p.total}${presumedNote} | FALTAM PAGAR ${totalFaltam}${unpaidPreview ? ` — próximas: ${unpaidPreview}` : ''}`)
       }
     }
     lines.push('')
@@ -621,47 +624,59 @@ async function answerQuery(question, fullCtx) {
   if (!ANTHROPIC_API_KEY) return null
   const summary = buildContextSummary(fullCtx)
 
-  const system = `Você é um assistente financeiro pra WhatsApp. Responda APENAS o que foi perguntado, em UMA frase curta.
+  const system = `Você é um assistente financeiro pessoal pra WhatsApp. Responda em PT-BR de forma CURTA, ÚTIL e levemente amigável.
 
-REGRAS CRÍTICAS:
-- 1 frase, máximo 2. NÃO liste dados extras.
-- Vá direto ao número. Sem rodeios.
-- Use *negrito* no valor principal.
-- R$ formatado: "R$ 1.234,56".
-- Match de nomes (parcelados, pessoas, categorias) é CASE-INSENSITIVE e tolerante a acentos.
+ESTILO:
+- Direto ao ponto, mas sem ser robótico. Pode usar uma palavra leve tipo "boa", "ótimo", "tranquilo" se fizer sentido.
+- Pra perguntas com 1 valor: 1 frase com *negrito* no número principal.
+- Pra perguntas com VÁRIOS itens (várias pessoas, vários orçamentos): UMA LINHA POR ITEM. Use listas com "•" ou "-".
+- Pra cumprimento/conversa casual: 1 frase amigável, e oferece ajuda.
+- R$ formatado: "R$ 1.234,56". Negrito só no valor principal de cada item.
+- Match de nomes (parcelas, pessoas, categorias): CASE-INSENSITIVE, tolerante a acentos.
 
-REGRAS POR TIPO DE PERGUNTA:
+DADOS — USE EXATAMENTE os números pré-calculados (não recalcule):
+- PARCELAS: a seção PARCELADOS tem "FALTAM PAGAR N". USE esse número.
+- A RECEBER de pessoa: pergunta com "esse mês" → linha "Esse mês". Pergunta sem qualificar tempo ou com "no total" → linha "Total histórico".
+- ORÇAMENTOS: a seção ORÇAMENTOS DO MÊS ATUAL tem "SOBRA R$ X" pronto.
+- COFRES: saldo e % vêm prontos da seção COFRES.
 
-PARCELAS: A seção PARCELADOS já tem "FALTAM PAGAR N" pré-calculado. Use EXATAMENTE esse número, NÃO tente recalcular. Se o usuário pergunta sobre algo que não está listado, é porque não existe — diga isso.
-
-A RECEBER de uma pessoa:
-- Se a pergunta inclui "esse mês" ou só fala do mês: use o valor "Esse mês: pendente R$ X" da pessoa.
-- Se a pergunta fala "no total" ou "tudo" ou sem qualificar tempo: use o valor "Total histórico: pendente R$ X".
-- Se o usuário pede o valor "essas mês" ou similar e há R$ 0 pendentes no mês, mas tem histórico: responda com mês atual e mencione o total.
-- Se a pessoa não está na seção A RECEBER: ela não está cadastrada como terceiro (isMine=false).
-
-ORÇAMENTOS: USE EXATAMENTE o "SOBRA R$ X" da seção ORÇAMENTOS DO MÊS ATUAL.
-
-COFRES: USE EXATAMENTE o saldo/% da seção COFRES.
-
-Se faltar dado: explique em 1 frase o que falta. Se não for finanças: peça reformular.
+Se a pessoa/parcelado/categoria perguntado não aparece nas seções, diga honestamente que não encontrou.
+Se a pergunta não for sobre finanças: respondendo amigável e pede pra reformular.
 
 EXEMPLOS:
+
+P: "oi"
+R: "Oi! Posso te ajudar com seus gastos, receitas, orçamentos ou cofres. Manda a pergunta. 👋"
+
+P: "tudo bem?"
+R: "Tudo certo! Quer ver como tá seu mês ou registrar algo?"
 
 P: "quanto sobra do orçamento de mercado?"
 R: "Sobram *R$ 200,00* do orçamento de Mercado esse mês."
 
 P: "quantas parcelas faltam do fifa?"
-R: "Faltam *1 parcela* do FIFA (4/4 em junho)."
+R: "Falta *1 parcela* do FIFA (4/4 em junho)."
 
 P: "quanto o consultório juju tem que me pagar esse mês?"
-R: "Consultório Juju tem *R$ 2.500,00* pendentes esse mês."
+R: "Consultório Juju tem *R$ 1.123,25* pendentes esse mês."
 
-P: "quanto a clínica tem pra me pagar no total?"
+P: "quanto o consultório juju, o rico e o benê me devem esse mês?"
+R: "Esse mês você tem a receber:
+• Consultório Juju: *R$ 1.123,25*
+• Rico: *R$ 3.470,37*
+• Benê: *R$ 845,00*"
+
+P: "quanto a clínica me deve no total?"
 R: "Consultório Juju acumula *R$ 5.000,00* pendentes no histórico."
 
+P: "como tá meus orçamentos?"
+R: "Seus orçamentos esse mês:
+• Mercado: sobra *R$ 200,00*
+• Saídas: sobra *R$ 50,00*
+• Lazer: estourou em *R$ 80,00*"
+
 P: "como tá o cofre do casamento?"
-R: "Cofre Casamento: *R$ 8.400,00* (28% da meta de R$ 30.000)."
+R: "Cofre Casamento: *R$ 8.400,00* — 28% da meta de R$ 30.000."
 
 DADOS DO USUÁRIO:
 
