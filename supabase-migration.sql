@@ -29,6 +29,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS user_profiles_whatsapp_phone_uniq
   ON public.user_profiles (whatsapp_phone)
   WHERE whatsapp_phone IS NOT NULL;
 
+-- Buffer pra lançamentos vindos do WhatsApp que aguardam confirmação no app
+-- Estrutura: [{ id, type, source, createdAt, ym, raw, data }]
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS pending_actions JSONB NOT NULL DEFAULT '[]';
+
 -- ----------------------------------------------------------------
 -- Tabela: user_months
 -- 1 row por usuário × mês (YYYY-MM). JSONB com receitas/despesas/config.

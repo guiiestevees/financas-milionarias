@@ -624,6 +624,48 @@ export default function AppShell() {
     setData((prev) => ({ ...prev, whatsappPhone: phone || null }))
   }, [])
 
+  // ----- Pending actions (lançamentos via WhatsApp aguardando confirmação) -----
+
+  // Confirma um pending: move a despesa pro mês correto e remove do buffer.
+  // Aceita override (caso o user tenha editado antes de confirmar).
+  const confirmPending = useCallback((pendingId, override = null) => {
+    setData((prev) => {
+      const list = Array.isArray(prev.pendingActions) ? prev.pendingActions : []
+      const pending = list.find((p) => p?.id === pendingId)
+      if (!pending) return prev
+
+      const finalData = override || pending.data
+      const finalYm = (override?.date || pending.data?.date || new Date().toISOString().slice(0, 10)).slice(0, 7)
+
+      const monthsCopy = { ...(prev.months || {}) }
+      const existing = monthsCopy[finalYm] || createEmptyMonth()
+      // Garante campos seguros sem mexer no que já tem
+      const newDespesa = {
+        id: uid(),
+        createdAt: Date.now(),
+        ...finalData,
+      }
+      monthsCopy[finalYm] = {
+        ...existing,
+        despesas: [newDespesa, ...(Array.isArray(existing.despesas) ? existing.despesas : [])],
+      }
+
+      return {
+        ...prev,
+        months: monthsCopy,
+        pendingActions: list.filter((p) => p?.id !== pendingId),
+      }
+    })
+  }, [])
+
+  const discardPending = useCallback((pendingId) => {
+    setData((prev) => ({
+      ...prev,
+      pendingActions: (Array.isArray(prev.pendingActions) ? prev.pendingActions : [])
+        .filter((p) => p?.id !== pendingId),
+    }))
+  }, [])
+
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
@@ -658,7 +700,7 @@ export default function AppShell() {
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
         <ErrorBoundary key={tab + activeMonth}>
-          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
+          {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} pendingActions={data.pendingActions || []} confirmPending={confirmPending} discardPending={discardPending} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
           {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} transferCofreToCaixa={transferCofreToCaixa} updateMovement={updateMovement} removeMovement={removeMovement} />}

@@ -90,17 +90,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
-    // 5) Salva no banco
+    // 5) Cria o "lançamento pendente" pra confirmação no app
     const today = new Date().toISOString().slice(0, 10)
     const date = extraction.date || today
     const ym = date.slice(0, 7)
     const despesa = buildDespesa(extraction, date)
 
-    await appendDespesa(admin, userId, ym, despesa, context)
+    const pending = {
+      id: 'pend_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4),
+      type: 'expense',
+      source: 'whatsapp',
+      createdAt: Date.now(),
+      ym,
+      raw: text,
+      data: despesa,
+    }
 
-    // 6) Confirma de volta
-    const confirmation = formatConfirmation(despesa, ym)
-    await sendWhatsApp(from, confirmation)
+    await appendPendingAction(admin, userId, pending)
+
+    // 6) Responde no WhatsApp pedindo pra confirmar no app
+    await sendWhatsApp(from, formatPendingNotice(pending))
 
     return res.status(200).json({ ok: true })
   } catch (err) {
@@ -260,49 +269,38 @@ function buildDespesa(extraction, date) {
   }
 }
 
-// ---------- Adiciona despesa no mês do usuário ----------
-async function appendDespesa(admin, userId, ym, despesa, context) {
-  // Tenta pegar o mês existente
-  const { data: existing } = await admin
-    .from('user_months')
-    .select('data')
+// ---------- Adiciona ação pendente no perfil do usuário ----------
+async function appendPendingAction(admin, userId, pending) {
+  // Lê o array atual, adiciona o novo, grava de volta.
+  const { data: profile } = await admin
+    .from('user_profiles')
+    .select('pending_actions')
     .eq('user_id', userId)
-    .eq('year_month', ym)
     .maybeSingle()
 
-  const baseConfig = {
-    cards: [],
-    paymentMethods: context.paymentMethods.length ? context.paymentMethods : ['Pix', 'Débito'],
-    categories: [],
-    attributedTo: [],
-    incomeSources: [],
-  }
-
-  const monthData = existing?.data || { receitas: [], despesas: [], config: baseConfig }
-  monthData.despesas = [despesa, ...(Array.isArray(monthData.despesas) ? monthData.despesas : [])]
-  if (!monthData.receitas) monthData.receitas = []
-  if (!monthData.config) monthData.config = baseConfig
+  const current = Array.isArray(profile?.pending_actions) ? profile.pending_actions : []
+  const updated = [pending, ...current].slice(0, 50)  // limite de 50 pendings pra evitar buffer enorme
 
   await admin
-    .from('user_months')
-    .upsert(
-      { user_id: userId, year_month: ym, data: monthData, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,year_month' }
-    )
+    .from('user_profiles')
+    .update({ pending_actions: updated, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
 }
 
-// ---------- Formata a confirmação ----------
-function formatConfirmation(despesa, ym) {
-  const valor = Number(despesa.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  const lines = [`✅ Lançado: *${despesa.description}* — ${valor}`]
+// ---------- Formata a notificação de pendência ----------
+function formatPendingNotice(pending) {
+  const d = pending.data || {}
+  const valor = Number(d.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const lines = [`📲 Recebi: *${d.description}* — ${valor}`]
   const meta = []
-  if (despesa.paymentMethod) meta.push(despesa.paymentMethod)
-  if (despesa.installmentTotal > 1) meta.push(`parcela ${despesa.installmentCurrent}/${despesa.installmentTotal}`)
-  if (despesa.recurring) meta.push('fixo mensal')
-  if (despesa.category) meta.push(despesa.category)
-  if (despesa.attributedTo) meta.push(despesa.attributedTo)
+  if (d.paymentMethod) meta.push(d.paymentMethod)
+  if (d.installmentTotal > 1) meta.push(`parcela ${d.installmentCurrent}/${d.installmentTotal}`)
+  if (d.recurring) meta.push('fixo mensal')
+  if (d.category) meta.push(d.category)
+  if (d.attributedTo) meta.push(d.attributedTo)
   if (meta.length) lines.push(meta.join(' · '))
-  lines.push(`📅 ${despesa.date} (${ym})`)
+  lines.push('')
+  lines.push('👀 Abre o app pra *confirmar*, *editar* ou *descartar* o lançamento.')
   return lines.join('\n')
 }
 

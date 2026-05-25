@@ -3,6 +3,7 @@ import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
   X, Plus, Pencil, Trash2, ChevronDown, PiggyBank, ArrowLeftRight, Wallet,
+  MessageCircle,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard, Btn, Field, MoneyInput, Select } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
@@ -663,9 +664,88 @@ function CofresPanel({ cofres, setTab }) {
 }
 
 // ---------- PainelTab (export) ----------
-export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments, cofres = [], togglePaidDespesa, setPaidBulk, removeDespesaCentral }) {
+// ---------- PendingPanel (lançamentos via WhatsApp aguardando confirmação) ----------
+function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
+  if (!pendings || pendings.length === 0) return null
+
+  const formatDate = (iso) => {
+    if (!iso) return ''
+    return new Date(iso + 'T00:00').toLocaleDateString('pt-BR')
+  }
+
+  return (
+    <Card className="p-4 sm:p-5" accent="emerald" glow>
+      <SectionTitle
+        icon={MessageCircle}
+        title="Aguardando confirmação"
+        subtitle={`${pendings.length} ${pendings.length === 1 ? 'lançamento veio' : 'lançamentos vieram'} pelo WhatsApp`}
+        accent="emerald"
+      />
+      <div className="space-y-2">
+        {pendings.map((p) => {
+          const d = p.data || {}
+          const valor = fmtBRL(d.amount)
+          const meta = []
+          if (d.paymentMethod) meta.push(d.paymentMethod)
+          if (d.installmentTotal > 1) meta.push(`${d.installmentCurrent}/${d.installmentTotal}`)
+          if (d.recurring) meta.push('mensal')
+          if (d.category) meta.push(d.category)
+          if (d.attributedTo) meta.push(d.attributedTo)
+
+          return (
+            <div key={p.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(16,185,129,0.18)' }}>
+              <div className="flex items-start justify-between gap-2 mb-2.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-medium truncate">{d.description || 'Sem descrição'}</span>
+                    <span style={{ color: accents.emerald.hex, fontFamily: 'JetBrains Mono, monospace' }} className="text-sm font-semibold tabular-nums">{valor}</span>
+                  </div>
+                  {meta.length > 0 && (
+                    <div className="text-xs text-white/45 truncate">{meta.join(' · ')}</div>
+                  )}
+                  {d.date && (
+                    <div className="text-xs text-white/35 mt-0.5">📅 {formatDate(d.date)}</div>
+                  )}
+                  {p.raw && (
+                    <div className="text-xs text-white/30 italic mt-1.5 truncate">"{p.raw}"</div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  onClick={() => onConfirm(p.id)}
+                  className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
+                  style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}30` }}
+                >
+                  <Check size={13} /> Confirmar
+                </button>
+                <button
+                  onClick={() => onEdit(p)}
+                  className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
+                  style={{ background: 'rgba(245,158,11,0.1)', color: accents.amber.hex, border: `1px solid ${accents.amber.hex}30` }}
+                >
+                  <Pencil size={13} /> Editar
+                </button>
+                <button
+                  onClick={() => onDiscard(p.id)}
+                  className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition text-white/50 hover:text-rose-400"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <X size={13} /> Descartar
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
+export default function PainelTab({ month, setMonth, setTab, activeMonth, expandInstallments, cofres = [], togglePaidDespesa, setPaidBulk, removeDespesaCentral, pendingActions = [], confirmPending, discardPending }) {
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
+  const [editingPending, setEditingPending] = useState(null)  // { id, data } — editing a WhatsApp pending
 
   const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
   const removeDespesa = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
@@ -736,6 +816,14 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   return (
     <>
     <div className="space-y-6">
+      {pendingActions.length > 0 && (
+        <PendingPanel
+          pendings={pendingActions}
+          onConfirm={confirmPending}
+          onEdit={(p) => setEditingPending({ id: p.id, data: p.data })}
+          onDiscard={discardPending}
+        />
+      )}
       <HeroBalance agg={agg} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setTab?.('receitas')}>
@@ -765,6 +853,18 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       }
       setEditing(null)
     }} onClose={() => setEditing(null)} />}
+
+    {editingPending && <EditDespesaModal
+      despesa={editingPending.data}
+      config={month.config}
+      cofres={cofres}
+      onSave={(patch) => {
+        // Aplica a edição e confirma o pending de uma vez
+        confirmPending(editingPending.id, { ...editingPending.data, ...patch })
+        setEditingPending(null)
+      }}
+      onClose={() => setEditingPending(null)}
+    />}
     </>
   )
 }

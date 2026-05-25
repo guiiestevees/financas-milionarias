@@ -5,6 +5,7 @@ const DEFAULT_DATA = () => ({
   brand: { name: '', subtitle: 'Finanças Milionárias' },
   cofres: [],
   whatsappPhone: null,
+  pendingActions: [],
   _fixJun2026ToMay: true,
 })
 
@@ -88,6 +89,7 @@ export const migrateData = (data) => {
     currentMonth,
     cofres,
     whatsappPhone: data.whatsappPhone || null,
+    pendingActions: Array.isArray(data.pendingActions) ? data.pendingActions : [],
     _fixJun2026ToMay: true,
   }
 }
