@@ -624,6 +624,13 @@ async function answerQuery(question, fullCtx) {
   if (!ANTHROPIC_API_KEY) return null
   const summary = buildContextSummary(fullCtx)
 
+  // Log pra debug — mostra exatamente o que o Claude vai receber
+  console.log('🧠 ============ QUERY ============')
+  console.log('Question:', question)
+  console.log('Summary sent to Claude:')
+  console.log(summary)
+  console.log('================================')
+
   const system = `Você é um assistente financeiro pessoal pra WhatsApp. Responda em PT-BR de forma CURTA, ÚTIL e levemente amigável.
 
 ESTILO:
