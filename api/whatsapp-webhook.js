@@ -79,9 +79,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
-    // 4) Trata os possíveis intents
+    // 4a) Consulta sobre as finanças
+    if (extraction.intent === 'query') {
+      const fullCtx = await loadFullUserContext(admin, userId)
+      const answer = await answerQuery(text, fullCtx)
+      await sendWhatsApp(from, answer || '🤖 Não consegui responder agora. Tenta de novo em alguns segundos.')
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4b) Outras intenções (saudação, etc)
     if (extraction.intent !== 'register_expense') {
-      await sendWhatsApp(from, `🤖 ${extraction.reply || 'Por enquanto eu só registro gastos. Tenta algo tipo "almoço 25 pix" ou "calça 200 nubank parcelado 4x".'}`)
+      await sendWhatsApp(from, `🤖 ${extraction.reply || 'Manda um gasto ("almoço 25 pix") ou uma pergunta ("quanto sobra do mês?").'}`)
       return res.status(200).json({ ok: true })
     }
 
@@ -187,8 +195,8 @@ Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhu
 Sua tarefa: dada uma mensagem do usuário, retorne APENAS um JSON válido (sem markdown, sem explicações fora do JSON) com esta estrutura:
 
 {
-  "intent": "register_expense" | "other",
-  "reply": "string curta em PT-BR caso intent seja 'other' (saudação, dúvida, etc)",
+  "intent": "register_expense" | "query" | "other",
+  "reply": "string curta em PT-BR caso intent seja 'other' (saudação, dúvida não-financeira, etc)",
   "description": "descrição curta do gasto (ex: 'Calça', 'Almoço restaurante X')",
   "amount": número (valor em reais, decimal),
   "paymentMethod": "exatamente como na lista acima, ou null se não mencionado",
@@ -202,9 +210,11 @@ Sua tarefa: dada uma mensagem do usuário, retorne APENAS um JSON válido (sem m
 }
 
 REGRAS:
-- Se o usuário só cumprimentou, fez pergunta ou pediu algo que não é registrar gasto: intent="other" e use "reply" pra responder.
-- Se mencionou um valor mas nada mais: intent="register_expense", description="Gasto", e preenche o que conseguir.
-- paymentMethod, category, attributedTo: SÓ retorne se o usuário mencionou explicitamente E o valor existe na lista. Não invente.
+- Se a mensagem é um gasto novo a registrar: intent="register_expense", preenche os campos.
+- Se é uma PERGUNTA sobre finanças (saldo, sobra, orçamentos, parcelas, cofres, totais, comparações): intent="query". Não precisa preencher os outros campos.
+- Se é saudação, agradecimento ou pergunta NÃO-financeira: intent="other" e use "reply".
+- Mesmo se a frase tem só uma palavra que parece despesa (ex: "jangada 100"), trate como register_expense — palavra solta + valor = gasto.
+- paymentMethod, category, attributedTo: SÓ retorne se o usuário mencionou explicitamente E o valor existe na lista acima. Não invente.
 - Se a mensagem diz "parcelado em 4x" ou "4/6": preenche installmentTotal e installmentCurrent corretamente.
 - Se diz "todo mês" ou "fixo" ou "assinatura": recurring=true.
 - Se diz "ontem", "hoje", "anteontem", "dia 15": calcule a data ISO. Hoje é ${todayISO}.
@@ -213,7 +223,11 @@ REGRAS:
 Exemplos:
 - "calça 200 nubank" → {"intent":"register_expense","description":"Calça","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
 - "almoço de 35 reais hoje no pix" → {"intent":"register_expense","description":"Almoço","amount":35,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
-- "oi" → {"intent":"other","reply":"Oi! Manda um gasto pra eu registrar — ex: 'almoço 25 pix'."}`
+- "quanto sobra do orçamento de mercado" → {"intent":"query"}
+- "quantas parcelas faltam do fifa" → {"intent":"query"}
+- "quanto eu já gastei esse mês" → {"intent":"query"}
+- "como tá meu cofre do casamento" → {"intent":"query"}
+- "oi" → {"intent":"other","reply":"Oi! Manda um gasto pra eu registrar ou uma pergunta sobre suas finanças."}`
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -302,6 +316,174 @@ function formatPendingNotice(pending) {
   lines.push('')
   lines.push('👀 Abre o app pra *confirmar*, *editar* ou *descartar*.')
   return lines.join('\n')
+}
+
+// ---------- Carrega contexto FULL pra responder consultas ----------
+// Pega todos os meses + cofres + perfil. Volume razoável pra Claude processar.
+async function loadFullUserContext(admin, userId) {
+  const [monthsRes, profileRes] = await Promise.all([
+    admin
+      .from('user_months')
+      .select('year_month, data')
+      .eq('user_id', userId)
+      .order('year_month', { ascending: true }),
+    admin
+      .from('user_profiles')
+      .select('cofres')
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ])
+
+  const months = {}
+  for (const row of monthsRes.data || []) {
+    months[row.year_month] = row.data
+  }
+  const cofres = Array.isArray(profileRes.data?.cofres) ? profileRes.data.cofres : []
+
+  // Computa saldo de cada cofre
+  const cofresWithBalance = cofres.map((c) => {
+    const initial = Number(c.initialBalance) || 0
+    const movs = Array.isArray(c.movements) ? c.movements : []
+    const balance = movs.reduce((s, m) => {
+      const v = Number(m.amount) || 0
+      return s + (m.type === 'entrada' ? v : -v)
+    }, initial)
+    return {
+      name: c.name,
+      balance,
+      goal: c.goal ? { amount: c.goal.amount, targetDate: c.goal.targetDate } : null,
+      lastMovement: movs.length ? movs[movs.length - 1] : null,
+    }
+  })
+
+  return {
+    today: new Date().toISOString().slice(0, 10),
+    months,
+    cofres: cofresWithBalance,
+  }
+}
+
+// ---------- Constrói o resumo textual pra Claude entender ----------
+function buildContextSummary(fullCtx) {
+  const today = fullCtx.today
+  const currentYM = today.slice(0, 7)
+  const lines = []
+  lines.push(`Hoje: ${today} (mês ${currentYM})`)
+  lines.push('')
+
+  const sortedYms = Object.keys(fullCtx.months).sort()
+  if (sortedYms.length === 0) {
+    lines.push('Nenhum mês registrado ainda.')
+  } else {
+    for (const ym of sortedYms) {
+      const m = fullCtx.months[ym] || {}
+      const despesas = Array.isArray(m.despesas) ? m.despesas : []
+      const receitas = Array.isArray(m.receitas) ? m.receitas : []
+      const totalReceitas = receitas.reduce((s, r) => s + (Number(r.amount) || 0), 0)
+      const totalDespesas = despesas.reduce((s, d) => s + (Number(d.amount) || 0), 0)
+      lines.push(`=== ${ym}${ym === currentYM ? ' (atual)' : ''} ===`)
+      lines.push(`Receitas: R$ ${totalReceitas.toFixed(2)} (${receitas.length} entradas)`)
+      lines.push(`Despesas: R$ ${totalDespesas.toFixed(2)} (${despesas.length} lançamentos)`)
+
+      // Orçamentos do mês
+      const cats = Array.isArray(m.config?.categories) ? m.config.categories : []
+      if (cats.length) {
+        const overrides = m.budgetOverrides || {}
+        lines.push('Orçamentos:')
+        for (const c of cats) {
+          const budget = Object.prototype.hasOwnProperty.call(overrides, c.name)
+            ? Number(overrides[c.name]) || 0
+            : Number(c.budget) || 0
+          if (budget <= 0) continue
+          const spent = despesas
+            .filter((d) => d.category === c.name)
+            .reduce((s, d) => s + (Number(d.amount) || 0), 0)
+          lines.push(`  - ${c.name}: gastou R$ ${spent.toFixed(2)} de R$ ${budget.toFixed(2)} (sobra R$ ${(budget - spent).toFixed(2)})`)
+        }
+      }
+
+      // Despesas detalhadas (limit pra não estourar contexto)
+      const detailedDespesas = despesas.slice(0, 30)
+      if (detailedDespesas.length) {
+        lines.push('Lançamentos:')
+        for (const d of detailedDespesas) {
+          const parts = []
+          parts.push(d.description || 'sem-descrição')
+          parts.push(`R$ ${Number(d.amount || 0).toFixed(2)}`)
+          if (d.paymentMethod) parts.push(d.paymentMethod)
+          if (d.installmentTotal > 1) parts.push(`parcela ${d.installmentCurrent}/${d.installmentTotal}`)
+          if (d.recurring) parts.push('fixo')
+          if (d.category) parts.push(`cat:${d.category}`)
+          if (d.attributedTo) parts.push(`atr:${d.attributedTo}`)
+          parts.push(d.paid ? 'pago' : 'pendente')
+          lines.push(`  - ${parts.join(' · ')}`)
+        }
+        if (despesas.length > 30) lines.push(`  (... +${despesas.length - 30} despesas omitidas)`)
+      }
+      lines.push('')
+    }
+  }
+
+  if (fullCtx.cofres.length) {
+    lines.push('=== Cofres ===')
+    for (const c of fullCtx.cofres) {
+      const goalStr = c.goal
+        ? ` (meta R$ ${Number(c.goal.amount).toFixed(2)}${c.goal.targetDate ? ` até ${c.goal.targetDate}` : ''})`
+        : ''
+      lines.push(`- ${c.name}: saldo R$ ${Number(c.balance).toFixed(2)}${goalStr}`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
+// ---------- Responde pergunta sobre finanças via Claude ----------
+async function answerQuery(question, fullCtx) {
+  if (!ANTHROPIC_API_KEY) return null
+  const summary = buildContextSummary(fullCtx)
+
+  const system = `Você é um assistente financeiro pessoal. Responde dúvidas em PORTUGUÊS BRASILEIRO de forma CURTA, DIRETA e ÚTIL — ideal pra WhatsApp.
+
+REGRAS:
+- Máximo 4 linhas, sem prosa desnecessária.
+- Use markdown do WhatsApp: *negrito*, _itálico_, listas com "•" ou "-".
+- Valores em R$ formatados ex "R$ 1.234,56".
+- Se a resposta precisa de dados que não estão no contexto: explique honestamente.
+- Se a pergunta é ambígua (ex: "esse mês" vs "ano passado"): assume o mais provável (geralmente mês atual).
+- Para parcelas: conte quantas faltam (total - atual).
+- Para orçamentos: mencione gasto, limite e sobra.
+- Para cofres: mencione saldo + progresso da meta se tiver.
+- Se a pergunta não tem nada a ver com finanças: peça pra reformular.
+
+Use os dados abaixo pra responder:
+
+${summary}`
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 600,
+        system,
+        messages: [{ role: 'user', content: question }],
+      }),
+    })
+    const data = await r.json()
+    if (!r.ok) {
+      console.error('Claude query error:', JSON.stringify(data))
+      return null
+    }
+    return (data?.content?.[0]?.text || '').trim()
+  } catch (err) {
+    console.error('answerQuery failed:', err)
+    return null
+  }
 }
 
 // ---------- Envia mensagem WhatsApp ----------
