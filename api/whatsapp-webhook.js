@@ -9,11 +9,13 @@ const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const GRAPH_VERSION = 'v21.0'
 const CLAUDE_MODEL = 'claude-haiku-4-5'
+const WHISPER_MODEL = 'whisper-1'
 
 // ---------- Handler principal ----------
 export default async function handler(req, res) {
@@ -40,16 +42,44 @@ export default async function handler(req, res) {
     const from = message.from  // ex: 5511999998888
     const type = message.type
 
-    // Por enquanto só texto. Áudio/imagem vêm nas próximas fases.
-    if (type !== 'text') {
-      await sendWhatsApp(from, '🤖 Por enquanto eu só entendo texto. Áudio e foto da nota chegam em breve.')
+    // Extrai texto da mensagem (texto direto OU transcrição de áudio)
+    let text = ''
+    let cameFromAudio = false
+
+    if (type === 'text') {
+      text = (message.text?.body || '').trim()
+    } else if (type === 'audio' || type === 'voice') {
+      cameFromAudio = true
+      try {
+        const audioId = message.audio?.id || message.voice?.id
+        if (!audioId) throw new Error('Sem audio.id')
+        const { buffer, mimeType } = await downloadWhatsAppMedia(audioId)
+        text = (await transcribeAudio(buffer, mimeType)).trim()
+        console.log(`🎤 Transcrito: "${text}"`)
+      } catch (err) {
+        console.error('Audio handling failed:', err)
+        await sendWhatsApp(from, '🎤 Não consegui processar o áudio. Tenta gravar de novo ou manda por texto.')
+        return res.status(200).json({ ok: true })
+      }
+    } else {
+      // imagem, vídeo, sticker, etc — ainda não suportado
+      await sendWhatsApp(from, '🤖 Entendo texto e áudio. Foto da nota chega na próxima fase.')
       return res.status(200).json({ ok: true })
     }
 
-    const text = (message.text?.body || '').trim()
-    if (!text) return res.status(200).json({ ok: true })
+    if (!text) {
+      if (cameFromAudio) {
+        await sendWhatsApp(from, '🎤 Não consegui entender o que você falou. Pode tentar de novo?')
+      }
+      return res.status(200).json({ ok: true })
+    }
 
-    console.log(`📲 ${from}: ${text}`)
+    console.log(`📲 ${from} (${type}): ${text}`)
+
+    // Se veio de áudio, manda um "ouvi: ..." pro user confirmar visualmente o que entendi
+    if (cameFromAudio) {
+      await sendWhatsApp(from, `🎤 Ouvi: _"${text}"_`)
+    }
 
     // 1) Identifica o usuário pelo WhatsApp
     const admin = supabaseAdmin()
@@ -714,6 +744,69 @@ ${summary}`
     console.error('answerQuery failed:', err)
     return null
   }
+}
+
+// ---------- Baixa mídia (áudio/imagem) do WhatsApp ----------
+async function downloadWhatsAppMedia(mediaId) {
+  if (!ACCESS_TOKEN) throw new Error('WHATSAPP_ACCESS_TOKEN ausente')
+
+  // Etapa 1: pega a URL temporária da mídia
+  const urlRes = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${mediaId}`, {
+    headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` },
+  })
+  const urlData = await urlRes.json()
+  if (!urlRes.ok || !urlData.url) {
+    throw new Error('Falha ao buscar URL da mídia: ' + JSON.stringify(urlData))
+  }
+
+  // Etapa 2: baixa os bytes (também precisa do token)
+  const audioRes = await fetch(urlData.url, {
+    headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` },
+  })
+  if (!audioRes.ok) {
+    const errText = await audioRes.text().catch(() => '')
+    throw new Error(`Falha ao baixar mídia: ${audioRes.status} ${errText}`)
+  }
+
+  const buffer = await audioRes.arrayBuffer()
+  const mimeType = urlData.mime_type || audioRes.headers.get('content-type') || 'audio/ogg'
+  return { buffer, mimeType }
+}
+
+// ---------- Transcreve áudio com OpenAI Whisper ----------
+async function transcribeAudio(buffer, mimeType) {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY não configurada na Vercel')
+  }
+
+  // Whisper aceita ogg, mp3, mp4, wav, m4a, webm, flac. WhatsApp manda ogg/opus.
+  const ext = mimeType.includes('mpeg') ? 'mp3'
+    : mimeType.includes('wav') ? 'wav'
+    : mimeType.includes('mp4') ? 'mp4'
+    : mimeType.includes('m4a') ? 'm4a'
+    : mimeType.includes('webm') ? 'webm'
+    : 'ogg'
+
+  const formData = new FormData()
+  const blob = new Blob([buffer], { type: mimeType })
+  formData.append('file', blob, `audio.${ext}`)
+  formData.append('model', WHISPER_MODEL)
+  formData.append('language', 'pt')
+  // Bias pra termos financeiros comuns em PT-BR, melhora precisão
+  formData.append('prompt', 'gasto, parcela, parcelado, nubank, safra, pix, débito, ifood, mercado, almoço, jantar, IPVA, cartão, cofre, casamento, atribuído, recebi, salário, freelance, consultório')
+
+  const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+    body: formData,
+  })
+
+  const data = await r.json()
+  if (!r.ok) {
+    throw new Error('Whisper error: ' + JSON.stringify(data))
+  }
+
+  return data.text || ''
 }
 
 // ---------- Envia mensagem WhatsApp ----------
