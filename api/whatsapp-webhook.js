@@ -14,7 +14,7 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const GRAPH_VERSION = 'v21.0'
-const CLAUDE_MODEL = 'claude-haiku-4-5'
+const CLAUDE_MODEL = 'claude-sonnet-4-5'  // upgrade do haiku — mais caro mas muito mais inteligente
 const WHISPER_MODEL = 'whisper-1'
 
 // ---------- Handler principal ----------
@@ -117,7 +117,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
-    // 4b) Outras intenções (saudação, etc)
+    // 4b) Esclarecimento — falta info pra registrar
+    if (extraction.intent === 'clarify') {
+      await sendWhatsApp(from, `🤔 ${extraction.reply || 'Pode me dar mais detalhes?'}`)
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4c) Outras intenções (saudação, conversa, etc)
     if (extraction.intent !== 'register_expense' && extraction.intent !== 'register_income') {
       await sendWhatsApp(from, `🤖 ${extraction.reply || 'Manda um gasto, uma receita ou uma pergunta sobre suas finanças.'}`)
       return res.status(200).json({ ok: true })
@@ -211,12 +217,30 @@ async function extractExpense(userText, ctx) {
     return null
   }
 
-  const today = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-  const todayISO = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const todayPT = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const todayISO = now.toISOString().slice(0, 10)
+  // Próximos meses pré-calculados pra Claude não precisar fazer aritmética
+  const monthRefs = []
+  for (let i = -2; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    let label = monthName
+    if (i === -2) label += ' (antepassado)'
+    if (i === -1) label += ' (mês passado)'
+    if (i === 0) label += ' (mês atual)'
+    if (i === 1) label += ' (mês que vem / próximo mês)'
+    if (i === 2) label += ' (daqui 2 meses)'
+    monthRefs.push(`  - ${ym}: ${label}`)
+  }
 
-  const system = `Você é um assistente que extrai informações de despesas financeiras a partir de mensagens em português brasileiro.
+  const system = `Você é um assistente financeiro brasileiro super inteligente que conversa naturalmente em português. Sua função é entender o que o usuário quer (registrar gasto, registrar receita, perguntar sobre finanças, ou conversar) e responder com um JSON estruturado.
 
-Hoje é ${today} (${todayISO}).
+Hoje é ${todayPT} (data ISO: ${todayISO}).
+
+Referência de meses:
+${monthRefs.join('\n')}
 
 Métodos de pagamento disponíveis: ${ctx.paymentMethods.length ? ctx.paymentMethods.join(', ') : 'Pix, Débito'}
 Cartões cadastrados: ${ctx.cardNames.length ? ctx.cardNames.join(', ') : 'nenhum'}
@@ -224,63 +248,112 @@ Categorias cadastradas: ${ctx.categories.length ? ctx.categories.join(', ') : 'n
 Atribuídos cadastrados: ${ctx.attributedTo.length ? ctx.attributedTo.join(', ') : 'nenhum'}
 Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhum'}
 
-Sua tarefa: dada uma mensagem do usuário, retorne APENAS um JSON válido (sem markdown, sem explicações fora do JSON).
+SUA TAREFA: retorne APENAS um JSON válido (sem markdown, sem texto fora do JSON), classificando a mensagem em um destes intents:
 
-INTENTS POSSÍVEIS:
-- "register_expense" → gasto/saída (ex: "calça 200 nubank")
-- "register_income" → receita/entrada (ex: "recebi 500 do cliente", "salário caiu 8000")
-- "query" → pergunta sobre finanças (ex: "quanto sobra do mês")
-- "other" → saudação, dúvida não-financeira
+- "register_expense" → gasto / saída de dinheiro
+- "register_income" → receita / entrada de dinheiro
+- "query" → pergunta sobre finanças (saldos, parcelas, orçamentos, cofres, totais)
+- "clarify" → você entendeu a intenção mas falta um dado essencial (valor ou se é gasto/receita)
+- "other" → saudação, conversa casual, ou dúvida fora de finanças
 
-FORMATO POR INTENT:
+═══════ FORMATO DE SAÍDA POR INTENT ═══════
 
-Se "register_expense":
+register_expense:
 {
   "intent": "register_expense",
-  "description": "descrição curta",
-  "amount": número,
-  "paymentMethod": "valor da lista acima ou null",
-  "category": "valor da lista ou null",
-  "attributedTo": "valor da lista ou null",
-  "date": "YYYY-MM-DD ou null (=hoje)",
-  "installmentCurrent": número (1 se à vista),
-  "installmentTotal": número (1 se à vista),
-  "recurring": boolean,
+  "description": "descrição curta e clara",
+  "amount": número (em reais, decimal),
+  "paymentMethod": "valor da lista de Métodos/Cartões ou null",
+  "category": "valor da lista de Categorias ou null",
+  "attributedTo": "valor da lista de Atribuídos ou null",
+  "date": "YYYY-MM-DD (use a tabela de meses acima pra resolver expressões relativas) ou null se for hoje",
+  "installmentCurrent": número (1 = primeira parcela ou à vista),
+  "installmentTotal": número (1 = à vista),
+  "recurring": boolean (true se for fixo mensal),
   "cofreName": "nome do cofre ou null"
 }
 
-Se "register_income":
+register_income (mesma lógica de data):
 {
   "intent": "register_income",
-  "source": "origem da receita (ex: 'Salário', 'Freelance', 'Cliente X')",
+  "source": "origem (ex: 'Salário', 'Freelance', 'Consultório Juju')",
   "amount": número,
   "date": "YYYY-MM-DD ou null (=hoje)",
-  "notes": "observação adicional ou string vazia",
+  "notes": "observação ou ''",
   "recurring": boolean
 }
 
-Se "query":
+query:
 { "intent": "query" }
 
-Se "other":
-{ "intent": "other", "reply": "resposta curta em PT-BR" }
+clarify:
+{ "intent": "clarify", "reply": "pergunta curta e amigável pedindo o que falta" }
 
-REGRAS:
-- Distinção entre expense e income: palavras como "recebi", "ganhei", "caiu", "entrou", "me pagaram", "vendi" → income. Palavras como "comprei", "paguei", "gastei", "fui no" → expense. Palavra solta + valor sem contexto = expense.
-- paymentMethod/category/attributedTo: SÓ retorne se o usuário mencionou explicitamente E o valor existe na lista. NÃO INVENTE.
-- "parcelado em 4x" ou "4/6": preenche installmentTotal e installmentCurrent (default 1 se não disser parcela atual).
-- "todo mês", "fixo", "assinatura", "mensal": recurring=true.
-- Datas: "ontem", "hoje", "anteontem", "dia 15 do mês que vem", "15/06": calcule data ISO. Hoje é ${todayISO}.
-- Valor: aceita "200", "R$200", "200 reais", "200,50".
+other:
+{ "intent": "other", "reply": "resposta amigável curta em PT-BR" }
 
-EXEMPLOS:
-- "calça 200 nubank" → {"intent":"register_expense","description":"Calça","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
-- "comprei tv 10x de 200 nubank" → {"intent":"register_expense","description":"TV","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":10,"recurring":false,"cofreName":null}
-- "recebi 500 do cliente x hoje" → {"intent":"register_income","source":"Cliente X","amount":500,"date":null,"notes":"","recurring":false}
-- "salário 8000" → {"intent":"register_income","source":"Salário","amount":8000,"date":null,"notes":"","recurring":true}
-- "ipva dia 5 do mês que vem 250 pix" → {"intent":"register_expense","description":"IPVA","amount":250,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":"<calcula dia 5 do próximo mês>","installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
-- "quanto sobra do mês" → {"intent":"query"}
-- "oi" → {"intent":"other","reply":"Oi! Manda um gasto, receita ou pergunta."}`
+═══════ REGRAS DE CLASSIFICAÇÃO ═══════
+
+VERBOS DE EXPENSE: comprei, paguei, gastei, fui, deu, custou, lancei
+VERBOS DE INCOME: recebi, ganhei, caiu, entrou, me pagaram, vendi, fechei, salário
+PALAVRA SOLTA + VALOR sem verbo (ex: "jangada 100"): trate como expense.
+PERGUNTA com "quanto", "quantas", "qual", "como tá", "me diz": query.
+
+═══════ DATAS — IMPORTANTÍSSIMO ═══════
+
+Use a tabela de meses acima. NÃO calcule de cabeça:
+- "hoje", "agora" → null (= ${todayISO})
+- "ontem" → ${(new Date(now - 86400000)).toISOString().slice(0, 10)}
+- "anteontem" → ${(new Date(now - 2 * 86400000)).toISOString().slice(0, 10)}
+- "amanhã" → ${(new Date(now.getTime() + 86400000)).toISOString().slice(0, 10)}
+- "mês que vem" / "próximo mês" / "no mês que vem" SEM DIA → use o dia 01 do mês seguinte (veja tabela acima)
+- "dia X do mês que vem" → use o dia X do mês seguinte
+- "DD/MM" sozinho → assume ano atual (ou próximo se DD/MM já passou)
+- "DD/MM/AAAA" → exatamente essa data
+- "semana que vem" → 7 dias à frente
+
+═══════ REGRAS DE EXTRAÇÃO ═══════
+
+- paymentMethod / category / attributedTo: SÓ se a pessoa mencionou EXPLICITAMENTE e o valor existe NA LISTA acima. Match case-insensitive e tolerante a acentos. Em caso de dúvida, retorne null (NÃO INVENTE).
+- "parcelado em Nx" / "Nx" / "M/N" → installmentTotal=N, installmentCurrent=M (ou 1 se só disser N).
+- "fixo", "todo mês", "mensal", "assinatura" → recurring=true.
+- Valor: aceita "200", "R$200", "200 reais", "200,50", "duzentos", "duzentos e cinquenta".
+
+═══════ QUANDO PEDIR ESCLARECIMENTO (clarify) ═══════
+
+Use intent="clarify" SOMENTE quando a pessoa claramente quer registrar algo mas falta info crítica:
+- "registrar uma despesa" sem valor → clarify "Beleza, qual valor e descrição?"
+- "lança o aluguel" sem valor → clarify "Qual o valor do aluguel?"
+- "recebi um pix" sem valor → clarify "Quanto entrou?"
+- "compra mês que vem" sem mais nada → clarify "Conta mais — o que vai comprar, valor e forma de pagamento?"
+
+NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mês que vem" tem tudo (descrição, valor, pagamento, data) → use register_expense com date=dia 01 do mês que vem.
+
+═══════ EXEMPLOS ═══════
+
+"calça 200 nubank" → {"intent":"register_expense","description":"Calça","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":null,"installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
+
+"comprei tv 10x de 200 nubank no mês que vem" → {"intent":"register_expense","description":"TV","amount":200,"paymentMethod":"Nubank","category":null,"attributedTo":null,"date":"<dia 01 do próximo mês>","installmentCurrent":1,"installmentTotal":10,"recurring":false,"cofreName":null}
+
+"ipva dia 5 do mês que vem 250 pix" → {"intent":"register_expense","description":"IPVA","amount":250,"paymentMethod":"Pix","category":null,"attributedTo":null,"date":"<dia 05 do próximo mês>","installmentCurrent":1,"installmentTotal":1,"recurring":false,"cofreName":null}
+
+"recebi 500 do cliente x hoje" → {"intent":"register_income","source":"Cliente X","amount":500,"date":null,"notes":"","recurring":false}
+
+"salário 8000" → {"intent":"register_income","source":"Salário","amount":8000,"date":null,"notes":"","recurring":true}
+
+"quanto sobra do mês" → {"intent":"query"}
+
+"como tá meu cofre do casamento" → {"intent":"query"}
+
+"lança um gasto pro mês que vem" → {"intent":"clarify","reply":"Claro! Me passa a descrição, o valor e o método (pix, cartão, etc)."}
+
+"recebi um valor" → {"intent":"clarify","reply":"Beleza! Quanto e de quem?"}
+
+"oi" → {"intent":"other","reply":"Oi! 👋 Manda um gasto pra registrar, uma receita ou pergunta sobre suas finanças."}
+
+"tudo bem?" → {"intent":"other","reply":"Tudo! Quer ver como tá seu mês ou registrar algo?"}
+
+"obrigado" → {"intent":"other","reply":"Pra você! Qualquer coisa, é só chamar. 💪"}`
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
