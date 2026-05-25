@@ -76,11 +76,6 @@ export default async function handler(req, res) {
 
     console.log(`📲 ${from} (${type}): ${text}`)
 
-    // Se veio de áudio, manda um "ouvi: ..." pro user confirmar visualmente o que entendi
-    if (cameFromAudio) {
-      await sendWhatsApp(from, `🎤 Ouvi: _"${text}"_`)
-    }
-
     // 1) Identifica o usuário pelo WhatsApp
     const admin = supabaseAdmin()
     const { data: profile, error: profileErr } = await admin
