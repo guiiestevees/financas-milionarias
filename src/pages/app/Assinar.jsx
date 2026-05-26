@@ -5,6 +5,36 @@ import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
 import { supabase } from '../../lib/supabase'
 
+// ---------- Máscaras BR ----------
+// Detecta CPF (11 dígitos) vs CNPJ (14 dígitos) automaticamente
+// e aplica a máscara correta enquanto o usuário digita.
+function maskCpfCnpj(input) {
+  const d = String(input || '').replace(/\D/g, '').slice(0, 14)
+  if (d.length <= 11) {
+    // CPF: 000.000.000-00
+    return d
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  // CNPJ: 00.000.000/0000-00
+  return d
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
+// Celular BR: (00) 00000-0000 (11 dígitos) ou (00) 0000-0000 (10 dígitos)
+function maskPhone(input) {
+  const d = String(input || '').replace(/\D/g, '').slice(0, 11)
+  if (d.length === 0) return ''
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
 const PLANS = [
   {
     id: 'monthly',
@@ -190,8 +220,9 @@ export default function Assinar() {
                   type="text"
                   inputMode="numeric"
                   value={cpfCnpj}
-                  onChange={(e) => setCpfCnpj(e.target.value)}
+                  onChange={(e) => setCpfCnpj(maskCpfCnpj(e.target.value))}
                   placeholder="000.000.000-00"
+                  maxLength={18}
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace' }}
                   className="placeholder:text-white/30 focus:border-amber-400"
                 />
@@ -202,8 +233,9 @@ export default function Assinar() {
                   type="text"
                   inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
                   placeholder="(00) 00000-0000"
+                  maxLength={15}
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace' }}
                   className="placeholder:text-white/30 focus:border-amber-400"
                 />
