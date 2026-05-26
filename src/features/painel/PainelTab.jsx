@@ -314,19 +314,29 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
   })
   const [amount, setAmount] = useState('')
 
-  const sobraDisp = Math.max(0, (Number(fromCat.budget) || 0) - (Number(fromCat.spent) || 0))
+  // Arredonda pra centavos pra evitar bug de ponto flutuante
+  // Ex: 100 - 99.99 dá 0.010000000000005116 em vez de 0.01, e aí
+  // o usuário tenta transferir R$ 0,01 e é bloqueado.
+  const sobraDisp = Math.max(0, Math.round(((Number(fromCat.budget) || 0) - (Number(fromCat.spent) || 0)) * 100) / 100)
   const v = Number(amount) || 0
-  const exceeds = v > sobraDisp
+  // Comparação em centavos (inteiros) pra evitar comparação de floats
+  const vCents = Math.round(v * 100)
+  const sobraCents = Math.round(sobraDisp * 100)
+  const exceeds = vCents > sobraCents
   const others = allCategories.filter((c) => c.name !== fromCat.name && c.budget && c.budget > 0)
   const a = accents[fromCat.accent] || accents.rose
 
   const submit = () => {
     if (!v || v <= 0 || exceeds) return
+    // Garante que se for "tudo", passa exatamente o sobraDisp (não o input do user)
+    // pra eliminar resíduo de centavos. Ex: usuário tenta R$ 0,01 e sobraDisp é 0,01:
+    // transfere 0,01 exato e zera o orçamento, sem deixar 0,000001 sobrando.
+    const finalAmount = vCents >= sobraCents ? sobraDisp : v
     if (mode === 'outro') {
       if (!destName) return
-      onTransfer(fromCat.name, destName, v)
+      onTransfer(fromCat.name, destName, finalAmount)
     } else {
-      onRelease(fromCat.name, v)
+      onRelease(fromCat.name, finalAmount)
     }
     onClose()
   }
@@ -770,6 +780,10 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   const removeDespesa = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
   const togglePaid = togglePaidDespesa || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) })))
 
+  // Arredonda pra centavos pra evitar bug de ponto flutuante
+  // (ex: 100 - 99.99 = 0.010000000000005116 em vez de 0.01)
+  const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100
+
   // Transfer one budget's leftover to another budget (this month only).
   // Reduces source budget by amount, increases destination by amount.
   const transferBudget = (fromCat, toCat, amount) => {
@@ -780,8 +794,8 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       const get = (name) => Object.prototype.hasOwnProperty.call(overrides, name)
         ? Number(overrides[name]) || 0
         : Number(cats.find((c) => c.name === name)?.budget) || 0
-      overrides[fromCat] = Math.max(0, get(fromCat) - amount)
-      overrides[toCat] = get(toCat) + amount
+      overrides[fromCat] = round2(Math.max(0, get(fromCat) - amount))
+      overrides[toCat] = round2(get(toCat) + amount)
       return { ...m, budgetOverrides: overrides }
     })
   }
@@ -795,7 +809,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       const get = (name) => Object.prototype.hasOwnProperty.call(overrides, name)
         ? Number(overrides[name]) || 0
         : Number(cats.find((c) => c.name === name)?.budget) || 0
-      overrides[fromCat] = Math.max(0, get(fromCat) - amount)
+      overrides[fromCat] = round2(Math.max(0, get(fromCat) - amount))
       return { ...m, budgetOverrides: overrides }
     })
   }
