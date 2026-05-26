@@ -157,6 +157,73 @@ export async function getFirstChargeUrl(subscriptionId) {
   return first?.invoiceUrl || null
 }
 
+// ---------- PIX QR Code ----------
+/**
+ * Busca o QR Code PIX de um pagamento.
+ * Retorna { encodedImage (base64), payload (copia-cola), expirationDate }
+ */
+export async function getPixQrCode(paymentId) {
+  return asaasFetch(`/payments/${paymentId}/pixQrCode`)
+}
+
+/**
+ * Busca status de um pagamento (pra polling do PIX).
+ */
+export async function getPayment(paymentId) {
+  return asaasFetch(`/payments/${paymentId}`)
+}
+
+// ---------- Cartão de crédito (direto via API) ----------
+/**
+ * Cria assinatura com cobrança direta no cartão.
+ * O Asaas processa imediatamente — não precisa redirect.
+ *
+ * cardData: { number, holderName, expiryMonth, expiryYear, ccv }
+ * holderInfo: { name, email, cpfCnpj, phone, postalCode, addressNumber }
+ */
+export async function createSubscriptionWithCard({ customerId, planId, cardData, holderInfo, trialDays = 0 }) {
+  const plan = PLANS[planId]
+  if (!plan) throw new Error(`Plano inválido: ${planId}`)
+
+  const firstDueDate = new Date(Date.now() + trialDays * 86400000)
+    .toISOString().slice(0, 10)
+
+  // IP do request (Asaas exige) — pegamos no handler
+  const remoteIp = holderInfo.remoteIp || '127.0.0.1'
+
+  const payload = {
+    customer: customerId,
+    billingType: 'CREDIT_CARD',
+    nextDueDate: firstDueDate,
+    value: plan.value,
+    cycle: plan.cycle,
+    description: `${plan.name} — Finanças Milionárias`,
+    externalReference: `plan:${planId}`,
+    creditCard: {
+      holderName: cardData.holderName,
+      number: cardData.number,
+      expiryMonth: cardData.expiryMonth,
+      expiryYear: cardData.expiryYear,
+      ccv: cardData.ccv,
+    },
+    creditCardHolderInfo: {
+      name: holderInfo.name,
+      email: holderInfo.email,
+      cpfCnpj: holderInfo.cpfCnpj,
+      postalCode: holderInfo.postalCode || '01310100',  // default SP centro se vier vazio
+      addressNumber: holderInfo.addressNumber || '0',
+      phone: holderInfo.phone || undefined,
+      mobilePhone: holderInfo.phone || undefined,
+    },
+    remoteIp,
+  }
+
+  return asaasFetch('/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 // ---------- Helpers ----------
 /**
  * Calcula a data até quando o usuário tem acesso, dado o plano.
