@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ArrowLeft, Loader2, Sparkles, Flame, Lock, CreditCard, QrCode, Zap, AlertCircle } from 'lucide-react'
+import { Check, ArrowLeft, Loader2, Lock, CreditCard, Zap, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
 import { supabase } from '../../lib/supabase'
@@ -36,9 +36,8 @@ const PLANS = [
   {
     id: 'monthly',
     name: 'Mensal',
-    price: 26.00,
-    priceLabel: 'R$ 26',
-    originalPrice: 'R$ 29,90',
+    price: 19.00,
+    priceLabel: 'R$ 19',
     period: 'por mês',
     accent: 'emerald',
     description: 'Cobrança recorrente. Cancele quando quiser.',
@@ -52,16 +51,15 @@ const PLANS = [
   {
     id: 'annual',
     name: 'Anual',
-    price: 197.00,
-    priceLabel: 'R$ 197',
-    originalPrice: 'R$ 249',
+    price: 167.00,
+    priceLabel: 'R$ 167',
     period: 'por ano',
     accent: 'gold',
     badge: 'Mais escolhido',
     description: 'Pague 1× e fique 12 meses tranquilo.',
     features: [
       'Tudo do plano Mensal',
-      '✨ ~37% de desconto (R$ 16,42/mês)',
+      '✨ Economia de R$ 61 (~27% off)',
       'Sem preocupação com cobrança mensal',
       'Garantia de 7 dias',
     ],
@@ -72,7 +70,7 @@ const METHODS = [
   {
     id: 'PIX_AUTOMATIC',
     name: 'PIX Automático',
-    description: 'Débito recorrente autorizado no seu banco — sem se preocupar com renovação',
+    description: 'Pague o primeiro PIX e autorize débito recorrente no app do banco',
     icon: Zap,
     accent: '#10b981',
     accentSoft: 'rgba(16,185,129,0.08)',
@@ -85,14 +83,6 @@ const METHODS = [
     icon: CreditCard,
     accent: '#c9a961',
     accentSoft: 'rgba(201,169,97,0.08)',
-  },
-  {
-    id: 'PIX',
-    name: 'PIX (manual)',
-    description: 'QR Code mensal — você paga manualmente todo mês',
-    icon: QrCode,
-    accent: '#94a3b8',
-    accentSoft: 'rgba(148,163,184,0.06)',
   },
 ]
 
@@ -198,17 +188,11 @@ export default function Assinar() {
 
         {/* ============ HEADER ============ */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4" style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.3)' }}>
-            <Flame size={13} className="text-rose-300" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-rose-300">
-              Preço de Lançamento — Edição Fundador
-            </span>
-          </div>
           <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
             Assinar Finanças Milionárias
           </h1>
           <p className="text-white/65 text-sm max-w-lg mx-auto leading-relaxed">
-            🎩 Os primeiros assinantes garantem um <strong className="text-white/85">preço congelado pra sempre</strong> — mesmo quando o valor padrão subir, você continua pagando o de hoje.
+            🎩 Escolha seu plano e forma de pagamento — Alfred fica ao seu dispor logo em seguida.
           </p>
         </div>
 
@@ -237,28 +221,16 @@ export default function Assinar() {
                       {p.badge}
                     </div>
                   )}
-                  <div className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
-                    style={{ background: '#070912', border: `1px solid ${accentColor}`, color: accentColor }}>
-                    <Flame size={9} /> Fundador
-                  </div>
 
-                  <div className="flex items-baseline justify-between mb-1 mt-1.5">
+                  <div className="flex items-baseline justify-between mb-1">
                     <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: accentColor }} className="text-xl">{p.name}</div>
                     {isSelected && <Check size={18} style={{ color: accentColor }} />}
                   </div>
-                  <div className="flex items-baseline gap-2 mb-1 flex-wrap">
+                  <div className="flex items-baseline gap-2 mb-1">
                     <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-3xl font-semibold tabular-nums">{p.priceLabel}</span>
                     <span className="text-xs text-white/45">{p.period}</span>
-                    {p.originalPrice && (
-                      <span className="text-xs text-white/35 line-through tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                        {p.originalPrice}
-                      </span>
-                    )}
                   </div>
                   <div className="text-xs text-white/55 mb-3">{p.description}</div>
-                  <div className="flex items-center gap-1.5 mb-3 px-2 py-1 rounded text-[10px]" style={{ background: `${accentColor}10`, color: accentColor }}>
-                    <Lock size={9} /> <span className="font-medium">Preço congelado pra sempre</span>
-                  </div>
                   <ul className="space-y-1.5">
                     {p.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-white/75">

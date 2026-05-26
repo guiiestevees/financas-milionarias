@@ -76,6 +76,11 @@ export default async function handler(req, res) {
     if (!['PIX', 'PIX_AUTOMATIC', 'CREDIT_CARD'].includes(method)) {
       return res.status(400).json({ error: 'Método de pagamento inválido' })
     }
+
+    // Asaas só aceita 'PIX' como billingType pra subscriptions.
+    // O usuário escolhe "PIX Automático" no app — backend envia PIX, e o
+    // cliente autoriza débito automático no app do banco depois de pagar.
+    const asaasBillingType = method === 'PIX_AUTOMATIC' ? 'PIX' : method
     if (!holder.name || !holder.cpfCnpj) {
       return res.status(400).json({ error: 'Nome e CPF/CNPJ obrigatórios' })
     }
@@ -120,13 +125,13 @@ export default async function handler(req, res) {
         trialDays: 0,
       })
     } else {
-      // PIX ou PIX_AUTOMATIC — cria assinatura, primeira cobrança gera o QR
-      // PIX_AUTOMATIC: cliente autoriza débito recorrente no banco dele
-      // PIX: gera QR Code mensal (cliente paga manual cada mês)
+      // PIX ou PIX_AUTOMATIC — cria assinatura, primeira cobrança gera o QR.
+      // Asaas usa billingType='PIX' nos 2 casos; a autorização recorrente
+      // (PIX Automático) é opt-in que o cliente faz no app do banco dele.
       subscription = await createSubscription({
         customerId: customer.id,
         planId,
-        billingType: method,  // 'PIX' ou 'PIX_AUTOMATIC'
+        billingType: asaasBillingType,  // sempre 'PIX' (mapeado)
         trialDays: 0,
       })
     }

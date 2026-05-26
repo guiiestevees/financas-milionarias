@@ -16,23 +16,22 @@ const BASE_URL = ENV === 'production'
 
 // ---------- Plans ----------
 // Definição central dos planos. Mudou aqui, muda no app inteiro.
-// Preços de lançamento — ajustar conforme estratégia.
 export const PLANS = {
   monthly: {
     id: 'monthly',
     name: 'Mensal',
-    value: 26.00,
+    value: 19.00,
     cycle: 'MONTHLY',
-    label: 'R$ 26,00/mês',
+    label: 'R$ 19,00/mês',
     description: 'Acesso completo + WhatsApp com Alfred',
   },
   annual: {
     id: 'annual',
     name: 'Anual',
-    value: 197.00,
+    value: 167.00,
     cycle: 'YEARLY',
-    label: 'R$ 197/ano',
-    description: 'Acesso completo + WhatsApp com Alfred (economia de R$ 115)',
+    label: 'R$ 167/ano',
+    description: 'Acesso completo + WhatsApp com Alfred (economia de R$ 61)',
   },
 }
 
