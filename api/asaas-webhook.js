@@ -100,9 +100,9 @@ async function handlePaymentReceived(admin, payment) {
   const subscriptionId = payment.subscription
   const paymentId = payment.id
 
-  // Determina o plano pelo valor (heurística simples)
+  // Determina o plano pelo valor (heurística: anual sempre passa de R$ 100)
   const value = Number(payment.value) || 0
-  const planId = value >= 200 ? 'annual' : 'monthly'
+  const planId = value >= 100 ? 'annual' : 'monthly'
 
   // Busca o usuário pelo customer ID
   const { data: profile } = await admin
