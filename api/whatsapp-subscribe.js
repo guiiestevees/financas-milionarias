@@ -8,7 +8,7 @@
 // Idempotente: pode rodar várias vezes sem problema.
 
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN
-const WABA_ID = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '4476324906025042'
+const WABA_ID = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '974174428811946'
 const GRAPH_VERSION = 'v21.0'
 
 export default async function handler(req, res) {

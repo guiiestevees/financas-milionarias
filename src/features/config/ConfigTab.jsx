@@ -292,10 +292,9 @@ function IncomeSourcesConfig({ config, setConfig }) {
 }
 
 // ---------- WhatsAppConfig ----------
-// Número do bot (em modo teste, é o da Meta). Quando migrar pra produção,
-// trocar pelo número próprio.
-const BOT_PHONE = '15556504979'  // +1 (555) 650-4979 — Meta test number
-const BOT_PHONE_DISPLAY = '+1 (555) 650-4979'
+// Número do bot na Cloud API (formato wa.me, só dígitos)
+const BOT_PHONE = '5519997472896'  // +55 (19) 99747-2896 — Alfred
+const BOT_PHONE_DISPLAY = '+55 (19) 99747-2896'
 
 function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
   const [draft, setDraft] = useState(whatsappPhone || '')
