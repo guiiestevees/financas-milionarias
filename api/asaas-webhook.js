@@ -11,7 +11,9 @@
 // com a env var ASAAS_WEBHOOK_TOKEN configurada no painel deles.
 
 import { createClient } from '@supabase/supabase-js'
-import { nextExpirationDate } from './_asaas.js'
+import { nextExpirationDate, PLANS } from './_asaas.js'
+import { sendWhatsApp } from './_whatsapp.js'
+import { sendEmail, paymentConfirmedEmail, paymentOverdueEmail, subscriptionCancelledEmail } from './_email.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -104,10 +106,10 @@ async function handlePaymentReceived(admin, payment) {
   const value = Number(payment.value) || 0
   const planId = value >= 50 ? 'annual' : 'monthly'
 
-  // Busca o usuário pelo customer ID
+  // Busca o usuário pelo customer ID — inclui dados pra notificação
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('user_id, last_payment_id')
+    .select('user_id, last_payment_id, subscription_status, whatsapp_phone')
     .eq('asaas_customer_id', customerId)
     .maybeSingle()
 
@@ -123,6 +125,7 @@ async function handlePaymentReceived(admin, payment) {
   }
 
   const until = nextExpirationDate(planId)
+  const wasFirstPayment = profile.subscription_status !== 'active'
 
   await admin
     .from('user_profiles')
@@ -137,15 +140,62 @@ async function handlePaymentReceived(admin, payment) {
     .eq('user_id', profile.user_id)
 
   console.log(`✅ Assinatura ativada: user ${profile.user_id} → ${planId} até ${until}`)
+
+  // 🎩 Notificações (paralelo, falha silenciosa)
+  const plan = PLANS[planId]
+  await Promise.allSettled([
+    sendPaymentConfirmedWhatsApp({
+      to: profile.whatsapp_phone,
+      planName: plan?.name || planId,
+      value,
+      isFirst: wasFirstPayment,
+    }),
+    sendPaymentConfirmedEmail({
+      admin, userId: profile.user_id,
+      planName: plan?.name || planId,
+      value, until,
+    }),
+  ])
+}
+
+// ---------- Helpers de notificação ----------
+
+async function sendPaymentConfirmedWhatsApp({ to, planName, value, isFirst }) {
+  if (!to) return
+  const valueLabel = `R$ ${Number(value).toFixed(2).replace('.', ',')}`
+  const msg = isFirst
+    ? `🎩 *Pagamento confirmado.*
+
+Recebi o pagamento de *${valueLabel}* — plano *${planName}* ativado.
+
+Estarei ao seu dispor sempre que precisar. Registre despesas, receitas ou faça consultas: é só me chamar.
+
+_Excelente decisão._`
+    : `🎩 *Renovação confirmada.*
+
+Cobrança mensal de *${valueLabel}* processada com sucesso — plano *${planName}* continua ativo.
+
+Permaneço ao seu dispor.`
+  await sendWhatsApp(to, msg)
+}
+
+async function sendPaymentConfirmedEmail({ admin, userId, planName, value, until }) {
+  // Busca email do usuário no Supabase Auth
+  const { data: userData } = await admin.auth.admin.getUserById(userId)
+  const email = userData?.user?.email
+  if (!email) return
+  const tpl = paymentConfirmedEmail({ name: '', planName, value, validUntil: until })
+  await sendEmail({ to: email, ...tpl })
 }
 
 async function handlePaymentOverdue(admin, payment) {
   if (!payment) return
   const customerId = payment.customer
+  const value = Number(payment.value) || 0
 
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('user_id')
+    .select('user_id, whatsapp_phone')
     .eq('asaas_customer_id', customerId)
     .maybeSingle()
 
@@ -160,6 +210,29 @@ async function handlePaymentOverdue(admin, payment) {
     .eq('user_id', profile.user_id)
 
   console.log(`⚠ Pagamento atrasou: user ${profile.user_id}`)
+
+  // 🎩 Notificação proativa — cliente pode resolver antes do bloqueio
+  const valueLabel = `R$ ${value.toFixed(2).replace('.', ',')}`
+  const regularizeUrl = `https://project-s3mj5.vercel.app`  // app abre tela de assinatura
+
+  await Promise.allSettled([
+    profile.whatsapp_phone && sendWhatsApp(profile.whatsapp_phone, `🎩 *Permita-me uma observação.*
+
+A cobrança de *${valueLabel}* consta em aberto. Sua assinatura permanece ativa por mais 3 dias — tempo suficiente para regularizar com tranquilidade.
+
+Se já pagou, ignore esta mensagem — a confirmação chega em poucos minutos.
+
+_Para regularizar pelo aplicativo, basta abrir Configurações → Assinatura → Trocar forma de pagamento._`),
+    sendOverdueEmail({ admin, userId: profile.user_id, value, regularizeUrl }),
+  ])
+}
+
+async function sendOverdueEmail({ admin, userId, value, regularizeUrl }) {
+  const { data: userData } = await admin.auth.admin.getUserById(userId)
+  const email = userData?.user?.email
+  if (!email) return
+  const tpl = paymentOverdueEmail({ name: '', value, regularizeUrl })
+  await sendEmail({ to: email, ...tpl })
 }
 
 async function handlePaymentReverted(admin, payment) {
@@ -191,7 +264,7 @@ async function handleSubscriptionCancelled(admin, subscription) {
 
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('user_id')
+    .select('user_id, whatsapp_phone, subscription_until')
     .eq('asaas_subscription_id', subscriptionId)
     .maybeSingle()
 
@@ -206,4 +279,27 @@ async function handleSubscriptionCancelled(admin, subscription) {
     .eq('user_id', profile.user_id)
 
   console.log(`❌ Assinatura cancelada: user ${profile.user_id}`)
+
+  // 🎩 Despedida cordial + lembrete de acesso restante
+  const until = profile.subscription_until
+  const dateLabel = until ? new Date(until).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) : 'o fim do período'
+
+  await Promise.allSettled([
+    profile.whatsapp_phone && sendWhatsApp(profile.whatsapp_phone, `🎩 *Assinatura encerrada.*
+
+Acato sua decisão. Não haverá novas cobranças.
+
+Seu acesso permanece completo até *${dateLabel}* — seus dados continuam preservados. Pode reativar a qualquer momento e encontrará tudo exatamente como deixou.
+
+_Agradeço a oportunidade de servi-lo._`),
+    sendCancelledEmail({ admin, userId: profile.user_id, until }),
+  ])
+}
+
+async function sendCancelledEmail({ admin, userId, until }) {
+  const { data: userData } = await admin.auth.admin.getUserById(userId)
+  const email = userData?.user?.email
+  if (!email) return
+  const tpl = subscriptionCancelledEmail({ name: '', validUntil: until })
+  await sendEmail({ to: email, ...tpl })
 }
