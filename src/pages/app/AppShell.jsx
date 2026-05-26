@@ -14,10 +14,14 @@ import ReceitasTab from '../../features/receitas/ReceitasTab'
 import GastosTab from '../../features/gastos/GastosTab'
 import CofresTab from '../../features/cofres/CofresTab'
 import ConfigTab from '../../features/config/ConfigTab'
+import SubscriptionBanner from '../../components/SubscriptionBanner'
+import SubscriptionBlocked from '../../components/SubscriptionBlocked'
+import { useSubscription } from '../../hooks/useSubscription'
 
 export default function AppShell() {
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
+  const subscription = useSubscription()
   const [data, setData] = useState(null)
   const [activeMonth, setActiveMonth] = useState(getCurrentMonth())
   const [tab, setTab] = useState('painel')
@@ -730,10 +734,24 @@ export default function AppShell() {
     )
   }
 
+  // ----- Bloqueio de assinatura -----
+  // Se trial expirou OU pagamento atrasou demais OU foi cancelado, mostra tela de assinatura
+  if (!subscription.loading && subscription.isBlocked) {
+    const reason = subscription.isExpired && subscription.status === 'cancelled'
+      ? 'cancelled'
+      : subscription.isTrial
+      ? 'trial_expired'
+      : subscription.isOverdue
+      ? 'overdue'
+      : 'expired'
+    return <SubscriptionBlocked reason={reason} />
+  }
+
   const brand = data.brand || { name: '', subtitle: 'Finanças Milionárias' }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#070912' }}>
+      <SubscriptionBanner />
       <div className="w-full max-w-4xl mx-auto px-4 pt-8">
         <Header
           brand={brand}

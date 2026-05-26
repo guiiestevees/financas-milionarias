@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import AppShell from './pages/app/AppShell'
+import Assinar from './pages/app/Assinar'
 import AuthLayout from './pages/auth/AuthLayout'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
@@ -36,6 +37,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+        <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
 
         <Route element={<AuthLayout />}>
