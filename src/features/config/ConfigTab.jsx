@@ -292,6 +292,11 @@ function IncomeSourcesConfig({ config, setConfig }) {
 }
 
 // ---------- WhatsAppConfig ----------
+// Número do bot (em modo teste, é o da Meta). Quando migrar pra produção,
+// trocar pelo número próprio.
+const BOT_PHONE = '15556504979'  // +1 (555) 650-4979 — Meta test number
+const BOT_PHONE_DISPLAY = '+1 (555) 650-4979'
+
 function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
   const [draft, setDraft] = useState(whatsappPhone || '')
   const [savedJustNow, setSavedJustNow] = useState(false)
@@ -327,17 +332,19 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
   }
 
   const current = whatsappPhone
+  const greeting = 'Oi, quero começar'
+  const waLink = `https://wa.me/${BOT_PHONE}?text=${encodeURIComponent(greeting)}`
 
   return (
     <Card className="p-4 sm:p-6" accent="emerald">
       <SectionTitle icon={MessageCircle} title="WhatsApp" subtitle="Registre gastos mandando mensagem direto pro app" accent="emerald" />
 
       <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
-        Salve seu WhatsApp aqui e mande mensagem pra <strong className="text-emerald-300">+1 (555) 650-4979</strong> com gastos no formato livre — ex: <em>"calça 200 nubank parcelado 4x"</em>. A IA reconhece e lança.
+        Salve seu WhatsApp aqui e mande mensagem pra <strong className="text-emerald-300">{BOT_PHONE_DISPLAY}</strong> com gastos no formato livre — ex: <em>"calça 200 nubank parcelado 4x"</em>. A IA reconhece e lança.
       </div>
 
       {current ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div style={{ background: accents.emerald.soft, color: accents.emerald.hex }} className="p-1.5 rounded-md shrink-0"><MessageCircle size={14} /></div>
@@ -348,6 +355,24 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
             </div>
             <button onClick={remove} className="text-xs text-white/45 hover:text-rose-400 transition shrink-0">Desvincular</button>
           </div>
+
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition w-full"
+            style={{
+              background: '#25D366',
+              color: 'white',
+              boxShadow: '0 4px 14px rgba(37,211,102,0.25)',
+            }}
+          >
+            <MessageCircle size={16} /> Abrir conversa com o bot
+          </a>
+
+          <p className="text-xs text-white/45 text-center leading-relaxed">
+            Clica no botão acima pra abrir o WhatsApp com uma mensagem de saudação pronta. Quando você enviar, o bot responde com um tutorial rápido de tudo que dá pra fazer.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">

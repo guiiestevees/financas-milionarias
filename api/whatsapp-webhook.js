@@ -17,6 +17,49 @@ const GRAPH_VERSION = 'v21.0'
 const CLAUDE_MODEL = 'claude-sonnet-4-5'  // upgrade do haiku — mais caro mas muito mais inteligente
 const WHISPER_MODEL = 'whisper-1'
 
+// ---------- Onboarding / Help ----------
+const ONBOARDING_MESSAGE = `👋 Oi! Sou o assistente do *Finanças Milionárias*.
+
+🎯 *O que posso fazer:*
+
+📝 *Registrar gastos*
+"calça 200 nubank"
+"comprei tênis 350 parcelado 4x"
+"aluguel 2500 mensal pix"
+
+💰 *Registrar receitas*
+"recebi 1500 do cliente x"
+"salário 8000"
+
+📦 *Múltiplos numa mensagem*
+"almoço 50 e uber 30 pix"
+"jantar 120, sobremesa 30 e estacionamento 15"
+
+🔍 *Perguntar sobre suas finanças*
+"quanto sobra do mês?"
+"quantas parcelas faltam do fifa?"
+"como tá meu cofre do casamento?"
+"quem me deve esse mês?"
+
+🎤 *Mandar por áudio*
+Pode falar do seu jeito — eu transcrevo e entendo. Aperta o microfone do WhatsApp e fala natural.
+
+📅 *Datas livres*
+"pago dia 5 do mês que vem"
+"recebi ontem do freelance"
+
+💡 *Como funciona:*
+Tudo que você mandar vira um *lançamento pendente*. Você confirma, edita ou descarta direto no app. Nada é salvo automaticamente — você sempre tem a palavra final.
+
+Bora começar! 🚀`
+
+const HELP_TRIGGER_REGEX = /^(\s*)(oi+e?|ol[aá]+|opa+|e ?a[ií]+|hey+|hi|hello|tudo bem|tudo certo|bom dia|boa tarde|boa noite|come[çc]ar|quero come[çc]ar|menu|ajuda|help|como (funciona|usar)|tutorial)([\s!.,?]|$)/i
+
+function isHelpTrigger(text) {
+  if (!text) return false
+  return HELP_TRIGGER_REGEX.test(text.trim())
+}
+
 // ---------- Handler principal ----------
 export default async function handler(req, res) {
   // GET: handshake do Meta
@@ -75,6 +118,12 @@ export default async function handler(req, res) {
     }
 
     console.log(`📲 ${from} (${type}): ${text}`)
+
+    // Detecta saudação / "quero começar" / pedido de ajuda — manda tutorial completo
+    if (isHelpTrigger(text)) {
+      await sendWhatsApp(from, ONBOARDING_MESSAGE)
+      return res.status(200).json({ ok: true })
+    }
 
     // 1) Identifica o usuário pelo WhatsApp
     const admin = supabaseAdmin()
