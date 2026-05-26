@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Crown, Check, ArrowLeft, Loader2, MessageCircle, Sparkles } from 'lucide-react'
+import { Crown, Check, ArrowLeft, Loader2, MessageCircle, Sparkles, Flame, Lock } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
 import { supabase } from '../../lib/supabase'
@@ -41,6 +41,7 @@ const PLANS = [
     name: 'Mensal',
     price: 26.00,
     priceLabel: 'R$ 26',
+    originalPrice: 'R$ 29,90',
     period: 'por mês',
     accent: 'emerald',
     description: 'Cobrança recorrente. Cancele quando quiser.',
@@ -57,9 +58,10 @@ const PLANS = [
     name: 'Anual',
     price: 197.00,
     priceLabel: 'R$ 197',
+    originalPrice: 'R$ 249',
     period: 'por ano',
     accent: 'gold',
-    badge: 'Economia de R$ 115',
+    badge: 'Mais escolhido',
     description: 'Pague 1× e fique 12 meses tranquilo.',
     features: [
       'Tudo do plano Mensal',
@@ -136,15 +138,20 @@ export default function Assinar() {
         </button>
 
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4" style={{ background: 'rgba(201,169,97,0.1)', border: '1px solid rgba(201,169,97,0.3)' }}>
-            <Crown size={14} style={{ color: '#c9a961' }} />
-            <span className="text-xs font-medium" style={{ color: '#c9a961' }}>Continue com Alfred ao seu dispor</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4" style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.3)' }}>
+            <Flame size={13} className="text-rose-300" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-rose-300">
+              Preço de Lançamento — Edição Fundador
+            </span>
           </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-2">
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
             Escolha seu plano
           </h1>
-          <p className="text-white/55 text-sm max-w-md mx-auto">
-            7 dias grátis pra experimentar. Sem compromisso — cancela quando quiser.
+          <p className="text-white/65 text-sm max-w-lg mx-auto leading-relaxed mb-3">
+            🎩 Os primeiros assinantes garantem um <strong className="text-white/85">preço congelado pra sempre</strong> — mesmo quando o valor padrão subir, você continua pagando o de hoje.
+          </p>
+          <p className="text-white/45 text-xs max-w-md mx-auto">
+            7 dias grátis pra experimentar. Cancele quando quiser.
           </p>
         </div>
 
@@ -165,21 +172,40 @@ export default function Assinar() {
                   boxShadow: isSelected ? `0 8px 24px ${accentColor}25` : 'none',
                 }}
               >
+                {/* Badge superior — "Mais escolhido" no anual */}
                 {plan.badge && (
                   <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
                     style={{ background: accentColor, color: '#070912' }}>
                     {plan.badge}
                   </div>
                 )}
-                <div className="flex items-baseline justify-between mb-1">
+
+                {/* Badge "Fundador" no canto esquerdo */}
+                <div className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  style={{ background: '#070912', border: `1px solid ${accentColor}`, color: accentColor }}>
+                  <Flame size={9} /> Fundador
+                </div>
+
+                <div className="flex items-baseline justify-between mb-1 mt-1.5">
                   <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: accentColor }} className="text-xl">{plan.name}</div>
                   {isSelected && <Check size={18} style={{ color: accentColor }} />}
                 </div>
-                <div className="flex items-baseline gap-1.5 mb-1">
+                <div className="flex items-baseline gap-2 mb-1 flex-wrap">
                   <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-3xl font-semibold tabular-nums">{plan.priceLabel}</span>
                   <span className="text-xs text-white/45">{plan.period}</span>
+                  {plan.originalPrice && (
+                    <span className="text-xs text-white/35 line-through tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                      {plan.originalPrice}
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs text-white/55 mb-4">{plan.description}</div>
+                <div className="text-xs text-white/55 mb-3">{plan.description}</div>
+
+                {/* Linha de "preço congelado" */}
+                <div className="flex items-center gap-1.5 mb-3 px-2 py-1 rounded text-[10px]" style={{ background: `${accentColor}10`, color: accentColor }}>
+                  <Lock size={9} />
+                  <span className="font-medium">Preço congelado pra sempre</span>
+                </div>
                 <ul className="space-y-1.5">
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-white/75">
