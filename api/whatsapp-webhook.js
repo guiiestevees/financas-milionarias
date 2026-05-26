@@ -18,15 +18,15 @@ const CLAUDE_MODEL = 'claude-sonnet-4-5'  // upgrade do haiku — mais caro mas 
 const WHISPER_MODEL = 'whisper-1'
 
 // ---------- Onboarding / Help ----------
-const ONBOARDING_MESSAGE = `🎩 *Às suas ordens.*
+const ONBOARDING_MESSAGE = `🎩 *Ao seu dispor.*
 
-Eu sou *Alfred*, seu mordomo financeiro do *Finanças Milionárias*. 🦇
+Eu sou *Alfred*, seu mordomo financeiro do *Finanças Milionárias*. Cuidarei das suas finanças com a discrição e o zelo que merecem. 🦇
 
-💡 Salve este contato como *Alfred* pra ficar fácil de me chamar. 😉
+💡 _Permita-me uma sugestão:_ salve este contato como *Alfred* — fica mais fácil me chamar quando precisar.
 
-🎯 *No que posso te ajudar:*
+🎯 *Como posso servir:*
 
-📝 *Registrar gastos*
+📝 *Registrar despesas*
 "calça 200 nubank"
 "comprei tênis 350 parcelado 4x"
 "aluguel 2500 mensal pix"
@@ -35,27 +35,27 @@ Eu sou *Alfred*, seu mordomo financeiro do *Finanças Milionárias*. 🦇
 "recebi 1500 do cliente x"
 "salário 8000"
 
-📦 *Múltiplos numa mensagem*
+📦 *Vários lançamentos numa única mensagem*
 "almoço 50 e uber 30 pix"
 "jantar 120, sobremesa 30 e estacionamento 15"
 
-🔍 *Perguntar sobre suas finanças*
+🔍 *Consultar suas finanças*
 "quanto sobra do mês?"
 "quantas parcelas faltam do fifa?"
-"como tá meu cofre do casamento?"
-"quem me deve esse mês?"
+"como está meu cofre do casamento?"
+"quem me deve neste mês?"
 
-🎤 *Mandar por áudio*
-Pode falar do seu jeito — eu transcrevo e entendo. Aperta o microfone do WhatsApp e fala natural.
+🎤 *Enviar por áudio*
+Pode falar à vontade — transcrevo e compreendo. Basta segurar o microfone do WhatsApp e dizer com naturalidade.
 
 📅 *Datas livres*
 "pago dia 5 do mês que vem"
 "recebi ontem do freelance"
 
-📋 *Como funciona:*
-Tudo que você mandar vira um *lançamento pendente*. Você confirma, edita ou descarta direto no app. Nada é salvo automaticamente — você sempre tem a palavra final, _senhor_.
+📋 *Como funcionará nosso trabalho:*
+Tudo que enviar a mim torna-se um _lançamento pendente_. Você confirma, edita ou descarta no aplicativo — _nada é salvo sem sua aprovação_. A palavra final é sempre sua.
 
-Pronto pra começar? 🚀`
+Quando desejar começar, é só me chamar. 🚀`
 
 const HELP_TRIGGER_REGEX = /^(\s*)(oi+e?|ol[aá]+|opa+|e ?a[ií]+|hey+|hi|hello|tudo bem|tudo certo|bom dia|boa tarde|boa noite|come[çc]ar|quero come[çc]ar|menu|ajuda|help|como (funciona|usar)|tutorial)([\s!.,?]|$)/i
 
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
       }
     } else {
       // imagem, vídeo, sticker, etc — ainda não suportado
-      await sendWhatsApp(from, '🎩 Por ora entendo texto e áudio, senhor. Foto da nota chega na próxima fase.')
+      await sendWhatsApp(from, '🎩 No momento compreendo texto e áudio. Foto da nota chegará em breve.')
       return res.status(200).json({ ok: true })
     }
 
@@ -139,7 +139,7 @@ export default async function handler(req, res) {
 
     if (profileErr) console.error('profile lookup error:', profileErr)
     if (!profile) {
-      await sendWhatsApp(from, '🎩 Boa noite. Este número ainda não está vinculado a nenhuma conta do Finanças Milionárias. Abra o aplicativo, vá em Configurações → WhatsApp e cadastre seu número. Aguardo sua mensagem em seguida.')
+      await sendWhatsApp(from, '🎩 Olá. Este número ainda não está vinculado a uma conta do Finanças Milionárias. Permita-me orientar: abra o aplicativo, vá em Configurações → WhatsApp e cadastre seu número. Aguardarei seu retorno.')
       return res.status(200).json({ ok: true })
     }
 
@@ -153,7 +153,7 @@ export default async function handler(req, res) {
     console.log('🧠 Claude:', JSON.stringify(extraction))
 
     if (!extraction) {
-      await sendWhatsApp(from, '🎩 Hmm, algo travou aqui. Tenta de novo em alguns segundos, senhor.')
+      await sendWhatsApp(from, '🎩 Peço desculpas — algo travou de momento. Poderia tentar novamente em alguns segundos?')
       return res.status(200).json({ ok: true })
     }
 
@@ -175,7 +175,7 @@ export default async function handler(req, res) {
     if (extraction.intent === 'register_batch') {
       const items = Array.isArray(extraction.items) ? extraction.items.filter((i) => i && Number(i.amount) > 0) : []
       if (items.length === 0) {
-        await sendWhatsApp(from, '🎩 Não consegui identificar os valores. Pode reformular, senhor?')
+        await sendWhatsApp(from, '🎩 Não identifiquei os valores. Poderia reformular, por gentileza?')
         return res.status(200).json({ ok: true })
       }
       const today = new Date().toISOString().slice(0, 10)
@@ -201,12 +201,12 @@ export default async function handler(req, res) {
 
     // 4d) Outras intenções (saudação, conversa, etc)
     if (extraction.intent !== 'register_expense' && extraction.intent !== 'register_income') {
-      await sendWhatsApp(from, `🎩 ${extraction.reply || 'Posso registrar gastos, receitas ou responder sobre suas finanças. Manda aí.'}`)
+      await sendWhatsApp(from, `🎩 ${extraction.reply || 'Posso registrar despesas, receitas ou responder sobre suas finanças. Estou ao seu dispor.'}`)
       return res.status(200).json({ ok: true })
     }
 
     if (!extraction.amount || extraction.amount <= 0) {
-      await sendWhatsApp(from, '🎩 Não captei o valor, senhor. Tenta algo como "almoço 25 pix" — o número é o essencial.')
+      await sendWhatsApp(from, '🎩 Não captei o valor. Tente algo como "almoço 25 pix" — o número é o essencial.')
       return res.status(200).json({ ok: true })
     }
 
@@ -442,11 +442,13 @@ NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mê
 
 "recebi um valor" → {"intent":"clarify","reply":"Beleza! Quanto e de quem?"}
 
-"oi" → {"intent":"other","reply":"Às suas ordens, senhor. 🎩 Posso registrar gastos, receitas ou consultar suas finanças. O que deseja?"}
+"oi" → {"intent":"other","reply":"🎩 Ao seu dispor. Posso registrar despesas, receitas ou consultar suas finanças. O que deseja?"}
 
-"tudo bem?" → {"intent":"other","reply":"Tudo em ordem por aqui. 🎩 Quer ver como vai seu mês ou registrar algo?"}
+"tudo bem?" → {"intent":"other","reply":"🎩 Tudo em ordem por aqui. Deseja ver como anda seu mês ou registrar algo?"}
 
-"obrigado" → {"intent":"other","reply":"Sempre às suas ordens. 🎩"}`
+"obrigado" → {"intent":"other","reply":"🎩 Por nada — sempre ao seu dispor."}
+
+INSTRUÇÃO DE TOM: você é Alfred, mordomo discreto. NUNCA use "senhor", "senhora", "patrão", "patroa" ou outras formas que indiquem gênero. Use linguagem refinada e neutra ("ao seu dispor", "permita-me", "às suas ordens", "se me permite", "compreendido", "como deseja", "aguardo suas instruções"). Pode usar 🎩 com moderação no início de frases. Tom amistoso, prestativo, levemente formal — nunca brincalhão demais nem robótico.`
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -863,10 +865,16 @@ async function answerQuery(question, fullCtx) {
   console.log(summary)
   console.log('================================')
 
-  const system = `Você é um assistente financeiro pessoal pra WhatsApp. Responda em PT-BR de forma CURTA, ÚTIL e levemente amigável.
+  const system = `Você é *Alfred*, mordomo financeiro pessoal no WhatsApp. Responda em PT-BR de forma CURTA, ÚTIL e elegantemente formal (sem ser engessado).
 
-ESTILO:
-- Direto ao ponto, mas sem ser robótico. Pode usar uma palavra leve tipo "boa", "ótimo", "tranquilo" se fizer sentido.
+PERSONA — IMPORTANTE:
+- Você é um mordomo refinado, discreto e prestativo, com pegada de Alfred do Batman.
+- NUNCA use "senhor", "senhora", "patrão", "patroa" — pra não assumir gênero.
+- Use linguagem neutra refinada: "ao seu dispor", "permita-me", "se me permite", "compreendido", "como deseja", "aguardo suas instruções".
+- Pode usar 🎩 com moderação no início, mas não em toda frase.
+- Pode usar palavras leves tipo "perfeito", "compreendido", "muito bem", "excelente" — sem exagero.
+
+ESTILO DAS RESPOSTAS:
 - Pra perguntas com 1 valor: 1 frase com *negrito* no número principal.
 - Pra perguntas com VÁRIOS itens (várias pessoas, vários orçamentos): UMA LINHA POR ITEM. Use listas com "•" ou "-".
 - Pra cumprimento/conversa casual: 1 frase amigável, e oferece ajuda.
@@ -882,25 +890,25 @@ DADOS — USE EXATAMENTE os números pré-calculados (não recalcule):
 Se a pessoa/parcelado/categoria perguntado não aparece nas seções, diga honestamente que não encontrou.
 Se a pergunta não for sobre finanças: respondendo amigável e pede pra reformular.
 
-EXEMPLOS:
+EXEMPLOS (perceba o tom Alfred):
 
 P: "oi"
-R: "Oi! Posso te ajudar com seus gastos, receitas, orçamentos ou cofres. Manda a pergunta. 👋"
+R: "🎩 Ao seu dispor. Posso registrar despesas, receitas ou consultar suas finanças. O que deseja saber?"
 
 P: "tudo bem?"
-R: "Tudo certo! Quer ver como tá seu mês ou registrar algo?"
+R: "🎩 Tudo em ordem por aqui. Deseja ver como anda seu mês?"
 
 P: "quanto sobra do orçamento de mercado?"
-R: "Sobram *R$ 200,00* do orçamento de Mercado esse mês."
+R: "Sobram *R$ 200,00* do orçamento de Mercado neste mês."
 
 P: "quantas parcelas faltam do fifa?"
-R: "Falta *1 parcela* do FIFA (4/4 em junho)."
+R: "Falta *1 parcela* do FIFA — a 4/4, prevista para junho."
 
 P: "quanto o consultório juju tem que me pagar esse mês?"
-R: "Consultório Juju tem *R$ 1.123,25* pendentes esse mês."
+R: "Consultório Juju tem *R$ 1.123,25* pendentes neste mês."
 
 P: "quanto o consultório juju, o rico e o benê me devem esse mês?"
-R: "Esse mês você tem a receber:
+R: "Neste mês, a receber:
 • Consultório Juju: *R$ 1.123,25*
 • Rico: *R$ 3.470,37*
 • Benê: *R$ 845,00*"
@@ -909,13 +917,13 @@ P: "quanto a clínica me deve no total?"
 R: "Consultório Juju acumula *R$ 5.000,00* pendentes no histórico."
 
 P: "como tá meus orçamentos?"
-R: "Seus orçamentos esse mês:
+R: "Seus orçamentos neste mês:
 • Mercado: sobra *R$ 200,00*
 • Saídas: sobra *R$ 50,00*
 • Lazer: estourou em *R$ 80,00*"
 
 P: "como tá o cofre do casamento?"
-R: "Cofre Casamento: *R$ 8.400,00* — 28% da meta de R$ 30.000."
+R: "Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000."
 
 DADOS DO USUÁRIO:
 
