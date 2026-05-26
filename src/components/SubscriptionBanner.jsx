@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { Crown, AlertTriangle, Clock } from 'lucide-react'
+import { Crown, AlertTriangle, Clock, X } from 'lucide-react'
 import { useSubscription } from '../hooks/useSubscription'
 
-// Banner que aparece no topo do app durante trial / overdue.
+// Banner que aparece no topo do app durante trial / overdue / cancelled-active.
 // Some quando assinatura tá ativa.
 export default function SubscriptionBanner() {
   const sub = useSubscription()
@@ -11,6 +11,41 @@ export default function SubscriptionBanner() {
   if (sub.loading) return null
   if (sub.isActive) return null
   if (sub.isBlocked) return null  // nesse caso a tela de bloqueio assume
+
+  // ----- CANCELADA MAS AINDA COM ACESSO (até a data já paga) -----
+  if (sub.cancelledButActive) {
+    return (
+      <button
+        onClick={() => navigate('/assinar')}
+        className="w-full text-left transition hover:brightness-110"
+        style={{
+          background: 'linear-gradient(180deg, rgba(148,163,184,0.12), rgba(148,163,184,0.05))',
+          borderBottom: '1px solid rgba(148,163,184,0.25)',
+        }}
+      >
+        <div className="max-w-screen-xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <X size={16} className="text-slate-300 shrink-0" />
+            <div className="text-xs sm:text-sm min-w-0">
+              <span className="text-slate-200 font-medium">
+                🎩 Assinatura cancelada.
+              </span>
+              <span className="text-white/55 ml-2">
+                {sub.daysLeft > 1
+                  ? `Acesso preservado por mais ${sub.daysLeft} dias.`
+                  : sub.daysLeft === 1
+                  ? 'Acesso preservado por mais 1 dia.'
+                  : 'Acesso termina hoje.'}
+              </span>
+            </div>
+          </div>
+          <div className="shrink-0 text-xs sm:text-sm font-semibold whitespace-nowrap text-slate-300">
+            Reativar →
+          </div>
+        </div>
+      </button>
+    )
+  }
 
   // ----- TRIAL -----
   if (sub.isTrial) {

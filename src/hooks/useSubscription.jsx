@@ -60,11 +60,27 @@ export function useSubscription() {
   const isTrial = state.status === 'trial'
   const isActive = state.status === 'active'
   const isOverdue = state.status === 'overdue'
-  const isExpired = state.status === 'expired' || state.status === 'cancelled'
+  const isCancelled = state.status === 'cancelled'
+  const isExpired = state.status === 'expired'
+
+  // Cancelado mantém acesso até a data que já foi paga (subscription_until).
+  // Só bloqueia quando passou da data.
+  const hasTimeLeft = msLeft > 0
+  const cancelledButActive = isCancelled && hasTimeLeft
 
   // 3 dias de graça pra "overdue" — depois disso bloqueia
   const overdueGraceLeft = isOverdue ? daysLeft : null
-  const isBlocked = isExpired || (isOverdue && daysLeft === 0) || (isTrial && msLeft <= 0)
+
+  // Bloqueia só nesses casos:
+  // - status 'expired' (acesso terminou de fato)
+  // - status 'cancelled' E data já passou
+  // - overdue há mais de 3 dias
+  // - trial vencido
+  const isBlocked =
+    isExpired ||
+    (isCancelled && !hasTimeLeft) ||
+    (isOverdue && daysLeft === 0) ||
+    (isTrial && !hasTimeLeft)
 
   return {
     ...state,
@@ -73,8 +89,10 @@ export function useSubscription() {
     isTrial,
     isActive,
     isOverdue,
+    isCancelled,
     isExpired,
     isBlocked,
+    cancelledButActive,
     overdueGraceLeft,
     refresh: load,
   }

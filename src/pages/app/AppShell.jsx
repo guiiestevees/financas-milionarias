@@ -735,9 +735,11 @@ export default function AppShell() {
   }
 
   // ----- Bloqueio de assinatura -----
-  // Se trial expirou OU pagamento atrasou demais OU foi cancelado, mostra tela de assinatura
+  // Só bloqueia quando o acesso REALMENTE acabou (trial expirou / cancelada já passou
+  // do prazo / overdue mais que 3 dias / status expired). Cancelamento com dias
+  // restantes mostra só um banner — não bloqueia.
   if (!subscription.loading && subscription.isBlocked) {
-    const reason = subscription.isExpired && subscription.status === 'cancelled'
+    const reason = subscription.isCancelled
       ? 'cancelled'
       : subscription.isTrial
       ? 'trial_expired'
