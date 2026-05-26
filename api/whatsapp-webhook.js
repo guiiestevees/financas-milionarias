@@ -287,42 +287,10 @@ async function loadUserContext(admin, userId) {
 }
 
 // ---------- Claude API ----------
-async function extractExpense(userText, ctx) {
-  if (!ANTHROPIC_API_KEY) {
-    console.error('ANTHROPIC_API_KEY ausente')
-    return null
-  }
-
-  const now = new Date()
-  const todayPT = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const todayISO = now.toISOString().slice(0, 10)
-  // Próximos meses pré-calculados pra Claude não precisar fazer aritmética
-  const monthRefs = []
-  for (let i = -2; i <= 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-    let label = monthName
-    if (i === -2) label += ' (antepassado)'
-    if (i === -1) label += ' (mês passado)'
-    if (i === 0) label += ' (mês atual)'
-    if (i === 1) label += ' (mês que vem / próximo mês)'
-    if (i === 2) label += ' (daqui 2 meses)'
-    monthRefs.push(`  - ${ym}: ${label}`)
-  }
-
-  const system = `Você é um assistente financeiro brasileiro super inteligente que conversa naturalmente em português. Sua função é entender o que o usuário quer (registrar gasto, registrar receita, perguntar sobre finanças, ou conversar) e responder com um JSON estruturado.
-
-Hoje é ${todayPT} (data ISO: ${todayISO}).
-
-Referência de meses:
-${monthRefs.join('\n')}
-
-Métodos de pagamento disponíveis: ${ctx.paymentMethods.length ? ctx.paymentMethods.join(', ') : 'Pix, Débito'}
-Cartões cadastrados: ${ctx.cardNames.length ? ctx.cardNames.join(', ') : 'nenhum'}
-Categorias cadastradas: ${ctx.categories.length ? ctx.categories.join(', ') : 'nenhuma'}
-Atribuídos cadastrados: ${ctx.attributedTo.length ? ctx.attributedTo.join(', ') : 'nenhum'}
-Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhum'}
+// PROMPT ESTÁTICO — não muda entre chamadas. Vai com cache_control pra
+// ser servido com 90% de desconto em cache hits. Compartilhado entre
+// todos os usuários (já que o conteúdo não depende de quem mandou).
+const EXTRACT_STATIC_SYSTEM = `Você é um assistente financeiro brasileiro super inteligente que conversa naturalmente em português. Sua função é entender o que o usuário quer (registrar gasto, registrar receita, perguntar sobre finanças, ou conversar) e responder com um JSON estruturado.
 
 SUA TAREFA: retorne APENAS um JSON válido (sem markdown, sem texto fora do JSON), classificando a mensagem em um destes intents:
 
@@ -343,7 +311,7 @@ register_expense:
   "paymentMethod": "valor da lista de Métodos/Cartões ou null",
   "category": "valor da lista de Categorias ou null",
   "attributedTo": "valor da lista de Atribuídos ou null",
-  "date": "YYYY-MM-DD (use a tabela de meses acima pra resolver expressões relativas) ou null se for hoje",
+  "date": "YYYY-MM-DD (use a tabela de meses do contexto pra resolver expressões relativas) ou null se for hoje",
   "installmentCurrent": número (1 = primeira parcela ou à vista),
   "installmentTotal": número (1 = à vista),
   "recurring": boolean (true se for fixo mensal),
@@ -388,12 +356,12 @@ PERGUNTA com "quanto", "quantas", "qual", "como tá", "me diz": query.
 
 ═══════ DATAS — IMPORTANTÍSSIMO ═══════
 
-Use a tabela de meses acima. NÃO calcule de cabeça:
-- "hoje", "agora" → null (= ${todayISO})
-- "ontem" → ${(new Date(now - 86400000)).toISOString().slice(0, 10)}
-- "anteontem" → ${(new Date(now - 2 * 86400000)).toISOString().slice(0, 10)}
-- "amanhã" → ${(new Date(now.getTime() + 86400000)).toISOString().slice(0, 10)}
-- "mês que vem" / "próximo mês" / "no mês que vem" SEM DIA → use o dia 01 do mês seguinte (veja tabela acima)
+Use a tabela de meses do contexto. NÃO calcule de cabeça:
+- "hoje", "agora" → null
+- "ontem" → veja contexto
+- "anteontem" → veja contexto
+- "amanhã" → veja contexto
+- "mês que vem" / "próximo mês" / "no mês que vem" SEM DIA → use o dia 01 do mês seguinte (veja tabela do contexto)
 - "dia X do mês que vem" → use o dia X do mês seguinte
 - "DD/MM" sozinho → assume ano atual (ou próximo se DD/MM já passou)
 - "DD/MM/AAAA" → exatamente essa data
@@ -401,7 +369,7 @@ Use a tabela de meses acima. NÃO calcule de cabeça:
 
 ═══════ REGRAS DE EXTRAÇÃO ═══════
 
-- paymentMethod / category / attributedTo: SÓ se a pessoa mencionou EXPLICITAMENTE e o valor existe NA LISTA acima. Match case-insensitive e tolerante a acentos. Em caso de dúvida, retorne null (NÃO INVENTE).
+- paymentMethod / category / attributedTo: SÓ se a pessoa mencionou EXPLICITAMENTE e o valor existe NA LISTA do contexto. Match case-insensitive e tolerante a acentos. Em caso de dúvida, retorne null (NÃO INVENTE).
 - "parcelado em Nx" / "Nx" / "M/N" → installmentTotal=N, installmentCurrent=M (ou 1 se só disser N).
 - "fixo", "todo mês", "mensal", "assinatura" → recurring=true.
 - Valor: aceita "200", "R$200", "200 reais", "200,50", "duzentos", "duzentos e cinquenta".
@@ -450,6 +418,49 @@ NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mê
 
 INSTRUÇÃO DE TOM: você é Alfred, mordomo discreto. NUNCA use "senhor", "senhora", "patrão", "patroa" ou outras formas que indiquem gênero. Use linguagem refinada e neutra ("ao seu dispor", "permita-me", "às suas ordens", "se me permite", "compreendido", "como deseja", "aguardo suas instruções"). Pode usar 🎩 com moderação no início de frases. Tom amistoso, prestativo, levemente formal — nunca brincalhão demais nem robótico.`
 
+async function extractExpense(userText, ctx) {
+  if (!ANTHROPIC_API_KEY) {
+    console.error('ANTHROPIC_API_KEY ausente')
+    return null
+  }
+
+  const now = new Date()
+  const todayPT = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const todayISO = now.toISOString().slice(0, 10)
+  // Próximos meses pré-calculados pra Claude não precisar fazer aritmética
+  const monthRefs = []
+  for (let i = -2; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    let label = monthName
+    if (i === -2) label += ' (antepassado)'
+    if (i === -1) label += ' (mês passado)'
+    if (i === 0) label += ' (mês atual)'
+    if (i === 1) label += ' (mês que vem / próximo mês)'
+    if (i === 2) label += ' (daqui 2 meses)'
+    monthRefs.push(`  - ${ym}: ${label}`)
+  }
+
+  // BLOCO DINÂMICO (não cacheável) — muda a cada chamada
+  const dynamicContext = `═══════ CONTEXTO DESTA CHAMADA ═══════
+
+Hoje é ${todayPT} (data ISO: ${todayISO}).
+
+Datas relativas pré-calculadas:
+- ontem: ${(new Date(now - 86400000)).toISOString().slice(0, 10)}
+- anteontem: ${(new Date(now - 2 * 86400000)).toISOString().slice(0, 10)}
+- amanhã: ${(new Date(now.getTime() + 86400000)).toISOString().slice(0, 10)}
+
+Referência de meses:
+${monthRefs.join('\n')}
+
+Métodos de pagamento disponíveis: ${ctx.paymentMethods.length ? ctx.paymentMethods.join(', ') : 'Pix, Débito'}
+Cartões cadastrados: ${ctx.cardNames.length ? ctx.cardNames.join(', ') : 'nenhum'}
+Categorias cadastradas: ${ctx.categories.length ? ctx.categories.join(', ') : 'nenhuma'}
+Atribuídos cadastrados: ${ctx.attributedTo.length ? ctx.attributedTo.join(', ') : 'nenhum'}
+Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhum'}`
+
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -461,7 +472,11 @@ INSTRUÇÃO DE TOM: você é Alfred, mordomo discreto. NUNCA use "senhor", "senh
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: 1024,
-        system,
+        // System em array de blocos: estático cacheável + dinâmico
+        system: [
+          { type: 'text', text: EXTRACT_STATIC_SYSTEM, cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: dynamicContext },
+        ],
         messages: [{ role: 'user', content: userText }],
       }),
     })
@@ -470,6 +485,12 @@ INSTRUÇÃO DE TOM: você é Alfred, mordomo discreto. NUNCA use "senhor", "senh
     if (!r.ok) {
       console.error('Claude error:', JSON.stringify(data))
       return null
+    }
+
+    // Log de uso de cache pra acompanhar economia
+    const usage = data?.usage
+    if (usage) {
+      console.log(`📊 Tokens — input:${usage.input_tokens} output:${usage.output_tokens} cache_read:${usage.cache_read_input_tokens || 0} cache_write:${usage.cache_creation_input_tokens || 0}`)
     }
 
     const raw = data?.content?.[0]?.text || ''
@@ -870,19 +891,8 @@ function buildContextSummary(fullCtx) {
   return lines.join('\n')
 }
 
-// ---------- Responde pergunta sobre finanças via Claude ----------
-async function answerQuery(question, fullCtx) {
-  if (!ANTHROPIC_API_KEY) return null
-  const summary = buildContextSummary(fullCtx)
-
-  // Log pra debug — mostra exatamente o que o Claude vai receber
-  console.log('🧠 ============ QUERY ============')
-  console.log('Question:', question)
-  console.log('Summary sent to Claude:')
-  console.log(summary)
-  console.log('================================')
-
-  const system = `Você é *Alfred*, mordomo financeiro pessoal no WhatsApp. Responda em PT-BR de forma CURTA, ÚTIL e elegantemente formal (sem ser engessado).
+// PROMPT ESTÁTICO da query — persona + exemplos. Cacheável.
+const ANSWER_STATIC_SYSTEM = `Você é *Alfred*, mordomo financeiro pessoal no WhatsApp. Responda em PT-BR de forma CURTA, ÚTIL e elegantemente formal (sem ser engessado).
 
 PERSONA — IMPORTANTE:
 - Você é um mordomo refinado, discreto e prestativo, com pegada de Alfred do Batman.
@@ -950,9 +960,22 @@ R: "Seus orçamentos neste mês:
 • Lazer: estourou em *R$ 80,00*"
 
 P: "como tá o cofre do casamento?"
-R: "Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000."
+R: "Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000."`
 
-DADOS DO USUÁRIO:
+// ---------- Responde pergunta sobre finanças via Claude ----------
+async function answerQuery(question, fullCtx) {
+  if (!ANTHROPIC_API_KEY) return null
+  const summary = buildContextSummary(fullCtx)
+
+  // Log pra debug — mostra exatamente o que o Claude vai receber
+  console.log('🧠 ============ QUERY ============')
+  console.log('Question:', question)
+  console.log('Summary sent to Claude:')
+  console.log(summary)
+  console.log('================================')
+
+  // BLOCO DINÂMICO — dados do usuário, mudam a cada chamada
+  const userData = `DADOS DO USUÁRIO:
 
 ${summary}`
 
@@ -967,7 +990,11 @@ ${summary}`
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: 600,
-        system,
+        // System em array: estático cacheável + dados do usuário
+        system: [
+          { type: 'text', text: ANSWER_STATIC_SYSTEM, cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: userData },
+        ],
         messages: [{ role: 'user', content: question }],
       }),
     })
@@ -976,6 +1003,13 @@ ${summary}`
       console.error('Claude query error:', JSON.stringify(data))
       return null
     }
+
+    // Log de uso de cache pra acompanhar economia
+    const usage = data?.usage
+    if (usage) {
+      console.log(`📊 Query tokens — input:${usage.input_tokens} output:${usage.output_tokens} cache_read:${usage.cache_read_input_tokens || 0} cache_write:${usage.cache_creation_input_tokens || 0}`)
+    }
+
     return (data?.content?.[0]?.text || '').trim()
   } catch (err) {
     console.error('answerQuery failed:', err)
