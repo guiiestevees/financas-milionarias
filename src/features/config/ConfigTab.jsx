@@ -7,6 +7,49 @@ import { accents, accentKeys, hashAccent } from '../../lib/constants'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
+// ---------- Helpers de moeda BR ----------
+// Aceita "200", "200,50", "200.50", "1.234,56" (formato BR) e converte pra number.
+// Retorna null se inválido/vazio.
+function parseMoneyBR(input) {
+  if (input == null) return null
+  const s = String(input).trim()
+  if (!s) return null
+  // Remove separadores de milhar e converte vírgula em ponto
+  // "1.234,56" → "1234,56" → "1234.56"
+  // "200,50"   → "200.50"
+  // "200.50"   → "200.50" (se não tiver vírgula, mantém ponto como decimal)
+  const hasComma = s.includes(',')
+  let normalized = s
+  if (hasComma) {
+    // Vírgula é decimal; pontos são milhares — remove pontos
+    normalized = s.replace(/\./g, '').replace(',', '.')
+  }
+  const n = Number(normalized)
+  return Number.isFinite(n) ? n : null
+}
+
+// Formata número pra display "200,50" (sem R$, sem milhares — pra inputs)
+function formatMoneyInput(n) {
+  if (n == null || n === '' || !Number.isFinite(Number(n))) return ''
+  const num = Number(n)
+  // Se for inteiro, mostra sem decimais
+  if (Number.isInteger(num)) return String(num)
+  return num.toFixed(2).replace('.', ',')
+}
+
+// Filtra entrada permitindo só dígitos, vírgula e ponto (1 separador decimal)
+function sanitizeMoneyInput(raw) {
+  if (!raw) return ''
+  // Só dígitos, vírgula e ponto
+  let s = String(raw).replace(/[^\d.,]/g, '')
+  // Permite no máximo 1 vírgula (separador decimal BR)
+  const firstComma = s.indexOf(',')
+  if (firstComma !== -1) {
+    s = s.slice(0, firstComma + 1) + s.slice(firstComma + 1).replace(/,/g, '')
+  }
+  return s
+}
+
 // ---------- BrandConfig ----------
 function BrandConfig({ brand, updateBrand }) {
   const [name, setName] = useState(brand?.name || '')
@@ -134,16 +177,64 @@ function PaymentMethodsConfig({ config, setConfig }) {
   )
 }
 
+// ---------- BudgetInput ----------
+// Input de moeda BR (aceita "200,50") com state local pra display livre
+// e sincroniza number pro pai. Usado pra editar orçamentos existentes.
+function BudgetInput({ value, onChange }) {
+  // State local pro texto digitado (permite vírgula incompleta tipo "200,")
+  const [text, setText] = useState(formatMoneyInput(value))
+  const [focused, setFocused] = useState(false)
+
+  // Quando desfocado, ressincroniza display com valor "canônico" do pai
+  // (caso o valor tenha sido alterado externamente)
+  const displayValue = focused ? text : formatMoneyInput(value)
+
+  const handleChange = (e) => {
+    const sanitized = sanitizeMoneyInput(e.target.value)
+    setText(sanitized)
+    const parsed = parseMoneyBR(sanitized)
+    onChange(parsed)  // null se vazio/inválido
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={displayValue}
+      onChange={handleChange}
+      onFocus={() => { setText(formatMoneyInput(value)); setFocused(true) }}
+      onBlur={() => setFocused(false)}
+      placeholder="—"
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        color: 'white',
+        width: 80,
+        boxSizing: 'border-box',
+        minWidth: 0,
+        borderRadius: 6,
+        padding: '4px 8px',
+        fontSize: 13,
+        outline: 'none',
+        fontFamily: 'JetBrains Mono, monospace',
+      }}
+      className="placeholder:text-white/30 focus:border-rose-400"
+    />
+  )
+}
+
 // ---------- CategoriesConfig ----------
 function CategoriesConfig({ config, setConfig }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
-  const [budget, setBudget] = useState('')
+  const [budget, setBudget] = useState('')  // string com vírgula ou ponto
   const reset = () => { setName(''); setBudget(''); setAdding(false) }
-  const canSubmit = name.trim() && Number(budget) > 0
+  const parsedBudget = parseMoneyBR(budget)
+  const canSubmit = name.trim() && parsedBudget != null && parsedBudget > 0
   const add = () => {
-    const n = name.trim(); const b = Number(budget)
-    if (!n || !b || b <= 0 || config.categories.find((c) => c.name === n)) { reset(); return }
+    const n = name.trim()
+    const b = parseMoneyBR(budget)
+    if (!n || b == null || b <= 0 || config.categories.find((c) => c.name === n)) { reset(); return }
     const accent = accentKeys[config.categories.length % accentKeys.length]
     setConfig({ categories: [...config.categories, { name: n, budget: b, accent }] }); reset()
   }
@@ -165,7 +256,7 @@ function CategoriesConfig({ config, setConfig }) {
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-lg overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)' }}>
               <span className="px-3 text-sm text-white/40" style={{ fontFamily: 'JetBrains Mono, monospace' }}>R$</span>
-              <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0,00"
+              <input type="text" inputMode="decimal" value={budget} onChange={(e) => setBudget(sanitizeMoneyInput(e.target.value))} placeholder="0,00"
                 onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) add(); if (e.key === 'Escape') reset() }}
                 style={{ background: 'transparent', color: 'white', flex: 1, outline: 'none', padding: '8px 12px 8px 0', fontSize: 14, fontFamily: 'JetBrains Mono, monospace' }}
                 className="placeholder:text-white/30" />
@@ -189,7 +280,10 @@ function CategoriesConfig({ config, setConfig }) {
                   <span className="text-xs text-white/45">Limite</span>
                   <div className="flex items-center rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
                     <span className="px-1.5 text-xs text-white/35" style={{ fontFamily: 'JetBrains Mono, monospace' }}>R$</span>
-                    <MiniInput type="number" value={c.budget ?? ''} onChange={(e) => setConfig({ categories: config.categories.map((x) => x.name === c.name ? { ...x, budget: e.target.value === '' ? null : Number(e.target.value) } : x) })} placeholder="—" width={80} />
+                    <BudgetInput
+                      value={c.budget}
+                      onChange={(n) => setConfig({ categories: config.categories.map((x) => x.name === c.name ? { ...x, budget: n } : x) })}
+                    />
                   </div>
                 </div>
                 <div className="flex gap-1">
@@ -336,10 +430,19 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
 
   return (
     <Card className="p-4 sm:p-6" accent="emerald">
-      <SectionTitle icon={MessageCircle} title="WhatsApp" subtitle="Registre gastos mandando mensagem direto pro app" accent="emerald" />
+      <SectionTitle icon={MessageCircle} title="WhatsApp" subtitle="Registre gastos conversando com o Alfred" accent="emerald" />
 
-      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
-        Salve seu WhatsApp aqui e mande mensagem pra <strong className="text-emerald-300">{BOT_PHONE_DISPLAY}</strong> com gastos no formato livre — ex: <em>"calça 200 nubank parcelado 4x"</em>. A IA reconhece e lança.
+      {/* Apresentação do Alfred */}
+      <div className="rounded-lg p-3 mb-4 flex items-center gap-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
+        <img
+          src="/alfred.png"
+          alt="Alfred"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+          style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(16,185,129,0.35)', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}
+        />
+        <div className="text-xs text-white/70 leading-relaxed">
+          Conheça o <strong className="text-emerald-300">Alfred</strong> 🎩, seu mordomo financeiro no WhatsApp. Salve seu número aqui e converse com ele em <strong className="text-emerald-300">{BOT_PHONE_DISPLAY}</strong> — ele entende gastos no formato livre, ex: <em>"calça 200 nubank parcelado 4x"</em>.
+        </div>
       </div>
 
       {current ? (
@@ -366,11 +469,11 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
               boxShadow: '0 4px 14px rgba(37,211,102,0.25)',
             }}
           >
-            <MessageCircle size={16} /> Abrir conversa com o bot
+            <MessageCircle size={16} /> Abrir conversa com Alfred
           </a>
 
           <p className="text-xs text-white/45 text-center leading-relaxed">
-            Clica no botão acima pra abrir o WhatsApp com uma mensagem de saudação pronta. Quando você enviar, o bot responde com um tutorial rápido de tudo que dá pra fazer.
+            Clica no botão acima pra abrir o WhatsApp com uma saudação pronta. Quando você enviar, o Alfred responde com um tutorial rápido — e fica ao seu dispor pra registrar gastos, receitas e tirar dúvidas das suas finanças.
           </p>
         </div>
       ) : (
