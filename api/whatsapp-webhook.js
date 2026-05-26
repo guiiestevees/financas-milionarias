@@ -101,8 +101,16 @@ export default async function handler(req, res) {
         const audioId = message.audio?.id || message.voice?.id
         if (!audioId) throw new Error('Sem audio.id')
         const { buffer, mimeType } = await downloadWhatsAppMedia(audioId)
+        // Cap de tamanho: áudios WhatsApp são ~5KB/s em opus.
+        // 500KB ≈ 100s. Acima disso, rejeita pra controlar custo Whisper.
+        const sizeKB = buffer.byteLength / 1024
+        if (sizeKB > 500) {
+          console.warn(`🎤 Áudio rejeitado: ${sizeKB.toFixed(0)} KB (limite 500 KB ≈ 100s)`)
+          await sendWhatsApp(from, '🎤 Permita-me uma observação: o áudio é um pouco extenso. Para melhor compreensão, envie em até 1 minuto ou descreva por texto. Aguardo seu retorno.')
+          return res.status(200).json({ ok: true })
+        }
         text = (await transcribeAudio(buffer, mimeType)).trim()
-        console.log(`🎤 Transcrito: "${text}"`)
+        console.log(`🎤 Transcrito (${sizeKB.toFixed(0)}KB): "${text}"`)
       } catch (err) {
         console.error('Audio handling failed:', err)
         await sendWhatsApp(from, '🎤 Não consegui processar o áudio. Tenta gravar de novo ou manda por texto.')
@@ -719,7 +727,8 @@ function buildContextSummary(fullCtx) {
     .map((a) => a.name)
 
   // ---------- Resumo por mês (totais) ----------
-  lines.push('=== RESUMO POR MÊS ===')
+  // Pula meses 100% vazios (R$ 0 receitas E R$ 0 despesas) — ruído.
+  const monthSummaries = []
   for (const ym of sortedYms) {
     const m = fullCtx.months[ym] || {}
     const despesas = Array.isArray(m.despesas) ? m.despesas : []
@@ -728,11 +737,17 @@ function buildContextSummary(fullCtx) {
     const minhas = despesas.filter((d) => !d?.attributedTo || !terceirosNames.includes(d.attributedTo))
     const totalReceitas = receitas.reduce((s, r) => s + (Number(r.amount) || 0), 0)
     const totalDespesas = minhas.reduce((s, d) => s + (Number(d.amount) || 0), 0)
+    // Mês atual entra sempre, mesmo vazio. Outros, só com movimento.
+    if (ym !== currentYM && totalReceitas === 0 && totalDespesas === 0) continue
     const sobra = totalReceitas - totalDespesas
     const tag = ym === currentYM ? ' (ATUAL)' : ''
-    lines.push(`- ${ym}${tag}: receitas R$ ${totalReceitas.toFixed(2)} | despesas R$ ${totalDespesas.toFixed(2)} | sobra R$ ${sobra.toFixed(2)}`)
+    monthSummaries.push(`- ${ym}${tag}: receitas R$ ${totalReceitas.toFixed(2)} | despesas R$ ${totalDespesas.toFixed(2)} | sobra R$ ${sobra.toFixed(2)}`)
   }
-  lines.push('')
+  if (monthSummaries.length) {
+    lines.push('=== RESUMO POR MÊS ===')
+    lines.push(...monthSummaries)
+    lines.push('')
+  }
 
   // ---------- Orçamentos do mês atual ----------
   const currentMonth = fullCtx.months[currentYM] || {}
@@ -788,7 +803,8 @@ function buildContextSummary(fullCtx) {
     }
   }
   if (parceladosByKey.size) {
-    lines.push('=== PARCELADOS ===')
+    // Pré-calcula tudo e filtra os finalizados (não tem mais o que perguntar sobre eles)
+    const parceladosAtivos = []
     for (const p of parceladosByKey.values()) {
       const existingArr = [...p.existingNums].sort((a, b) => a - b)
       // A primeira parcela registrada determina quantas foram pagas ANTES do app
@@ -799,19 +815,21 @@ function buildContextSummary(fullCtx) {
       const totalPaid = presumedPaidBeforeApp + paidInApp
       const totalFaltam = Math.max(0, p.total - totalPaid)
 
-      if (totalFaltam === 0) {
-        lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | TODAS PAGAS (concluído)`)
-      } else {
-        const unpaidPreview = p.unpaidEntries
-          .sort((a, b) => a.num - b.num)
-          .slice(0, 4)
-          .map((e) => `${e.num}/${p.total} em ${e.ym}`)
-          .join(', ')
-        const presumedNote = presumedPaidBeforeApp > 0 ? ` (incluindo ${presumedPaidBeforeApp} pagas antes do app)` : ''
-        lines.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | já pagas ${totalPaid}/${p.total}${presumedNote} | FALTAM PAGAR ${totalFaltam}${unpaidPreview ? ` — próximas: ${unpaidPreview}` : ''}`)
-      }
+      if (totalFaltam === 0) continue  // pula concluídos pra economizar tokens
+
+      const unpaidPreview = p.unpaidEntries
+        .sort((a, b) => a.num - b.num)
+        .slice(0, 4)
+        .map((e) => `${e.num}/${p.total} em ${e.ym}`)
+        .join(', ')
+      const presumedNote = presumedPaidBeforeApp > 0 ? ` (incluindo ${presumedPaidBeforeApp} pagas antes do app)` : ''
+      parceladosAtivos.push(`- ${p.description}: ${p.total} parcelas de R$ ${p.amountPerParcela.toFixed(2)} | já pagas ${totalPaid}/${p.total}${presumedNote} | FALTAM PAGAR ${totalFaltam}${unpaidPreview ? ` — próximas: ${unpaidPreview}` : ''}`)
     }
-    lines.push('')
+    if (parceladosAtivos.length) {
+      lines.push('=== PARCELADOS EM ANDAMENTO ===')
+      lines.push(...parceladosAtivos)
+      lines.push('')
+    }
   }
 
   // ---------- A receber de terceiros (POR MÊS ATUAL + TOTAL HISTÓRICO) ----------
@@ -873,9 +891,11 @@ function buildContextSummary(fullCtx) {
   }
 
   // ---------- Despesas detalhadas do mês atual ----------
+  // Limite de 25 (era 40) — economiza ~375 tokens em meses cheios sem perder utilidade
+  // pra queries comuns. Queries de "lista TUDO" são raras.
   if (currentDespesas.length) {
     lines.push(`=== LANÇAMENTOS DO MÊS ATUAL (${currentYM}) ===`)
-    for (const d of currentDespesas.slice(0, 40)) {
+    for (const d of currentDespesas.slice(0, 25)) {
       const parts = [d.description || 'sem-desc', `R$ ${Number(d.amount || 0).toFixed(2)}`]
       if (d.paymentMethod) parts.push(d.paymentMethod)
       if (d.installmentTotal > 1) parts.push(`parc ${d.installmentCurrent}/${d.installmentTotal}`)
@@ -885,7 +905,7 @@ function buildContextSummary(fullCtx) {
       parts.push(d.paid ? 'pago' : 'pendente')
       lines.push(`- ${parts.join(' · ')}`)
     }
-    if (currentDespesas.length > 40) lines.push(`(... +${currentDespesas.length - 40} omitidos)`)
+    if (currentDespesas.length > 25) lines.push(`(... +${currentDespesas.length - 25} omitidos — totais nos resumos acima)`)
   }
 
   return lines.join('\n')
