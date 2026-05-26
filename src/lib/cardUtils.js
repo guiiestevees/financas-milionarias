@@ -1,10 +1,13 @@
 // Helpers pra validação e formatação de cartão de crédito.
 // Não é PCI compliant — pra validação básica antes de mandar pro Asaas.
 
-// Máscara: 0000 0000 0000 0000 (16 dígitos com espaço a cada 4)
+// Máscara: 0000 0000 0000 0000 (16 dígitos) ou 0000 0000 0000 000 (15 — Amex)
+// Trava no máximo de dígitos da bandeira
 export function maskCardNumber(input) {
-  const d = String(input || '').replace(/\D/g, '').slice(0, 19)
-  return d.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
+  const d = String(input || '').replace(/\D/g, '')
+  const isAmex = /^3[47]/.test(d)
+  const maxDigits = isAmex ? 15 : 16
+  return d.slice(0, maxDigits).replace(/(\d{4})(?=\d)/g, '$1 ').trim()
 }
 
 // MM/AA

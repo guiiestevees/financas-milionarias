@@ -155,7 +155,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
           onFocus={() => setFocused('number')}
           onBlur={() => setFocused(null)}
           placeholder="0000 0000 0000 0000"
-          maxLength={23}
+          maxLength={19}
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: `1px solid ${number && !numValid ? 'rgba(244,63,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
