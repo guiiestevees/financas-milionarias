@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     if (!planId || !PLANS[planId]) {
       return res.status(400).json({ error: 'Plano inválido' })
     }
-    if (!['PIX', 'CREDIT_CARD'].includes(method)) {
+    if (!['PIX', 'PIX_AUTOMATIC', 'CREDIT_CARD'].includes(method)) {
       return res.status(400).json({ error: 'Método de pagamento inválido' })
     }
     if (!holder.name || !holder.cpfCnpj) {
@@ -120,11 +120,13 @@ export default async function handler(req, res) {
         trialDays: 0,
       })
     } else {
-      // PIX — cria assinatura, primeira cobrança gera o QR
+      // PIX ou PIX_AUTOMATIC — cria assinatura, primeira cobrança gera o QR
+      // PIX_AUTOMATIC: cliente autoriza débito recorrente no banco dele
+      // PIX: gera QR Code mensal (cliente paga manual cada mês)
       subscription = await createSubscription({
         customerId: customer.id,
         planId,
-        billingType: 'PIX',
+        billingType: method,  // 'PIX' ou 'PIX_AUTOMATIC'
         trialDays: 0,
       })
     }
@@ -147,18 +149,19 @@ export default async function handler(req, res) {
     }
 
     // 7) Resposta por método
-    if (method === 'PIX') {
-      // Busca QR Code
+    if (method === 'PIX' || method === 'PIX_AUTOMATIC') {
+      // Busca QR Code (vale pra ambos — Asaas gera QR mesmo pra PIX Automático)
       const qrCode = await getPixQrCode(firstPayment.id)
       return res.status(200).json({
         ok: true,
         paymentId: firstPayment.id,
         subscriptionId: subscription.id,
-        method: 'PIX',
+        method,
         value: firstPayment.value,
+        invoiceUrl: firstPayment.invoiceUrl,   // link fallback pra PIX Automático (se cliente preferir link)
         qrCode: {
-          encodedImage: qrCode.encodedImage,   // base64 PNG
-          payload: qrCode.payload,              // PIX copia-cola
+          encodedImage: qrCode.encodedImage,
+          payload: qrCode.payload,
           expirationDate: qrCode.expirationDate,
         },
       })

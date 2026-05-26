@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Copy, Check, Clock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { playSuccess } from '../lib/sounds'
 
 // Mostra QR Code PIX + copia-cola + polling automático do status.
 // Quando paga, dispara onSuccess.
@@ -31,6 +32,7 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
         const data = await res.json()
         if (data.isPaid) {
           setStatus('paid')
+          playSuccess()  // 🎵 ding-ding refinado
           onSuccess?.()
         } else if (data.isFailed) {
           setStatus('failed')

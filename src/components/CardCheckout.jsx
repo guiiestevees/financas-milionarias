@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Loader2, Lock, CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { maskCardNumber, maskCardExpiry, maskCardCvv, maskCep, detectCardBrand, validateCardNumber, validateCardExpiry, parseExpiry } from '../lib/cardUtils'
 import { supabase } from '../lib/supabase'
+import { playSuccess } from '../lib/sounds'
+import CardPreview from './CardPreview'
 
 // Form embarcado de cartão de crédito.
 // Coleta dados, valida, e chama /api/checkout-pay pra processar.
@@ -20,6 +22,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState('form')  // 'form' | 'processing' | 'success' | 'error'
   const [error, setError] = useState(null)
+  const [focused, setFocused] = useState(null)  // 'number' | 'name' | 'expiry' | 'cvv'
 
   const brand = detectCardBrand(number)
   const numberDigits = number.replace(/\D/g, '')
@@ -69,6 +72,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
 
       // Cartão processado — pode ser CONFIRMED ou PENDING (autorização)
       setStatus('success')
+      playSuccess()  // 🎵 ding-ding refinado
       // Aguarda webhook chegar e atualizar o status no banco
       setTimeout(() => onSuccess?.(), 1500)
     } catch (err) {
@@ -123,6 +127,15 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
         </div>
       </div>
 
+      {/* Preview 3D do cartão — vira quando foca no CVV */}
+      <CardPreview
+        number={number}
+        holderName={holderName}
+        expiry={expiry}
+        cvv={cvv}
+        focused={focused}
+      />
+
       {/* Número do cartão */}
       <div>
         <label className="text-xs text-white/55 mb-1 block flex items-center gap-2">
@@ -139,6 +152,8 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
           inputMode="numeric"
           value={number}
           onChange={(e) => setNumber(maskCardNumber(e.target.value))}
+          onFocus={() => setFocused('number')}
+          onBlur={() => setFocused(null)}
           placeholder="0000 0000 0000 0000"
           maxLength={23}
           style={{
@@ -158,6 +173,8 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
           type="text"
           value={holderName}
           onChange={(e) => setHolderName(e.target.value.toUpperCase())}
+          onFocus={() => setFocused('name')}
+          onBlur={() => setFocused(null)}
           placeholder="COMO IMPRESSO NO CARTÃO"
           style={{
             background: 'rgba(255,255,255,0.04)',
@@ -178,6 +195,8 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
             inputMode="numeric"
             value={expiry}
             onChange={(e) => setExpiry(maskCardExpiry(e.target.value))}
+            onFocus={() => setFocused('expiry')}
+            onBlur={() => setFocused(null)}
             placeholder="MM/AA"
             maxLength={5}
             style={{
@@ -196,6 +215,8 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
             inputMode="numeric"
             value={cvv}
             onChange={(e) => setCvv(maskCardCvv(e.target.value))}
+            onFocus={() => setFocused('cvv')}
+            onBlur={() => setFocused(null)}
             placeholder="000"
             maxLength={4}
             style={{
