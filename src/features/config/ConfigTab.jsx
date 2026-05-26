@@ -6,6 +6,7 @@ import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import SubscriptionCard from './SubscriptionCard'
 
 // ---------- Helpers de moeda BR ----------
 // Aceita "200", "200,50", "200.50", "1.234,56" (formato BR) e converte pra number.
@@ -631,6 +632,7 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
         <SectionTitle icon={Settings} title="Configurações" subtitle="Personalize seu app, cartões, categorias, atribuídos e orçamentos." accent="gold" />
         <div className="text-sm text-white/55 leading-relaxed">Estas configurações são globais — valem para todos os meses.</div>
       </Card>
+      <SubscriptionCard />
       <BrandConfig brand={brand} updateBrand={updateBrand} />
       <WhatsAppConfig whatsappPhone={whatsappPhone} updateWhatsappPhone={updateWhatsappPhone} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
