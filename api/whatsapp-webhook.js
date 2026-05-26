@@ -18,9 +18,13 @@ const CLAUDE_MODEL = 'claude-sonnet-4-5'  // upgrade do haiku — mais caro mas 
 const WHISPER_MODEL = 'whisper-1'
 
 // ---------- Onboarding / Help ----------
-const ONBOARDING_MESSAGE = `👋 Oi! Sou o assistente do *Finanças Milionárias*.
+const ONBOARDING_MESSAGE = `🎩 *Às suas ordens.*
 
-🎯 *O que posso fazer:*
+Eu sou *Alfred*, seu mordomo financeiro do *Finanças Milionárias*. 🦇
+
+💡 Salve este contato como *Alfred* pra ficar fácil de me chamar. 😉
+
+🎯 *No que posso te ajudar:*
 
 📝 *Registrar gastos*
 "calça 200 nubank"
@@ -48,10 +52,10 @@ Pode falar do seu jeito — eu transcrevo e entendo. Aperta o microfone do Whats
 "pago dia 5 do mês que vem"
 "recebi ontem do freelance"
 
-💡 *Como funciona:*
-Tudo que você mandar vira um *lançamento pendente*. Você confirma, edita ou descarta direto no app. Nada é salvo automaticamente — você sempre tem a palavra final.
+📋 *Como funciona:*
+Tudo que você mandar vira um *lançamento pendente*. Você confirma, edita ou descarta direto no app. Nada é salvo automaticamente — você sempre tem a palavra final, _senhor_.
 
-Bora começar! 🚀`
+Pronto pra começar? 🚀`
 
 const HELP_TRIGGER_REGEX = /^(\s*)(oi+e?|ol[aá]+|opa+|e ?a[ií]+|hey+|hi|hello|tudo bem|tudo certo|bom dia|boa tarde|boa noite|come[çc]ar|quero come[çc]ar|menu|ajuda|help|como (funciona|usar)|tutorial)([\s!.,?]|$)/i
 
@@ -106,7 +110,7 @@ export default async function handler(req, res) {
       }
     } else {
       // imagem, vídeo, sticker, etc — ainda não suportado
-      await sendWhatsApp(from, '🤖 Entendo texto e áudio. Foto da nota chega na próxima fase.')
+      await sendWhatsApp(from, '🎩 Por ora entendo texto e áudio, senhor. Foto da nota chega na próxima fase.')
       return res.status(200).json({ ok: true })
     }
 
@@ -135,7 +139,7 @@ export default async function handler(req, res) {
 
     if (profileErr) console.error('profile lookup error:', profileErr)
     if (!profile) {
-      await sendWhatsApp(from, '👋 Olá! Esse número não está vinculado a nenhuma conta. Abra o app, vá em Configurações → WhatsApp e adicione esse número aqui.')
+      await sendWhatsApp(from, '🎩 Boa noite. Este número ainda não está vinculado a nenhuma conta do Finanças Milionárias. Abra o aplicativo, vá em Configurações → WhatsApp e cadastre seu número. Aguardo sua mensagem em seguida.')
       return res.status(200).json({ ok: true })
     }
 
@@ -149,7 +153,7 @@ export default async function handler(req, res) {
     console.log('🧠 Claude:', JSON.stringify(extraction))
 
     if (!extraction) {
-      await sendWhatsApp(from, '🤖 Não consegui processar agora. Tenta de novo em alguns segundos.')
+      await sendWhatsApp(from, '🎩 Hmm, algo travou aqui. Tenta de novo em alguns segundos, senhor.')
       return res.status(200).json({ ok: true })
     }
 
@@ -171,7 +175,7 @@ export default async function handler(req, res) {
     if (extraction.intent === 'register_batch') {
       const items = Array.isArray(extraction.items) ? extraction.items.filter((i) => i && Number(i.amount) > 0) : []
       if (items.length === 0) {
-        await sendWhatsApp(from, '🤖 Não consegui identificar valores nos lançamentos. Reformula?')
+        await sendWhatsApp(from, '🎩 Não consegui identificar os valores. Pode reformular, senhor?')
         return res.status(200).json({ ok: true })
       }
       const today = new Date().toISOString().slice(0, 10)
@@ -197,12 +201,12 @@ export default async function handler(req, res) {
 
     // 4d) Outras intenções (saudação, conversa, etc)
     if (extraction.intent !== 'register_expense' && extraction.intent !== 'register_income') {
-      await sendWhatsApp(from, `🤖 ${extraction.reply || 'Manda um gasto, uma receita ou uma pergunta sobre suas finanças.'}`)
+      await sendWhatsApp(from, `🎩 ${extraction.reply || 'Posso registrar gastos, receitas ou responder sobre suas finanças. Manda aí.'}`)
       return res.status(200).json({ ok: true })
     }
 
     if (!extraction.amount || extraction.amount <= 0) {
-      await sendWhatsApp(from, '🤖 Não consegui identificar o valor. Manda algo tipo "almoço 25 pix" — o número é o que importa.')
+      await sendWhatsApp(from, '🎩 Não captei o valor, senhor. Tenta algo como "almoço 25 pix" — o número é o essencial.')
       return res.status(200).json({ ok: true })
     }
 
@@ -438,11 +442,11 @@ NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mê
 
 "recebi um valor" → {"intent":"clarify","reply":"Beleza! Quanto e de quem?"}
 
-"oi" → {"intent":"other","reply":"Oi! 👋 Manda um gasto pra registrar, uma receita ou pergunta sobre suas finanças."}
+"oi" → {"intent":"other","reply":"Às suas ordens, senhor. 🎩 Posso registrar gastos, receitas ou consultar suas finanças. O que deseja?"}
 
-"tudo bem?" → {"intent":"other","reply":"Tudo! Quer ver como tá seu mês ou registrar algo?"}
+"tudo bem?" → {"intent":"other","reply":"Tudo em ordem por aqui. 🎩 Quer ver como vai seu mês ou registrar algo?"}
 
-"obrigado" → {"intent":"other","reply":"Pra você! Qualquer coisa, é só chamar. 💪"}`
+"obrigado" → {"intent":"other","reply":"Sempre às suas ordens. 🎩"}`
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
