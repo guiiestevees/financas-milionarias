@@ -577,8 +577,28 @@ function formatBatchNotice(pendings) {
   if (totalOut > 0) lines.push(`💸 Total saídas: ${totalOut.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`)
   if (totalIn > 0) lines.push(`💰 Total entradas: ${totalIn.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`)
   lines.push('')
-  lines.push('👀 _Confirma cada uma no app._')
+  lines.push('🎩 _Organizei cada item. Aguardo sua confirmação no aplicativo._')
   return lines.join('\n')
+}
+
+// ---------- Linha de fechamento "Alfred" contextual ----------
+function alfredClosingFor(d, isIncome) {
+  if (isIncome && d.recurring) return '_Receita recorrente anotada — observarei sua chegada todo mês._'
+  if (isIncome) return '_Excelente. Aguardo sua aprovação no aplicativo._'
+  if (d.recurring) return '_Compromisso recorrente — registrarei todo mês com pontualidade._'
+  if (Number(d.installmentTotal) > 1) {
+    const restantes = (Number(d.installmentTotal) || 1) - (Number(d.installmentCurrent) || 1)
+    if (restantes > 0) return `_Cuidarei das ${restantes} parcelas restantes assim que confirmar no app._`
+    return '_Última parcela registrada. Quase concluído._'
+  }
+  if (d.cofreId) return '_Direcionado ao cofre. Reserva preservada._'
+  // Default
+  const defaults = [
+    '_Aguardo sua confirmação no aplicativo._',
+    '_À espera de seu aval no aplicativo._',
+    '_Quando puder, dê o aval no aplicativo._',
+  ]
+  return defaults[Math.floor(Math.random() * defaults.length)]
 }
 
 // ---------- Formata a notificação de pendência ----------
@@ -603,10 +623,7 @@ function formatPendingNotice(pending) {
   if (dataStr) lines.push(`📅 *Data:* ${dataStr}`)
 
   lines.push('')
-  lines.push('👀 _Aguardando confirmação no app._')
-  if (!isIncome && d.installmentTotal > 1) {
-    lines.push(`_(Ao confirmar, criarei as ${d.installmentTotal - d.installmentCurrent} parcelas restantes nos próximos meses.)_`)
-  }
+  lines.push(`🎩 ${alfredClosingFor(d, isIncome)}`)
   return lines.join('\n')
 }
 
@@ -880,6 +897,16 @@ ESTILO DAS RESPOSTAS:
 - Pra cumprimento/conversa casual: 1 frase amigável, e oferece ajuda.
 - R$ formatado: "R$ 1.234,56". Negrito só no valor principal de cada item.
 - Match de nomes (parcelas, pessoas, categorias): CASE-INSENSITIVE, tolerante a acentos.
+
+TOQUES OCASIONAIS DO ALFRED (use com moderação — não em toda resposta):
+- Quando os números são positivos/saudáveis: "Excelente disciplina, se me permite o comentário."
+- Quando o orçamento tá saudável: "A organização anda exemplar."
+- Quando algo tá apertado/estourado: "Permita-me uma observação — essa categoria anda apertada."
+- Quando um cofre se aproxima da meta: "Está cada vez mais perto. Admirável."
+- Quando uma parcela termina: "Mais um compromisso encerrado. Bem feito."
+- Quando o user pergunta sobre devedores: "Anotado. Acompanharei os recebimentos."
+- Pra fechar conversa casual: "Sempre ao seu dispor."
+Use ESSAS frases NO MÁXIMO em 1 a cada 3 respostas. Não force em toda. Quando usar, é uma frase ao FINAL, depois da resposta direta.
 
 DADOS — USE EXATAMENTE os números pré-calculados (não recalcule):
 - PARCELAS: a seção PARCELADOS tem "FALTAM PAGAR N". USE esse número.
