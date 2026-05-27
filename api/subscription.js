@@ -35,7 +35,7 @@ function admin() {
 async function loadProfile(userId) {
   const { data } = await admin()
     .from('user_profiles')
-    .select('subscription_status, subscription_until, subscription_plan, asaas_customer_id, asaas_subscription_id, trial_started_at')
+    .select('subscription_status, subscription_until, subscription_plan, asaas_customer_id, asaas_subscription_id, trial_started_at, subscription_cancelled_at')
     .eq('user_id', userId)
     .maybeSingle()
   return data
@@ -128,11 +128,14 @@ async function handleGet(user, res) {
 // ---------- POST action=cancel ----------
 async function handleCancel(user, res) {
   const profile = await loadProfile(user.id)
+  const now = new Date().toISOString()
+
   if (!profile?.asaas_subscription_id) {
     // Sem assinatura ativa — só atualiza local
     await admin().from('user_profiles').update({
       subscription_status: 'cancelled',
-      updated_at: new Date().toISOString(),
+      subscription_cancelled_at: profile?.subscription_cancelled_at || now,
+      updated_at: now,
     }).eq('user_id', user.id)
     return res.status(200).json({ ok: true, cancelled: true })
   }
@@ -146,7 +149,8 @@ async function handleCancel(user, res) {
 
   await admin().from('user_profiles').update({
     subscription_status: 'cancelled',
-    updated_at: new Date().toISOString(),
+    subscription_cancelled_at: profile.subscription_cancelled_at || now,
+    updated_at: now,
   }).eq('user_id', user.id)
 
   return res.status(200).json({ ok: true, cancelled: true })

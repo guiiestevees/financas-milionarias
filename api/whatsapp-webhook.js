@@ -667,7 +667,7 @@ async function loadFullUserContext(admin, userId) {
       .order('year_month', { ascending: true }),
     admin
       .from('user_profiles')
-      .select('cofres, subscription_status, subscription_until, subscription_plan, trial_started_at')
+      .select('cofres, subscription_status, subscription_until, subscription_plan, trial_started_at, subscription_cancelled_at')
       .eq('user_id', userId)
       .maybeSingle(),
   ])
@@ -702,6 +702,7 @@ async function loadFullUserContext(admin, userId) {
     until: p.subscription_until || null,
     plan: p.subscription_plan || null,
     trialStartedAt: p.trial_started_at || null,
+    cancelledAt: p.subscription_cancelled_at || null,
   }
 
   return {
@@ -957,14 +958,20 @@ function buildContextSummary(fullCtx) {
     else if (s.status === 'cancelled') {
       const d = daysDiff(s.until)
       if (d > 0) {
-        lines.push('Status: CANCELADA (sem novas cobranças, mas ainda com acesso pago)')
-        lines.push(`Acesso preservado até: ${fmtDateBR(s.until)} (faltam ${d} dia(s))`)
+        lines.push('Status: CANCELADA (sem novas cobranças, mas ACESSO AINDA ATIVO até o fim do período pago)')
       } else {
         lines.push('Status: CANCELADA E COM ACESSO EXPIRADO')
-        if (s.until) lines.push(`Acesso terminou em: ${fmtDateBR(s.until)} (${Math.abs(d)} dia(s) atrás)`)
       }
-      if (s.plan === 'monthly') lines.push('Plano contratado: Mensal — R$ 19,00/mês (era essa a cobrança recorrente)')
-      else if (s.plan === 'annual') lines.push('Plano contratado: Anual — R$ 167,00/ano (era essa a cobrança recorrente)')
+      if (s.cancelledAt) {
+        lines.push(`Cancelada em: ${fmtDateBR(s.cancelledAt)}`)
+      }
+      if (d > 0) {
+        lines.push(`Acesso preservado até: ${fmtDateBR(s.until)} (faltam ${d} dia(s))`)
+      } else if (s.until) {
+        lines.push(`Acesso terminou em: ${fmtDateBR(s.until)} (${Math.abs(d)} dia(s) atrás)`)
+      }
+      if (s.plan === 'monthly') lines.push('Plano cancelado: Mensal — R$ 19,00/mês')
+      else if (s.plan === 'annual') lines.push('Plano cancelado: Anual — R$ 167,00/ano')
     }
 
     // ===== EXPIRED =====
@@ -1138,7 +1145,26 @@ P: "quanto custa pra renovar?" (active, mensal)
 R: "Seu plano Mensal custa *R$ 19,00/mês*."
 
 P: "como cancelo?"
-R: "🎩 No aplicativo, vá em Configurações → Assinatura → Cancelar. Seu acesso fica preservado até o fim do período já pago."`
+R: "🎩 No aplicativo, vá em Configurações → Assinatura → Cancelar. Seu acesso fica preservado até o fim do período já pago."
+
+P: "como tá minha assinatura?" (status=cancelled, ainda tem dias)
+R: "🎩 Sua assinatura foi cancelada em *27/05/2026*, mas você tem acesso a usar as funcionalidades até *27/06/2026* (faltam 31 dias). Para não perder o acesso, basta renovar em Configurações → Assinatura no aplicativo."
+
+P: "minha assinatura tá ativa?" (status=cancelled, ainda com acesso)
+R: "🎩 Sua assinatura está *cancelada* — não haverá novas cobranças. Mas o acesso continua liberado até *27/06/2026* (faltam 31 dias). Renove em Configurações → Assinatura quando desejar."
+
+P: "como tá minha assinatura?" (status=cancelled e acesso já encerrou)
+R: "🎩 Sua assinatura foi cancelada em *27/04/2026* e o acesso encerrou em *27/05/2026*. Renove em Configurações → Assinatura no aplicativo para voltar a usar tudo."
+
+═══════ INSTRUÇÃO ADICIONAL ═══════
+Quando o status for "CANCELADA" e ainda houver dias restantes:
+- NUNCA diga "expirada" — a assinatura está CANCELADA mas o acesso AINDA TÁ ATIVO
+- Use o estilo: "foi cancelada em X, mas você tem acesso até Y"
+- Sempre termine sugerindo "renove em Configurações → Assinatura"
+
+Quando a data do "Acesso preservado até" estiver no FUTURO (faltam X dias):
+- JAMAIS diga "encerrou", "expirou" ou "há X dias" (passado)
+- Use "até dia X" ou "faltam X dias"`
 
 // ---------- Responde pergunta sobre finanças via Claude ----------
 async function answerQuery(question, fullCtx) {

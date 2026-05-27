@@ -71,7 +71,7 @@ export default async function handler(req, res) {
       // Cliente estornou ou Asaas reembolsou
       case 'PAYMENT_REFUNDED':
       case 'PAYMENT_DELETED': {
-        await handlePaymentReverted(admin, payment)
+        await handlePaymentReverted(admin, payment, eventType)
         break
       }
 
@@ -274,18 +274,29 @@ async function sendOverdueEmail({ admin, userId, value, regularizeUrl }) {
   await sendEmail({ to: email, ...tpl })
 }
 
-async function handlePaymentReverted(admin, payment) {
+async function handlePaymentReverted(admin, payment, eventType) {
   if (!payment) return
   const customerId = payment.customer
 
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('user_id')
+    .select('user_id, subscription_status')
     .eq('asaas_customer_id', customerId)
     .maybeSingle()
 
   if (!profile) return
 
+  // PAYMENT_DELETED é disparado quando o Asaas apaga cobranças futuras
+  // após cancelamento da assinatura. NÃO é estorno — é só cleanup.
+  // Se a assinatura já foi cancelada, não devemos rebaixar pra 'expired'.
+  if (eventType === 'PAYMENT_DELETED' && profile.subscription_status === 'cancelled') {
+    console.log(`⏭ PAYMENT_DELETED de assinatura já cancelada (user ${profile.user_id}) — sem mudança`)
+    return
+  }
+
+  // PAYMENT_REFUNDED é estorno de verdade — encerra acesso.
+  // PAYMENT_DELETED só vira 'expired' se a assinatura ainda estava ativa
+  // (caso raro, mas defensivo).
   await admin
     .from('user_profiles')
     .update({
@@ -294,7 +305,7 @@ async function handlePaymentReverted(admin, payment) {
     })
     .eq('user_id', profile.user_id)
 
-  console.log(`🔄 Pagamento revertido: user ${profile.user_id}`)
+  console.log(`🔄 Pagamento revertido (${eventType}): user ${profile.user_id}`)
 }
 
 async function handleSubscriptionCancelled(admin, subscription) {
@@ -303,17 +314,20 @@ async function handleSubscriptionCancelled(admin, subscription) {
 
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('user_id, whatsapp_phone, subscription_until')
+    .select('user_id, whatsapp_phone, subscription_until, subscription_cancelled_at')
     .eq('asaas_subscription_id', subscriptionId)
     .maybeSingle()
 
   if (!profile) return
 
+  const now = new Date().toISOString()
   await admin
     .from('user_profiles')
     .update({
       subscription_status: 'cancelled',
-      updated_at: new Date().toISOString(),
+      // Só seta cancelled_at se ainda não tinha (evita sobrescrever em retries)
+      subscription_cancelled_at: profile.subscription_cancelled_at || now,
+      updated_at: now,
     })
     .eq('user_id', profile.user_id)
 
