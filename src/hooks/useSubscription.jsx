@@ -40,14 +40,11 @@ export function useSubscription() {
       return
     }
 
-    // Fallback seguro: se o profile ainda não foi criado OU está sem
-    // subscription_until (race condition logo após signup), assume trial
-    // de 7 dias a partir de agora. Evita bloquear a conta indevidamente.
-    const status = data?.subscription_status || 'trial'
-    let until = data?.subscription_until || null
-    if (status === 'trial' && !until) {
-      until = new Date(Date.now() + 7 * 86400000).toISOString()
-    }
+    // Sem trial: novos usuários começam como 'expired' (precisam assinar).
+    // Se vier null (race condition logo após signup), tratamos como expired
+    // pra forçar tela de assinar.
+    const status = data?.subscription_status || 'expired'
+    const until = data?.subscription_until || new Date(0).toISOString()  // 1970 = passado
 
     setState({
       loading: false,

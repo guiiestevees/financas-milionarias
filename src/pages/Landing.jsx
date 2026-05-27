@@ -72,7 +72,7 @@ function Hero() {
         style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)' }}>
         <Crown size={11} style={{ color: '#d4af37' }} />
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#d4af37' }}>
-          7 dias grátis · sem cartão
+          Cancele quando quiser
         </span>
       </div>
 
@@ -119,7 +119,7 @@ function Hero() {
               boxShadow: '0 12px 28px rgba(212,175,55,0.3)',
             }}
           >
-            🎩 Começar grátis por 7 dias
+            🎩 Quero começar
             <ChevronRight size={16} />
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-white/45">
@@ -293,7 +293,7 @@ function Pricing() {
           style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg mb-1 text-white/80">Mensal</div>
           <div className="flex items-baseline gap-1 mb-1">
-            <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-4xl font-semibold">R$ 5</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-4xl font-semibold">R$ 19</span>
             <span className="text-xs text-white/45">/mês</span>
           </div>
           <div className="text-xs text-white/45 mb-4">Cobrança recorrente. Cancele quando quiser.</div>
@@ -325,7 +325,7 @@ function Pricing() {
           </div>
           <div className="text-xs mb-4" style={{ color: '#d4af37' }}>Economize R$ 61 (~27% off)</div>
           <ul className="space-y-2 mb-5">
-            {['Tudo do plano Mensal', 'Pague 1× e fique 12 meses', 'Cerca de R$ 13,92/mês', 'Garantia de 7 dias'].map((f, i) => (
+            {['Tudo do plano Mensal', 'Pague 1× e fique 12 meses', 'Cerca de R$ 13,92/mês', 'Garantia de 7 dias (Código de Defesa do Consumidor)'].map((f, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-white/85">
                 <Check size={14} style={{ color: '#d4af37', marginTop: 2 }} className="shrink-0" />
                 <span>{f}</span>
@@ -345,7 +345,7 @@ function Pricing() {
             boxShadow: '0 8px 24px rgba(212,175,55,0.25)',
           }}
         >
-          🎩 Começar com 7 dias grátis
+          🎩 Quero assinar agora
           <ChevronRight size={16} />
         </Link>
         <div className="text-xs text-white/40 mt-3">
@@ -372,8 +372,8 @@ function FAQ() {
       a: 'Pode. Cancelamento direto no app, sem ligações ou processos burocráticos. Mantém o acesso até o fim do período já pago.',
     },
     {
-      q: 'O que acontece quando os 7 dias acabam?',
-      a: 'Você só paga se quiser continuar. Sem cobrança surpresa, sem pegadinha. Se não pagar, o app pede pra você escolher um plano — e seus dados ficam guardados caso queira voltar depois.',
+      q: 'E se eu não gostar do app?',
+      a: 'Você tem direito de arrependimento de 7 dias garantido pelo Código de Defesa do Consumidor. Basta escrever pra alquimiadigital08@gmail.com pedindo reembolso integral — devolvemos sem questionar.',
     },
     {
       q: 'Funciona no meu celular?',
@@ -465,7 +465,7 @@ function FinalCTA() {
           <ChevronRight size={18} />
         </Link>
         <div className="text-xs text-white/40 mt-4">
-          7 dias grátis · Sem cartão · Sem amarras
+          Cancele quando quiser · Sem amarras
         </div>
       </div>
     </section>

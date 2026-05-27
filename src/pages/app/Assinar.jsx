@@ -36,8 +36,8 @@ const PLANS = [
   {
     id: 'monthly',
     name: 'Mensal',
-    price: 5.00,  // ⚠️ TESTE — voltar pra 19 antes do lançamento
-    priceLabel: 'R$ 5',
+    price: 19.00,
+    priceLabel: 'R$ 19',
     period: 'por mês',
     accent: 'emerald',
     description: 'Cobrança recorrente. Cancele quando quiser.',
@@ -61,7 +61,7 @@ const PLANS = [
       'Tudo do plano Mensal',
       '✨ Economia de R$ 61 (~27% off)',
       'Sem preocupação com cobrança mensal',
-      'Garantia de 7 dias',
+      'Reembolso garantido em até 7 dias (CDC)',
     ],
   },
 ]

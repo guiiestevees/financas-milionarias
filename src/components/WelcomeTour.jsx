@@ -40,9 +40,6 @@ export default function WelcomeTour({ userName = '', onClose }) {
           <p className="text-white/65 text-sm leading-relaxed">
             Permita-me orientá-lo nos primeiros passos — leva apenas 1 minuto e deixará tudo prontinho para você.
           </p>
-          <div className="mt-4 px-3 py-2 rounded-lg text-xs text-amber-200/80" style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)' }}>
-            ✨ Você tem <strong>7 dias grátis</strong> pra experimentar tudo.
-          </div>
         </>
       ),
       cta: 'Vamos começar',
