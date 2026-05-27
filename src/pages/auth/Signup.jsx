@@ -47,8 +47,57 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Validações em tempo real (onBlur)
+  // status: null | 'checking' | 'taken' | 'invalid'
+  const [emailStatus, setEmailStatus] = useState(null)
+  const [cpfStatus, setCpfStatus] = useState(null)
+
   // Email mismatch ao vivo (só mostra se o user já digitou algo no campo confirmar)
   const emailMismatch = emailConfirm.length > 0 && email.trim().toLowerCase() !== emailConfirm.trim().toLowerCase()
+
+  // Checa se o email já existe assim que o user sai do campo
+  const handleEmailBlur = async () => {
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@') || cleanEmail.length < 5) {
+      setEmailStatus(null)
+      return
+    }
+    setEmailStatus('checking')
+    try {
+      const { data, error } = await supabase.rpc('check_email_exists', { p_email: cleanEmail })
+      if (error) {
+        console.warn('email check error:', error)
+        setEmailStatus(null)
+        return
+      }
+      setEmailStatus(data ? 'taken' : null)
+    } catch (e) {
+      console.warn('email check exception:', e)
+      setEmailStatus(null)
+    }
+  }
+
+  // Checa se o CPF já existe assim que o user sai do campo
+  const handleCpfBlur = async () => {
+    const cpfDigits = cpf.replace(/\D/g, '')
+    if (cpfDigits.length !== 11) {
+      setCpfStatus(null)
+      return
+    }
+    setCpfStatus('checking')
+    try {
+      const { data, error } = await supabase.rpc('lookup_email_by_cpf', { p_cpf: cpfDigits })
+      if (error) {
+        console.warn('cpf check error:', error)
+        setCpfStatus(null)
+        return
+      }
+      setCpfStatus(data ? 'taken' : null)
+    } catch (e) {
+      console.warn('cpf check exception:', e)
+      setCpfStatus(null)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -182,11 +231,21 @@ export default function Signup() {
           <EmailInput
             id="signup-email"
             value={email}
-            onChange={setEmail}
+            onChange={(v) => { setEmail(v); if (emailStatus === 'taken') setEmailStatus(null) }}
+            onBlur={handleEmailBlur}
             placeholder="seu@email.com"
             required
             autoComplete="email"
           />
+          {emailStatus === 'checking' && (
+            <p className="text-xs text-white/40 mt-1.5 px-1">verificando…</p>
+          )}
+          {emailStatus === 'taken' && (
+            <p className="text-xs text-rose-300 mt-1.5 px-1">
+              ⚠ Este email já está cadastrado.{' '}
+              <Link to="/login" className="underline hover:text-rose-200">Entrar?</Link>
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">Confirmar e-mail</label>
@@ -214,14 +273,28 @@ export default function Signup() {
             type="text"
             inputMode="numeric"
             value={cpf}
-            onChange={(e) => setCpf(maskCpf(e.target.value))}
+            onChange={(e) => { setCpf(maskCpf(e.target.value)); if (cpfStatus === 'taken') setCpfStatus(null) }}
+            onBlur={handleCpfBlur}
             placeholder="000.000.000-00"
             required
             maxLength={14}
             autoComplete="off"
-            style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+            style={{
+              ...inputStyle,
+              fontFamily: 'JetBrains Mono, monospace',
+              border: `1px solid ${cpfStatus === 'taken' ? 'rgba(244,63,94,0.45)' : 'rgba(255,255,255,0.1)'}`,
+            }}
             className="placeholder:text-white/20 focus:border-white/25"
           />
+          {cpfStatus === 'checking' && (
+            <p className="text-xs text-white/40 mt-1.5 px-1">verificando…</p>
+          )}
+          {cpfStatus === 'taken' && (
+            <p className="text-xs text-rose-300 mt-1.5 px-1">
+              ⚠ Este CPF já está cadastrado.{' '}
+              <Link to="/login" className="underline hover:text-rose-200">Entrar?</Link>
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">Celular</label>
@@ -279,16 +352,16 @@ export default function Signup() {
 
       <button
         type="submit"
-        disabled={loading || !acceptedPrivacy || emailMismatch}
+        disabled={loading || !acceptedPrivacy || emailMismatch || emailStatus === 'taken' || cpfStatus === 'taken'}
         style={{
-          background: (loading || !acceptedPrivacy || emailMismatch) ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
+          background: (loading || !acceptedPrivacy || emailMismatch || emailStatus === 'taken' || cpfStatus === 'taken') ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
           color: '#070912',
           fontWeight: 600,
           width: '100%',
           padding: '11px',
           borderRadius: 10,
           fontSize: 14,
-          cursor: (loading || !acceptedPrivacy || emailMismatch) ? 'not-allowed' : 'pointer',
+          cursor: (loading || !acceptedPrivacy || emailMismatch || emailStatus === 'taken' || cpfStatus === 'taken') ? 'not-allowed' : 'pointer',
           border: 'none',
           transition: 'opacity 0.15s',
         }}
