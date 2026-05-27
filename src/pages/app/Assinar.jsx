@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ArrowLeft, Loader2, Lock, CreditCard, Zap, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
@@ -88,8 +88,14 @@ const METHODS = [
 
 export default function Assinar() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const subscription = useSubscription()
+
+  // Lembra de onde o user veio: /app?tab=config se veio das Configurações
+  // ou simplesmente /app (painel) se chegou direto pelo banner/bloqueio
+  const from = searchParams.get('from')
+  const backUrl = from === 'config' ? '/app?tab=config' : '/app'
 
   // ----- Dados do formulário (tela única) -----
   const [selectedPlan, setSelectedPlan] = useState('annual')
@@ -171,7 +177,7 @@ export default function Assinar() {
   const onPaymentSuccess = () => {
     setTimeout(() => {
       subscription.refresh?.()
-      navigate('/app')
+      navigate(backUrl)
     }, 1500)
   }
 
@@ -180,7 +186,7 @@ export default function Assinar() {
       <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
         {/* Voltar */}
         <button
-          onClick={() => navigate('/app')}
+          onClick={() => navigate(backUrl)}
           className="flex items-center gap-2 text-white/55 hover:text-white text-sm mb-6 transition"
         >
           <ArrowLeft size={16} /> Voltar

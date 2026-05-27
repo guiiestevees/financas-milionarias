@@ -209,7 +209,7 @@ export default function SubscriptionCard() {
           <div className="grid sm:grid-cols-2 gap-2">
             {canChangePlan && (
               <button
-                onClick={() => navigate('/assinar')}
+                onClick={() => navigate('/assinar?from=config')}
                 className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition"
                 style={{ background: 'rgba(201,169,97,0.08)', border: '1px solid rgba(201,169,97,0.25)', color: '#c9a961' }}
               >
@@ -234,7 +234,7 @@ export default function SubscriptionCard() {
 
             {isCancelled && (
               <button
-                onClick={() => navigate('/assinar')}
+                onClick={() => navigate('/assinar?from=config')}
                 className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition sm:col-span-2"
                 style={{ background: 'linear-gradient(180deg, #c9a961, #a88a4a)', color: '#070912' }}
               >

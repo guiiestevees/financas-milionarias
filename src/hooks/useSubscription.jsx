@@ -54,7 +54,20 @@ export function useSubscription() {
   const now = Date.now()
   const untilMs = state.until ? new Date(state.until).getTime() : null
   const msLeft = untilMs ? untilMs - now : 0
-  const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000))
+
+  // Dias restantes calculado por DIA DE CALENDÁRIO, não por janela de 24h.
+  // Antes: Math.ceil(msLeft / 86400000) só decrementava a cada 24h exatas
+  // (se trial vencesse dia 02 às 17h, virava 6 dias só depois das 17h do
+  // dia seguinte, em vez de logo na virada do dia).
+  // Agora: compara meia-noite-de-hoje com meia-noite-de-quando-vence.
+  let daysLeft = 0
+  if (untilMs && untilMs > now) {
+    const today = new Date()
+    const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const untilDate = new Date(untilMs)
+    const untilMid = new Date(untilDate.getFullYear(), untilDate.getMonth(), untilDate.getDate())
+    daysLeft = Math.max(0, Math.round((untilMid - todayMid) / 86400000))
+  }
   const hoursLeft = Math.max(0, Math.ceil(msLeft / 3600000))
 
   const isTrial = state.status === 'trial'

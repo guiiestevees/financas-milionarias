@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { storage } from '../../lib/storage'
 import { migrateData } from '../../lib/migrate'
@@ -22,13 +22,38 @@ import { useSubscription } from '../../hooks/useSubscription'
 // Chave do localStorage pra marcar que o tour foi dispensado
 const TOUR_DISMISSED_KEY = 'fm_welcome_tour_dismissed_v1'
 
+// Tabs válidas — usado pra validar query param ?tab=
+const VALID_TABS = ['painel', 'receitas', 'gastos', 'cofres', 'config']
+
 export default function AppShell() {
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const subscription = useSubscription()
   const [data, setData] = useState(null)
   const [activeMonth, setActiveMonth] = useState(getCurrentMonth())
-  const [tab, setTab] = useState('painel')
+
+  // Inicializa a aba a partir do ?tab= da URL (se válida)
+  const initialTab = VALID_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'painel'
+  const [tab, setTabRaw] = useState(initialTab)
+
+  // setTab sincroniza com a URL pra back/forward funcionar e links externos.
+  const setTab = useCallback((newTab) => {
+    setTabRaw(newTab)
+    if (newTab === 'painel') {
+      // Remove ?tab da URL pra deixar limpa quando é a aba padrão
+      setSearchParams({}, { replace: true })
+    } else {
+      setSearchParams({ tab: newTab }, { replace: true })
+    }
+  }, [setSearchParams])
+
+  // Sincroniza state quando o usuário navega via histórico (back/forward)
+  useEffect(() => {
+    const urlTab = searchParams.get('tab')
+    const next = VALID_TABS.includes(urlTab) ? urlTab : 'painel'
+    if (next !== tab) setTabRaw(next)
+  }, [searchParams, tab])
   const [saving, setSaving] = useState(false)
   const [showTour, setShowTour] = useState(false)
   const saveTimer = useRef(null)
