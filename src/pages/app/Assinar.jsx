@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, ArrowLeft, Loader2, Lock, CreditCard, Zap, AlertCircle } from 'lucide-react'
+import { Check, ArrowLeft, Loader2, Lock, CreditCard, QrCode, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
 import { supabase } from '../../lib/supabase'
@@ -66,24 +66,32 @@ const PLANS = [
   },
 ]
 
-const METHODS = [
-  {
-    id: 'CREDIT_CARD',
-    name: 'Cartão de Crédito',
-    description: 'Cobrança recorrente automática no cartão',
-    icon: CreditCard,
-    accent: '#c9a961',
-    accentSoft: 'rgba(201,169,97,0.08)',
-  },
-  {
-    id: 'PIX_AUTOMATIC',
-    name: 'PIX Automático',
-    description: 'Pague o primeiro QR Code e autorize débito automático mensal no seu banco — sem QR todo mês',
-    icon: Zap,
-    accent: '#10b981',
-    accentSoft: 'rgba(16,185,129,0.08)',
-  },
-]
+// Métodos disponíveis variam por plano:
+// - Mensal: só Cartão (recorrência garantida sem QR todo mês)
+// - Anual: só PIX (pagamento único, 12 meses de uma vez)
+// (PIX Automático Bacen vai voltar quando contractId for cadastrado)
+const METHODS_BY_PLAN = {
+  monthly: [
+    {
+      id: 'CREDIT_CARD',
+      name: 'Cartão de Crédito',
+      description: 'Cobrança recorrente automática no cartão — sem precisar pagar todo mês',
+      icon: CreditCard,
+      accent: '#c9a961',
+      accentSoft: 'rgba(201,169,97,0.08)',
+    },
+  ],
+  annual: [
+    {
+      id: 'PIX',
+      name: 'PIX',
+      description: 'Pagamento único — você paga R$ 167 agora e fica 12 meses ao seu dispor',
+      icon: QrCode,
+      accent: '#10b981',
+      accentSoft: 'rgba(16,185,129,0.08)',
+    },
+  ],
+}
 
 export default function Assinar() {
   const navigate = useNavigate()
@@ -112,6 +120,8 @@ export default function Assinar() {
   const paymentRef = useRef(null)
 
   const plan = PLANS.find((p) => p.id === selectedPlan)
+  // Métodos de pagamento disponíveis pra esse plano
+  const availableMethods = METHODS_BY_PLAN[selectedPlan] || []
   const cpfCnpjDigits = cpfCnpj.replace(/\D/g, '')
   const validCpfCnpj = /^\d{11}$|^\d{14}$/.test(cpfCnpjDigits)
   const formValid = name.trim().length >= 3 && validCpfCnpj
@@ -214,7 +224,7 @@ export default function Assinar() {
               return (
                 <button
                   key={p.id}
-                  onClick={() => setSelectedPlan(p.id)}
+                  onClick={() => { setSelectedPlan(p.id); setMethod(null); setPixData(null) }}
                   className="text-left p-5 rounded-2xl transition relative"
                   style={{
                     background: isSelected ? accentSoft : 'rgba(255,255,255,0.025)',
@@ -309,7 +319,7 @@ export default function Assinar() {
         <div className="mb-6">
           <div className="text-xs uppercase tracking-widest text-white/40 mb-3 px-1">3 · Forma de pagamento</div>
           <div className="space-y-2.5">
-            {METHODS.map((m) => {
+            {availableMethods.map((m) => {
               const isSelected = method === m.id
               const Icon = m.icon
               return (
