@@ -25,9 +25,9 @@ export default function Landing() {
       <div className="relative max-w-5xl mx-auto px-5 sm:px-6 py-6 sm:py-10">
         {/* ===== NAV ===== */}
         <nav className="flex items-center justify-between mb-12 sm:mb-20">
-          <div className="flex items-center gap-2">
-            <Sparkles size={14} style={{ color: '#d4af37' }} />
-            <span style={{ letterSpacing: '0.2em', color: '#d4af37', fontSize: '11px' }} className="uppercase font-semibold">
+          <div className="flex items-center gap-2.5">
+            <img src="/domus-logo-512.png" alt="Domus" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <span style={{ letterSpacing: '0.2em', color: '#d4af37', fontSize: '12px', fontWeight: 600 }} className="uppercase">
               Domus
             </span>
           </div>

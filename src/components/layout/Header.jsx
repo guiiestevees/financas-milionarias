@@ -115,7 +115,7 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
             style={{ letterSpacing: '0.25em', color: '#d4af37' }}
             className={`group flex items-center gap-2 text-xs uppercase mb-2 hover:opacity-80 transition ${!hasName ? 'opacity-60' : ''}`}
           >
-            <Sparkles size={12} />
+            <img src="/domus-logo-512.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
             <span>{displayName}</span>
             <Pencil size={10} className="opacity-0 group-hover:opacity-60 transition" />
           </button>

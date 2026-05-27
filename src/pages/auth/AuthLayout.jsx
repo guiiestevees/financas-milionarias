@@ -30,9 +30,13 @@ export default function AuthLayout() {
       )}
 
       <div className="mb-8 text-center">
+        <img
+          src="/domus-logo-512.png"
+          alt="Domus"
+          style={{ width: 64, height: 64, objectFit: 'contain', display: 'block', margin: '0 auto 12px' }}
+        />
         <div className="flex items-center justify-center gap-2 mb-3">
-          <Sparkles size={14} style={{ color: '#d4af37' }} />
-          <span style={{ letterSpacing: '0.25em', color: '#d4af37', fontSize: '11px' }} className="uppercase">
+          <span style={{ letterSpacing: '0.25em', color: '#d4af37', fontSize: '11px', fontWeight: 600 }} className="uppercase">
             Domus
           </span>
         </div>
