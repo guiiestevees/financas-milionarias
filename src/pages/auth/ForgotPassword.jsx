@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { LifeBuoy } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+
+const SUPPORT_EMAIL = 'alquimiadigital08@gmail.com'
 
 const inputStyle = {
   background: 'rgba(255,255,255,0.04)',
@@ -44,6 +47,21 @@ export default function ForgotPassword() {
         <Link to="/login" className="block text-sm text-white/40 hover:text-white/70 transition mt-4">
           ← Voltar para o login
         </Link>
+
+        {/* Suporte caso não receba ou tenha esquecido o email */}
+        <div className="mt-6 pt-4 border-t border-white/5 text-xs text-white/40 leading-relaxed">
+          <div className="flex items-center justify-center gap-1.5 mb-1">
+            <LifeBuoy size={11} />
+            <strong>Sem acesso ao email cadastrado?</strong>
+          </div>
+          <p>
+            Escreva para{' '}
+            <a href={`mailto:${SUPPORT_EMAIL}?subject=Recuperação de conta — Domus`} className="text-amber-300/85 hover:text-amber-300 underline underline-offset-2">
+              {SUPPORT_EMAIL}
+            </a>
+            {' '}com seu CPF e celular cadastrados.
+          </p>
+        </div>
       </div>
     )
   }
@@ -107,6 +125,21 @@ export default function ForgotPassword() {
           ← Voltar para o login
         </Link>
       </p>
+
+      {/* Suporte */}
+      <div className="mt-2 pt-4 border-t border-white/5 text-xs text-white/40 leading-relaxed">
+        <div className="flex items-center gap-1.5 mb-1">
+          <LifeBuoy size={11} />
+          <strong>Sem acesso ao email cadastrado?</strong>
+        </div>
+        <p>
+          Escreva para{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}?subject=Recuperação de conta — Domus`} className="text-amber-300/85 hover:text-amber-300 underline underline-offset-2">
+            {SUPPORT_EMAIL}
+          </a>
+          {' '}com seu CPF e celular cadastrados.
+        </p>
+      </div>
     </form>
   )
 }

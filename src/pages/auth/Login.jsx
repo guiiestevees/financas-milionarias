@@ -144,6 +144,16 @@ export default function Login() {
           Criar conta
         </Link>
       </p>
+
+      <p className="text-center text-xs text-white/30 pt-2">
+        Precisa de ajuda?{' '}
+        <a
+          href="mailto:alquimiadigital08@gmail.com?subject=Suporte — Domus"
+          className="text-white/50 hover:text-amber-300 transition"
+        >
+          alquimiadigital08@gmail.com
+        </a>
+      </p>
     </form>
   )
 }

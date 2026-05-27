@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 
@@ -23,12 +24,22 @@ function maskCpf(input) {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
 }
 
+function maskPhone(input) {
+  const d = String(input || '').replace(/\D/g, '').slice(0, 11)
+  if (d.length === 0) return ''
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
 export default function Signup() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const [error, setError] = useState('')
@@ -37,45 +48,51 @@ export default function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (password.length < 6) { setError('Senha deve ter ao menos 6 caracteres'); return }
-    if (!acceptedPrivacy) { setError('Você precisa aceitar a Política de Privacidade pra continuar'); return }
+
+    // Validações obrigatórias
+    if (!name.trim()) { setError('Informe seu nome'); return }
+    if (!email.trim()) { setError('Informe seu email'); return }
 
     const cpfDigits = cpf.replace(/\D/g, '')
-    // CPF é OPCIONAL — mas se preencheu, tem que ter 11 dígitos
-    if (cpfDigits && cpfDigits.length !== 11) {
-      setError('CPF deve ter 11 dígitos (ou deixe em branco)')
+    if (cpfDigits.length !== 11) {
+      setError('CPF é obrigatório (11 dígitos)')
       return
     }
 
+    const phoneDigits = phone.replace(/\D/g, '')
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      setError('Celular é obrigatório — com DDD (10 ou 11 dígitos)')
+      return
+    }
+    // Normaliza pra formato internacional BR (55 + DDD + número)
+    const phoneFull = phoneDigits.startsWith('55') ? phoneDigits : '55' + phoneDigits
+
+    if (password.length < 6) { setError('Senha deve ter ao menos 6 caracteres'); return }
+    if (!acceptedPrivacy) { setError('Você precisa aceitar a Política de Privacidade pra continuar'); return }
+
     setLoading(true)
 
-    // 1) Se preencheu CPF, valida ANTES de criar a conta no Auth.
-    // Evita criar uma "conta lixo" no Auth se o CPF já existir.
-    if (cpfDigits) {
-      try {
-        const { data: existingEmail, error: lookupErr } = await supabase
-          .rpc('lookup_email_by_cpf', { p_cpf: cpfDigits })
-        if (lookupErr) console.warn('CPF check error (continuando):', lookupErr)
-        if (existingEmail) {
-          setLoading(false)
-          setError('Este CPF já está cadastrado. Tente entrar com sua senha.')
-          return
-        }
-      } catch (e) {
-        console.warn('CPF check exception:', e)
-        // Falha de rede não bloqueia o cadastro — o índice único do
-        // banco vai pegar como segunda linha de defesa
+    // 1) Valida CPF antes de criar conta
+    try {
+      const { data: existingEmail, error: lookupErr } = await supabase
+        .rpc('lookup_email_by_cpf', { p_cpf: cpfDigits })
+      if (lookupErr) console.warn('CPF check error (continuando):', lookupErr)
+      if (existingEmail) {
+        setLoading(false)
+        setError('Este CPF já está cadastrado. Tente entrar com sua senha — você pode usar o CPF no campo de login.')
+        return
       }
+    } catch (e) {
+      console.warn('CPF check exception:', e)
     }
 
     // 2) Cria a conta no Auth
-    const { error: err, data } = await signUp(email, password, name, cpfDigits || null)
+    const { error: err, data } = await signUp(email, password, name.trim(), cpfDigits, phoneFull)
     if (err) {
       setLoading(false)
-      // Mensagens mais amigáveis pra erros comuns
       const msg = (err.message || '').toLowerCase()
       if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
-        setError('Este email já está cadastrado. Tente entrar.')
+        setError('Este email já está cadastrado. Tente entrar — ou recupere a senha pelo email "Esqueceu a senha?".')
       } else if (msg.includes('invalid email')) {
         setError('Email inválido. Confira o endereço.')
       } else if (msg.includes('weak password') || msg.includes('password')) {
@@ -86,20 +103,19 @@ export default function Signup() {
       return
     }
 
-    // 3) Salva CPF no profile (idempotente). Se outro user já tem esse CPF
-    // por algum cenário de corrida, o UNIQUE INDEX rejeita aqui também.
-    if (cpfDigits && data?.user?.id) {
+    // 3) Salva CPF + telefone no profile
+    if (data?.user?.id) {
       try {
         const { error: upsertErr } = await supabase
           .from('user_profiles')
-          .upsert({ user_id: data.user.id, cpf: cpfDigits }, { onConflict: 'user_id' })
-        if (upsertErr) {
-          console.warn('Erro ao salvar CPF no profile:', upsertErr)
-          // Não bloqueia o fluxo — usuário pode adicionar CPF depois
-          // se essa primeira tentativa falhar
-        }
+          .upsert({
+            user_id: data.user.id,
+            cpf: cpfDigits,
+            whatsapp_phone: phoneFull,
+          }, { onConflict: 'user_id' })
+        if (upsertErr) console.warn('Erro ao salvar profile:', upsertErr)
       } catch (err) {
-        console.warn('Exceção ao salvar CPF:', err)
+        console.warn('Exceção ao salvar profile:', err)
       }
     }
 
@@ -116,7 +132,7 @@ export default function Signup() {
         >
           Criar conta
         </h2>
-        <p className="text-sm text-white/45">Comece a controlar suas finanças</p>
+        <p className="text-sm text-white/45">Cuide das suas finanças com Alfred</p>
       </div>
 
       {error && (
@@ -136,6 +152,7 @@ export default function Signup() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ex: Ana Silva"
+            required
             autoComplete="name"
             style={inputStyle}
             className="placeholder:text-white/20 focus:border-white/25"
@@ -155,17 +172,31 @@ export default function Signup() {
           />
         </div>
         <div>
-          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">
-            CPF <span className="lowercase tracking-normal text-white/35 normal-case ml-1">(opcional, mas permite login com CPF)</span>
-          </label>
+          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">CPF</label>
           <input
             type="text"
             inputMode="numeric"
             value={cpf}
             onChange={(e) => setCpf(maskCpf(e.target.value))}
             placeholder="000.000.000-00"
+            required
             maxLength={14}
             autoComplete="off"
+            style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+            className="placeholder:text-white/20 focus:border-white/25"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">Celular</label>
+          <input
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            onChange={(e) => setPhone(maskPhone(e.target.value))}
+            placeholder="(00) 00000-0000"
+            required
+            maxLength={15}
+            autoComplete="tel"
             style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
             className="placeholder:text-white/20 focus:border-white/25"
           />
@@ -183,6 +214,14 @@ export default function Signup() {
             className="placeholder:text-white/20 focus:border-white/25"
           />
         </div>
+      </div>
+
+      {/* Justificativa dos dados extras */}
+      <div className="text-xs text-white/55 leading-relaxed flex items-start gap-2 px-1">
+        <ShieldCheck size={13} className="mt-0.5 shrink-0 text-amber-300/70" />
+        <span>
+          CPF e celular ajudam você a recuperar o acesso se um dia esquecer o email ou perder o acesso a ele.
+        </span>
       </div>
 
       <label className="flex items-start gap-2.5 cursor-pointer select-none">

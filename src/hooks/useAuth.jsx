@@ -64,14 +64,14 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
-  const signUp = async (email, password, name, cpf = null) => {
+  const signUp = async (email, password, name, cpf = null, phone = null) => {
     if (!supabase) return { error: null }
-    // Guarda CPF nos metadados pra um trigger no Supabase popular user_profiles
-    // depois (ou a gente faz manualmente após confirmar email)
+    // Guarda metadados (name, cpf, phone) — depois também são salvos
+    // diretamente no user_profiles pra busca por CPF/telefone funcionar
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, cpf: cpf || null } },
+      options: { data: { name, cpf: cpf || null, phone: phone || null } },
     })
     return { error, data }
   }
