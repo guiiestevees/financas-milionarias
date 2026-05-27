@@ -657,7 +657,7 @@ function formatPendingNotice(pending) {
 }
 
 // ---------- Carrega contexto FULL pra responder consultas ----------
-// Pega todos os meses + cofres + perfil. Volume razoável pra Claude processar.
+// Pega todos os meses + cofres + perfil (com assinatura). Volume razoável pra Claude processar.
 async function loadFullUserContext(admin, userId) {
   const [monthsRes, profileRes] = await Promise.all([
     admin
@@ -667,7 +667,7 @@ async function loadFullUserContext(admin, userId) {
       .order('year_month', { ascending: true }),
     admin
       .from('user_profiles')
-      .select('cofres')
+      .select('cofres, subscription_status, subscription_until, subscription_plan, trial_started_at')
       .eq('user_id', userId)
       .maybeSingle(),
   ])
@@ -694,10 +694,21 @@ async function loadFullUserContext(admin, userId) {
     }
   })
 
+  // Dados da assinatura (Alfred precisa pra responder perguntas tipo
+  // "qual meu plano?", "quando vence?", "minha assinatura tá em dia?")
+  const p = profileRes.data || {}
+  const subscription = {
+    status: p.subscription_status || 'trial',
+    until: p.subscription_until || null,
+    plan: p.subscription_plan || null,
+    trialStartedAt: p.trial_started_at || null,
+  }
+
   return {
     today: new Date().toISOString().slice(0, 10),
     months,
     cofres: cofresWithBalance,
+    subscription,
   }
 }
 
@@ -872,6 +883,49 @@ function buildContextSummary(fullCtx) {
     }
   }
 
+  // ---------- Assinatura (status + plano + vencimento) ----------
+  if (fullCtx.subscription) {
+    const s = fullCtx.subscription
+    lines.push('=== ASSINATURA ===')
+
+    // Status legível
+    const statusLabel = {
+      trial: 'Em período de teste (7 dias grátis)',
+      active: 'Ativa (pagando em dia)',
+      overdue: 'ATRASADA (com pagamento em aberto)',
+      expired: 'EXPIRADA (acesso encerrado)',
+      cancelled: 'CANCELADA (sem novas cobranças; acesso até o fim do período pago)',
+    }[s.status] || s.status
+
+    lines.push(`Status: ${statusLabel}`)
+
+    // Plano
+    if (s.plan === 'monthly') lines.push('Plano: Mensal — R$ 19,00/mês')
+    else if (s.plan === 'annual') lines.push('Plano: Anual — R$ 167,00/ano')
+    else lines.push('Plano: ainda não definido (em trial)')
+
+    // Datas
+    if (s.until) {
+      const untilDate = new Date(s.until)
+      const ymd = untilDate.toISOString().slice(0, 10)
+      const todayDate = new Date(fullCtx.today)
+      const daysLeft = Math.ceil((untilDate - todayDate) / 86400000)
+      if (daysLeft > 0) {
+        lines.push(`Acesso válido até: ${ymd} (${daysLeft} dia(s) restantes)`)
+      } else if (daysLeft === 0) {
+        lines.push(`Acesso expira hoje (${ymd})`)
+      } else {
+        lines.push(`Acesso expirou em ${ymd} (${Math.abs(daysLeft)} dia(s) atrás)`)
+      }
+    }
+
+    if (s.status === 'trial' && s.trialStartedAt) {
+      lines.push(`Trial começou em: ${s.trialStartedAt.slice(0, 10)}`)
+    }
+
+    lines.push('')
+  }
+
   // ---------- Cofres (pré-calculado) ----------
   if (fullCtx.cofres.length) {
     lines.push('=== COFRES ===')
@@ -980,7 +1034,35 @@ R: "Seus orçamentos neste mês:
 • Lazer: estourou em *R$ 80,00*"
 
 P: "como tá o cofre do casamento?"
-R: "Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000."`
+R: "Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000."
+
+═══════ PERGUNTAS SOBRE ASSINATURA ═══════
+
+Use a seção ASSINATURA do contexto. NÃO invente datas nem valores.
+
+P: "meu plano tá ativo?"
+R: "Sim, sua assinatura está *ativa*. Plano Mensal, válido até 26/06/2026."
+
+P: "quando vence minha assinatura?"
+R: "Sua assinatura vence em *26/06/2026* — restam 18 dias."
+
+P: "qual meu plano?"
+R: "Plano *Anual* — R$ 167,00/ano. Próxima renovação em 15/03/2027."
+
+P: "tô em trial até quando?"
+R: "Seu período de teste vai até *03/06/2026* (5 dias restantes). Após, é só escolher um plano para continuar ao seu dispor."
+
+P: "qual a forma de pagamento?"
+R: "Confesso não dispor desse detalhe aqui no WhatsApp — consulte em Configurações → Assinatura no aplicativo, onde você também pode trocá-la se desejar."
+
+P: "minha assinatura tá atrasada?"
+R: "Sim, há uma cobrança em aberto. Sua assinatura permanece ativa por mais alguns dias — sugiro regularizar pelo aplicativo em Configurações → Assinatura → Trocar forma de pagamento."
+
+P: "quanto custa pra renovar?"
+R: "Seu plano Mensal custa *R$ 19,00/mês*. Renovação automática na próxima data."
+
+P: "como cancelo?"
+R: "No aplicativo, vá em Configurações → Assinatura → Cancelar. Seu acesso fica preservado até o fim do período já pago. Permita-me lembrar: seus dados ficam guardados caso queira reativar depois."`
 
 // ---------- Responde pergunta sobre finanças via Claude ----------
 async function answerQuery(question, fullCtx) {
