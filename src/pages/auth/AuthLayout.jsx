@@ -33,13 +33,8 @@ export default function AuthLayout() {
         <img
           src="/domus-logo-512.png"
           alt="Domus"
-          style={{ width: 64, height: 64, objectFit: 'contain', display: 'block', margin: '0 auto 12px' }}
+          style={{ width: 120, height: 120, objectFit: 'contain', display: 'block', margin: '0 auto 16px' }}
         />
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <span style={{ letterSpacing: '0.25em', color: '#d4af37', fontSize: '11px', fontWeight: 600 }} className="uppercase">
-            Domus
-          </span>
-        </div>
         <h1
           style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
           className="text-4xl text-white"
