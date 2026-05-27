@@ -100,10 +100,11 @@ function wrap({ title, body, cta }) {
 <body style="${baseStyles} margin: 0; padding: 24px;">
   <div style="${wrapStyles}">
     <div style="${headerStyles}">
-      <div style="font-family: Georgia, serif; font-size: 24px; color: #1a1a1a;">
-        🎩 <strong>Alfred</strong>
+      <img src="https://project-s3mj5.vercel.app/alfred.png" alt="🎩" width="72" height="72" style="display:block;margin:0 auto 10px;width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid rgba(212,175,55,0.4);box-shadow:0 4px 12px rgba(0,0,0,0.06);" />
+      <div style="font-family: Georgia, serif; font-size: 20px; color: #1a1a1a; font-weight: 600;">
+        Alfred
       </div>
-      <div style="font-size: 12px; color: #888; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 4px;">
+      <div style="font-size: 12px; color: #888; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px;">
         Domus
       </div>
     </div>
