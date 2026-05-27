@@ -52,8 +52,11 @@ export default function Signup() {
   const [emailStatus, setEmailStatus] = useState(null)
   const [cpfStatus, setCpfStatus] = useState(null)
 
-  // Email mismatch ao vivo (só mostra se o user já digitou algo no campo confirmar)
+  // Padrão "touched": só mostra o aviso de mismatch depois que o user sai
+  // do campo de confirmar email. Evita aviso chato enquanto digita.
+  const [emailConfirmTouched, setEmailConfirmTouched] = useState(false)
   const emailMismatch = emailConfirm.length > 0 && email.trim().toLowerCase() !== emailConfirm.trim().toLowerCase()
+  const showEmailMismatch = emailConfirmTouched && emailMismatch
 
   // Checa se o email já existe assim que o user sai do campo
   const handleEmailBlur = async () => {
@@ -253,17 +256,18 @@ export default function Signup() {
             type="email"
             value={emailConfirm}
             onChange={(e) => setEmailConfirm(e.target.value)}
+            onBlur={() => setEmailConfirmTouched(true)}
             placeholder="digite o e-mail de novo"
             required
             autoComplete="email"
             onPaste={(e) => e.preventDefault()}
             style={{
               ...inputStyle,
-              border: `1px solid ${emailMismatch ? 'rgba(244,63,94,0.45)' : 'rgba(255,255,255,0.1)'}`,
+              border: `1px solid ${showEmailMismatch ? 'rgba(244,63,94,0.45)' : 'rgba(255,255,255,0.1)'}`,
             }}
             className="placeholder:text-white/20 focus:border-white/25"
           />
-          {emailMismatch && (
+          {showEmailMismatch && (
             <p className="text-xs text-rose-300 mt-1.5 px-1">⚠ Os emails não coincidem</p>
           )}
         </div>
@@ -352,16 +356,16 @@ export default function Signup() {
 
       <button
         type="submit"
-        disabled={loading || !acceptedPrivacy || emailMismatch || emailStatus === 'taken' || cpfStatus === 'taken'}
+        disabled={loading || !acceptedPrivacy || showEmailMismatch || emailStatus === 'taken' || cpfStatus === 'taken'}
         style={{
-          background: (loading || !acceptedPrivacy || emailMismatch || emailStatus === 'taken' || cpfStatus === 'taken') ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
+          background: (loading || !acceptedPrivacy || showEmailMismatch || emailStatus === 'taken' || cpfStatus === 'taken') ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
           color: '#070912',
           fontWeight: 600,
           width: '100%',
           padding: '11px',
           borderRadius: 10,
           fontSize: 14,
-          cursor: (loading || !acceptedPrivacy || emailMismatch || emailStatus === 'taken' || cpfStatus === 'taken') ? 'not-allowed' : 'pointer',
+          cursor: (loading || !acceptedPrivacy || showEmailMismatch || emailStatus === 'taken' || cpfStatus === 'taken') ? 'not-allowed' : 'pointer',
           border: 'none',
           transition: 'opacity 0.15s',
         }}
