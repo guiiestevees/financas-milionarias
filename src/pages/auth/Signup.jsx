@@ -174,15 +174,22 @@ export default function Signup() {
       return
     }
 
-    // 3) Salva CPF + telefone no profile
+    // 3) Salva CPF + telefone + inicializa trial no profile.
+    // Setamos explicitamente subscription_* pra evitar race condition
+    // onde o useSubscription leria antes dos defaults da tabela aplicarem.
     if (data?.user?.id) {
       try {
+        const trialEnd = new Date(Date.now() + 7 * 86400000).toISOString()
+        const now = new Date().toISOString()
         const { error: upsertErr } = await supabase
           .from('user_profiles')
           .upsert({
             user_id: data.user.id,
             cpf: cpfDigits,
             whatsapp_phone: phoneFull,
+            subscription_status: 'trial',
+            subscription_until: trialEnd,
+            trial_started_at: now,
           }, { onConflict: 'user_id' })
         if (upsertErr) console.warn('Erro ao salvar profile:', upsertErr)
       } catch (err) {

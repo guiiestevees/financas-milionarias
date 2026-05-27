@@ -39,10 +39,20 @@ export function useSubscription() {
       setState((s) => ({ ...s, loading: false }))
       return
     }
+
+    // Fallback seguro: se o profile ainda não foi criado OU está sem
+    // subscription_until (race condition logo após signup), assume trial
+    // de 7 dias a partir de agora. Evita bloquear a conta indevidamente.
+    const status = data?.subscription_status || 'trial'
+    let until = data?.subscription_until || null
+    if (status === 'trial' && !until) {
+      until = new Date(Date.now() + 7 * 86400000).toISOString()
+    }
+
     setState({
       loading: false,
-      status: data?.subscription_status || 'trial',
-      until: data?.subscription_until || null,
+      status,
+      until,
       plan: data?.subscription_plan || null,
       trialStartedAt: data?.trial_started_at || null,
     })
