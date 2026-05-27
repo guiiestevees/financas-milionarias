@@ -48,23 +48,58 @@ export default function Signup() {
     }
 
     setLoading(true)
+
+    // 1) Se preencheu CPF, valida ANTES de criar a conta no Auth.
+    // Evita criar uma "conta lixo" no Auth se o CPF já existir.
+    if (cpfDigits) {
+      try {
+        const { data: existingEmail, error: lookupErr } = await supabase
+          .rpc('lookup_email_by_cpf', { p_cpf: cpfDigits })
+        if (lookupErr) console.warn('CPF check error (continuando):', lookupErr)
+        if (existingEmail) {
+          setLoading(false)
+          setError('Este CPF já está cadastrado. Tente entrar com sua senha.')
+          return
+        }
+      } catch (e) {
+        console.warn('CPF check exception:', e)
+        // Falha de rede não bloqueia o cadastro — o índice único do
+        // banco vai pegar como segunda linha de defesa
+      }
+    }
+
+    // 2) Cria a conta no Auth
     const { error: err, data } = await signUp(email, password, name, cpfDigits || null)
     if (err) {
       setLoading(false)
-      setError(err.message)
+      // Mensagens mais amigáveis pra erros comuns
+      const msg = (err.message || '').toLowerCase()
+      if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+        setError('Este email já está cadastrado. Tente entrar.')
+      } else if (msg.includes('invalid email')) {
+        setError('Email inválido. Confira o endereço.')
+      } else if (msg.includes('weak password') || msg.includes('password')) {
+        setError('Senha muito fraca. Use ao menos 6 caracteres.')
+      } else {
+        setError(err.message)
+      }
       return
     }
 
-    // Se o CPF foi informado, salva no profile (RLS deixa porque é o
-    // próprio usuário; a row pode já ter sido criada por trigger ou
-    // ser criada agora pela primeira gravação)
+    // 3) Salva CPF no profile (idempotente). Se outro user já tem esse CPF
+    // por algum cenário de corrida, o UNIQUE INDEX rejeita aqui também.
     if (cpfDigits && data?.user?.id) {
       try {
-        await supabase
+        const { error: upsertErr } = await supabase
           .from('user_profiles')
           .upsert({ user_id: data.user.id, cpf: cpfDigits }, { onConflict: 'user_id' })
+        if (upsertErr) {
+          console.warn('Erro ao salvar CPF no profile:', upsertErr)
+          // Não bloqueia o fluxo — usuário pode adicionar CPF depois
+          // se essa primeira tentativa falhar
+        }
       } catch (err) {
-        console.warn('Erro ao salvar CPF (vai tentar de novo após login):', err)
+        console.warn('Exceção ao salvar CPF:', err)
       }
     }
 
