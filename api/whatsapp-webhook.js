@@ -191,7 +191,7 @@ export default async function handler(req, res) {
         const isIncome = item.kind === 'income'
         const date = item.date || today
         const ym = date.slice(0, 7)
-        const data = isIncome ? buildReceita(item, date) : buildDespesa(item, date)
+        const data = isIncome ? buildReceita(item, date) : buildDespesa(item, date, context.cardNames)
         return {
           id: 'pend_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 5),
           type: isIncome ? 'income' : 'expense',
@@ -224,7 +224,7 @@ export default async function handler(req, res) {
     const ym = date.slice(0, 7)
     const isIncome = extraction.intent === 'register_income'
 
-    const pendingData = isIncome ? buildReceita(extraction, date) : buildDespesa(extraction, date)
+    const pendingData = isIncome ? buildReceita(extraction, date) : buildDespesa(extraction, date, context.cardNames)
 
     const pending = {
       id: 'pend_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4),
@@ -512,18 +512,26 @@ Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhu
 }
 
 // ---------- Constrói o objeto despesa ----------
-function buildDespesa(extraction, date) {
+// Determina se o gasto já saiu da conta ou tá pendente:
+// - PIX, Débito, Dinheiro → já saiu (paid: true)
+// - Cartão de crédito → só sai na fatura (paid: false → fica pendente)
+function buildDespesa(extraction, date, cardNames = []) {
   const uid = () => Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4)
+  const method = (extraction.paymentMethod || '').trim()
+  const isCreditCard = method && cardNames.some(
+    (name) => name && name.toLowerCase() === method.toLowerCase()
+  )
   return {
     id: uid(),
     createdAt: Date.now(),
     description: extraction.description || 'Gasto',
     amount: Number(extraction.amount) || 0,
     date,
-    paymentMethod: extraction.paymentMethod || '',
+    paymentMethod: method,
     category: extraction.category || '',
     attributedTo: extraction.attributedTo || '',
-    paid: true,  // gasto vindo do WhatsApp normalmente é "já paguei"
+    // Cartão = pendente (vence na fatura). PIX/Débito/Dinheiro = já saiu.
+    paid: !isCreditCard,
     dueDay: null,
     installmentCurrent: Number(extraction.installmentCurrent) || 1,
     installmentTotal: Number(extraction.installmentTotal) || 1,
@@ -596,6 +604,7 @@ function formatBatchNotice(pendings) {
       if (d.paymentMethod) extra.push(d.paymentMethod)
       if (d.installmentTotal > 1) extra.push(`${d.installmentCurrent}/${d.installmentTotal}`)
       if (d.recurring) extra.push('fixo')
+      if (d.paid === false) extra.push('aguarda fatura')
     } else if (d.recurring) {
       extra.push('recorrente')
     }
@@ -648,6 +657,8 @@ function formatPendingNotice(pending) {
     if (d.paymentMethod) lines.push(`💳 *Pagamento:* ${d.paymentMethod}`)
     if (d.category) lines.push(`🏷 *Categoria:* ${d.category}`)
     if (d.attributedTo) lines.push(`👤 *Atribuído:* ${d.attributedTo}`)
+    // Status: já saiu vs vai sair na fatura
+    if (d.paid === false) lines.push(`⏳ *Status:* aguarda fatura (não saiu do saldo ainda)`)
   }
   if (dataStr) lines.push(`📅 *Data:* ${dataStr}`)
 
