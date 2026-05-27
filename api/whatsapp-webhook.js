@@ -604,7 +604,6 @@ function formatBatchNotice(pendings) {
       if (d.paymentMethod) extra.push(d.paymentMethod)
       if (d.installmentTotal > 1) extra.push(`${d.installmentCurrent}/${d.installmentTotal}`)
       if (d.recurring) extra.push('fixo')
-      if (d.paid === false) extra.push('aguarda fatura')
     } else if (d.recurring) {
       extra.push('recorrente')
     }
@@ -657,8 +656,6 @@ function formatPendingNotice(pending) {
     if (d.paymentMethod) lines.push(`💳 *Pagamento:* ${d.paymentMethod}`)
     if (d.category) lines.push(`🏷 *Categoria:* ${d.category}`)
     if (d.attributedTo) lines.push(`👤 *Atribuído:* ${d.attributedTo}`)
-    // Status: já saiu vs vai sair na fatura
-    if (d.paid === false) lines.push(`⏳ *Status:* aguarda fatura (não saiu do saldo ainda)`)
   }
   if (dataStr) lines.push(`📅 *Data:* ${dataStr}`)
 
