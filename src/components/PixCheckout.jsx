@@ -151,6 +151,19 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
         Abra o app do seu banco, escolha <strong className="text-white/85">PIX → Ler QR Code</strong> e aponte para a tela.
       </div>
 
+      {/* Identificação do recebedor — transparência pro cliente */}
+      <div className="rounded-lg px-3 py-2.5 text-xs text-white/60 leading-relaxed"
+        style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-start gap-2">
+          <span className="text-white/40 shrink-0">ℹ</span>
+          <div>
+            No app do banco, o pagamento aparecerá em nome de{' '}
+            <strong className="text-white/85">Alquimia Digital Ltda</strong>
+            {' '}— CNPJ <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>58.491.823/0001-47</span>.
+          </div>
+        </div>
+      </div>
+
       {/* PIX copia-cola */}
       <div>
         <div className="text-xs text-white/55 mb-1.5 text-center">Ou copie o código PIX:</div>

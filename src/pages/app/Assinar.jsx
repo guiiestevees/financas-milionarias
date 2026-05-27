@@ -174,10 +174,12 @@ export default function Assinar() {
   }
 
   const onPaymentSuccess = () => {
+    // 2.5s dá tempo do webhook + polling sincronizarem o status antes
+    // de carregar o painel. Refresh duplo: refresh, depois navigate.
     setTimeout(() => {
       subscription.refresh?.()
       navigate(backUrl)
-    }, 1500)
+    }, 2500)
   }
 
   return (
