@@ -886,41 +886,94 @@ function buildContextSummary(fullCtx) {
   // ---------- Assinatura (status + plano + vencimento) ----------
   if (fullCtx.subscription) {
     const s = fullCtx.subscription
-    lines.push('=== ASSINATURA ===')
+    const todayDate = new Date(fullCtx.today)
 
-    // Status legível
-    const statusLabel = {
-      trial: 'Em período de teste (7 dias grátis)',
-      active: 'Ativa (pagando em dia)',
-      overdue: 'ATRASADA (com pagamento em aberto)',
-      expired: 'EXPIRADA (acesso encerrado)',
-      cancelled: 'CANCELADA (sem novas cobranças; acesso até o fim do período pago)',
-    }[s.status] || s.status
+    // Helper: formata data em DD/MM/AAAA (PT-BR) — Alfred precisa do BR format
+    const fmtDateBR = (isoOrDate) => {
+      if (!isoOrDate) return ''
+      const d = new Date(isoOrDate)
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const yy = d.getFullYear()
+      return `${dd}/${mm}/${yy}`
+    }
+    const daysDiff = (target) => {
+      if (!target) return null
+      const t = new Date(target)
+      // Diferença em dias arredondada (ignorando horas)
+      const a = new Date(t.getFullYear(), t.getMonth(), t.getDate())
+      const b = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate())
+      return Math.round((a - b) / 86400000)
+    }
 
-    lines.push(`Status: ${statusLabel}`)
+    lines.push('=== ASSINATURA (DADOS PRECISOS — NÃO INVENTE) ===')
 
-    // Plano
-    if (s.plan === 'monthly') lines.push('Plano: Mensal — R$ 19,00/mês')
-    else if (s.plan === 'annual') lines.push('Plano: Anual — R$ 167,00/ano')
-    else lines.push('Plano: ainda não definido (em trial)')
+    // ===== TRIAL =====
+    if (s.status === 'trial') {
+      lines.push('Status: EM TESTE GRATUITO (trial de 7 dias)')
+      const endDays = daysDiff(s.until)
+      if (s.trialStartedAt) lines.push(`Trial começou em: ${fmtDateBR(s.trialStartedAt)}`)
+      if (s.until) {
+        if (endDays > 0) lines.push(`Trial termina em: ${fmtDateBR(s.until)} (faltam ${endDays} dia(s))`)
+        else if (endDays === 0) lines.push(`Trial termina HOJE (${fmtDateBR(s.until)})`)
+        else lines.push(`Trial JÁ TERMINOU em ${fmtDateBR(s.until)} (${Math.abs(endDays)} dia(s) atrás)`)
+      }
+      lines.push('Plano contratado: nenhum (ainda em teste)')
+      lines.push('Valor: R$ 0,00 (gratuito durante o teste)')
+    }
 
-    // Datas
-    if (s.until) {
-      const untilDate = new Date(s.until)
-      const ymd = untilDate.toISOString().slice(0, 10)
-      const todayDate = new Date(fullCtx.today)
-      const daysLeft = Math.ceil((untilDate - todayDate) / 86400000)
-      if (daysLeft > 0) {
-        lines.push(`Acesso válido até: ${ymd} (${daysLeft} dia(s) restantes)`)
-      } else if (daysLeft === 0) {
-        lines.push(`Acesso expira hoje (${ymd})`)
+    // ===== ACTIVE =====
+    else if (s.status === 'active') {
+      lines.push('Status: ASSINATURA ATIVA E EM DIA')
+      if (s.plan === 'monthly') {
+        lines.push('Plano: Mensal — R$ 19,00/mês')
+      } else if (s.plan === 'annual') {
+        lines.push('Plano: Anual — R$ 167,00/ano')
       } else {
-        lines.push(`Acesso expirou em ${ymd} (${Math.abs(daysLeft)} dia(s) atrás)`)
+        lines.push('Plano: ativo (detalhe indisponível)')
+      }
+      if (s.until) {
+        const d = daysDiff(s.until)
+        const label = s.plan === 'annual' ? 'Próxima renovação anual em' : 'Próxima renovação mensal em'
+        if (d > 0) lines.push(`${label}: ${fmtDateBR(s.until)} (faltam ${d} dia(s))`)
+        else if (d === 0) lines.push(`${label}: HOJE (${fmtDateBR(s.until)})`)
       }
     }
 
-    if (s.status === 'trial' && s.trialStartedAt) {
-      lines.push(`Trial começou em: ${s.trialStartedAt.slice(0, 10)}`)
+    // ===== OVERDUE =====
+    else if (s.status === 'overdue') {
+      lines.push('Status: ATRASADA — pagamento em aberto')
+      if (s.plan === 'monthly') lines.push('Plano: Mensal — R$ 19,00/mês')
+      else if (s.plan === 'annual') lines.push('Plano: Anual — R$ 167,00/ano')
+      if (s.until) {
+        const d = daysDiff(s.until)
+        if (d >= 0) lines.push(`Cobrança vencia em: ${fmtDateBR(s.until)} (em ${d} dia(s))`)
+        else lines.push(`Cobrança venceu em: ${fmtDateBR(s.until)} (há ${Math.abs(d)} dia(s))`)
+      }
+      lines.push('Período de graça: até 3 dias antes do bloqueio. Regularize em Configurações → Assinatura no app.')
+    }
+
+    // ===== CANCELLED (com acesso restante OU sem) =====
+    else if (s.status === 'cancelled') {
+      const d = daysDiff(s.until)
+      if (d > 0) {
+        lines.push('Status: CANCELADA (sem novas cobranças, mas ainda com acesso pago)')
+        lines.push(`Acesso preservado até: ${fmtDateBR(s.until)} (faltam ${d} dia(s))`)
+      } else {
+        lines.push('Status: CANCELADA E COM ACESSO EXPIRADO')
+        if (s.until) lines.push(`Acesso terminou em: ${fmtDateBR(s.until)} (${Math.abs(d)} dia(s) atrás)`)
+      }
+      if (s.plan === 'monthly') lines.push('Plano contratado: Mensal — R$ 19,00/mês (era essa a cobrança recorrente)')
+      else if (s.plan === 'annual') lines.push('Plano contratado: Anual — R$ 167,00/ano (era essa a cobrança recorrente)')
+    }
+
+    // ===== EXPIRED =====
+    else if (s.status === 'expired') {
+      lines.push('Status: EXPIRADA — acesso encerrado')
+      if (s.until) {
+        const d = daysDiff(s.until)
+        lines.push(`Acesso encerrou em: ${fmtDateBR(s.until)} (${Math.abs(d)} dia(s) atrás)`)
+      }
     }
 
     lines.push('')
@@ -1036,33 +1089,56 @@ R: "Seus orçamentos neste mês:
 P: "como tá o cofre do casamento?"
 R: "Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000."
 
-═══════ PERGUNTAS SOBRE ASSINATURA ═══════
+═══════ PERGUNTAS SOBRE ASSINATURA — REGRAS RÍGIDAS ═══════
 
-Use a seção ASSINATURA do contexto. NÃO invente datas nem valores.
+⚠️ INSTRUÇÕES CRÍTICAS pra responder sobre assinatura:
 
-P: "meu plano tá ativo?"
-R: "Sim, sua assinatura está *ativa*. Plano Mensal, válido até 26/06/2026."
+1. SEMPRE leia a seção "ASSINATURA" do contexto. NUNCA invente.
 
-P: "quando vence minha assinatura?"
-R: "Sua assinatura vence em *26/06/2026* — restam 18 dias."
+2. NÃO CONFUNDA datas. A seção tem rótulos explícitos:
+   - "Trial começou em" → data de INÍCIO do trial (não usar como expiração!)
+   - "Trial termina em" → data de FIM do trial
+   - "Próxima renovação em" → quando vai cobrar de novo
+   - "Cobrança venceu em" → quando o pagamento atrasou
+   - "Acesso encerrou em" → quando o acesso foi cortado
 
-P: "qual meu plano?"
+3. NÃO use formato ISO (2026-05-26). USE formato BR: 26/05/2026 OU "26 de maio".
+
+4. Se o status for "EM TESTE GRATUITO" (trial), NUNCA fale "expirada" — ela TÁ no trial, é gratuito. Só use "expirada" se o status literal for "EXPIRADA".
+
+5. Mantenha respostas CURTAS. 1-2 frases. Não soletre múltiplas datas se só uma é relevante pra pergunta.
+
+EXEMPLOS:
+
+P: "meu plano tá ativo?" (status=trial)
+R: "🎩 Você está no *período de teste gratuito* até 02/06/2026 (faltam 7 dias). Após, é só escolher um plano para continuar."
+
+P: "meu plano tá ativo?" (status=active, plano mensal)
+R: "Sim, sua assinatura está *ativa*. Plano Mensal, próxima renovação em 26/06/2026."
+
+P: "quando vence minha assinatura?" (status=active)
+R: "Próxima cobrança em *26/06/2026* — faltam 18 dias."
+
+P: "qual meu plano?" (status=trial)
+R: "Você está em *teste gratuito* — ainda não escolheu plano. O teste vai até 02/06/2026."
+
+P: "qual meu plano?" (status=active, anual)
 R: "Plano *Anual* — R$ 167,00/ano. Próxima renovação em 15/03/2027."
 
-P: "tô em trial até quando?"
-R: "Seu período de teste vai até *03/06/2026* (5 dias restantes). Após, é só escolher um plano para continuar ao seu dispor."
+P: "tô em trial até quando?" (status=trial)
+R: "Seu período de teste vai até *02/06/2026* (faltam 7 dias)."
 
 P: "qual a forma de pagamento?"
-R: "Confesso não dispor desse detalhe aqui no WhatsApp — consulte em Configurações → Assinatura no aplicativo, onde você também pode trocá-la se desejar."
+R: "🎩 Confesso não dispor desse detalhe aqui no WhatsApp — consulte em Configurações → Assinatura no aplicativo, onde também pode trocá-la se desejar."
 
-P: "minha assinatura tá atrasada?"
-R: "Sim, há uma cobrança em aberto. Sua assinatura permanece ativa por mais alguns dias — sugiro regularizar pelo aplicativo em Configurações → Assinatura → Trocar forma de pagamento."
+P: "minha assinatura tá atrasada?" (status=overdue)
+R: "Sim, há uma cobrança em aberto. Sua assinatura permanece ativa por mais alguns dias — sugiro regularizar em Configurações → Assinatura no app."
 
-P: "quanto custa pra renovar?"
-R: "Seu plano Mensal custa *R$ 19,00/mês*. Renovação automática na próxima data."
+P: "quanto custa pra renovar?" (active, mensal)
+R: "Seu plano Mensal custa *R$ 19,00/mês*."
 
 P: "como cancelo?"
-R: "No aplicativo, vá em Configurações → Assinatura → Cancelar. Seu acesso fica preservado até o fim do período já pago. Permita-me lembrar: seus dados ficam guardados caso queira reativar depois."`
+R: "🎩 No aplicativo, vá em Configurações → Assinatura → Cancelar. Seu acesso fica preservado até o fim do período já pago."`
 
 // ---------- Responde pergunta sobre finanças via Claude ----------
 async function answerQuery(question, fullCtx) {
