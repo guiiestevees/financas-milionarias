@@ -117,9 +117,14 @@ export default async function handler(req, res) {
           planId,
         })
       } catch (e) {
-        console.error('Falha ao criar autorização Pix Automático:', e?.data || e?.message)
+        console.error('🔴 Falha ao criar autorização Pix Automático:')
+        console.error('  HTTP status:', e?.status)
+        console.error('  Mensagem:', e?.message)
+        console.error('  Detalhe Asaas:', JSON.stringify(e?.data))
+        const asaasMsg = e?.data?.errors?.[0]?.description || e?.message || 'erro desconhecido'
         return res.status(500).json({
-          error: 'Não foi possível criar autorização de Pix Automático no momento. Tente com Cartão ou PIX comum.',
+          error: `Pix Automático indisponível: ${asaasMsg}`,
+          httpStatus: e?.status,
           detail: e?.data,
         })
       }
