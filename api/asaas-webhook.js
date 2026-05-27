@@ -12,7 +12,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { nextExpirationDate, PLANS } from './_asaas.js'
-import { sendWhatsApp } from './_whatsapp.js'
+import { sendWhatsApp, isQuietHours } from './_whatsapp.js'
 import { sendEmail, paymentConfirmedEmail, paymentOverdueEmail, subscriptionCancelledEmail } from './_email.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
@@ -191,16 +191,18 @@ async function sendPaymentConfirmedEmail({ admin, userId, planName, value, until
 async function handlePaymentOverdue(admin, payment) {
   if (!payment) return
   const customerId = payment.customer
+  const paymentId = payment.id
   const value = Number(payment.value) || 0
 
   const { data: profile } = await admin
     .from('user_profiles')
-    .select('user_id, whatsapp_phone')
+    .select('user_id, whatsapp_phone, last_overdue_notice_at, last_overdue_payment_id')
     .eq('asaas_customer_id', customerId)
     .maybeSingle()
 
   if (!profile) return
 
+  // Sempre atualiza o status (independente de notificar ou não)
   await admin
     .from('user_profiles')
     .update({
@@ -211,9 +213,46 @@ async function handlePaymentOverdue(admin, payment) {
 
   console.log(`⚠ Pagamento atrasou: user ${profile.user_id}`)
 
-  // 🎩 Notificação proativa — cliente pode resolver antes do bloqueio
+  // ===== 3 camadas de proteção contra spam =====
+
+  // 1) Dedup: mesmo payment_id nunca notifica 2x (webhook pode duplicar)
+  if (profile.last_overdue_payment_id === paymentId) {
+    console.log(`🔁 Pagamento ${paymentId} já notificado, skip`)
+    return
+  }
+
+  // 2) Rate limit: máximo 1 aviso de atraso por dia por usuário
+  if (profile.last_overdue_notice_at) {
+    const hoursSince = (Date.now() - new Date(profile.last_overdue_notice_at).getTime()) / 3600000
+    if (hoursSince < 24) {
+      console.log(`⏱ Última notificação há ${hoursSince.toFixed(1)}h — skip`)
+      // Atualiza só o payment_id pra dedup futuro
+      await admin
+        .from('user_profiles')
+        .update({ last_overdue_payment_id: paymentId })
+        .eq('user_id', profile.user_id)
+      return
+    }
+  }
+
+  // 3) Horário de silêncio: não manda entre 22h e 8h BR
+  if (isQuietHours()) {
+    console.log('🌙 Quiet hours — adia notificação overdue')
+    // Não atualiza o tracking — vai tentar de novo no próximo evento
+    return
+  }
+
+  // ===== Manda notificação =====
   const valueLabel = `R$ ${value.toFixed(2).replace('.', ',')}`
-  const regularizeUrl = `https://project-s3mj5.vercel.app`  // app abre tela de assinatura
+  const regularizeUrl = `https://project-s3mj5.vercel.app/app`
+
+  await admin
+    .from('user_profiles')
+    .update({
+      last_overdue_notice_at: new Date().toISOString(),
+      last_overdue_payment_id: paymentId,
+    })
+    .eq('user_id', profile.user_id)
 
   await Promise.allSettled([
     profile.whatsapp_phone && sendWhatsApp(profile.whatsapp_phone, `🎩 *Permita-me uma observação.*
@@ -222,7 +261,7 @@ A cobrança de *${valueLabel}* consta em aberto. Sua assinatura permanece ativa 
 
 Se já pagou, ignore esta mensagem — a confirmação chega em poucos minutos.
 
-_Para regularizar pelo aplicativo, basta abrir Configurações → Assinatura → Trocar forma de pagamento._`),
+_Para regularizar pelo aplicativo, basta abrir Configurações → Assinatura → Trocar forma de pagamento._`, { respectQuietHours: true }),
     sendOverdueEmail({ admin, userId: profile.user_id, value, regularizeUrl }),
   ])
 }
@@ -291,7 +330,7 @@ Acato sua decisão. Não haverá novas cobranças.
 
 Seu acesso permanece completo até *${dateLabel}* — seus dados continuam preservados. Pode reativar a qualquer momento e encontrará tudo exatamente como deixou.
 
-_Agradeço a oportunidade de servi-lo._`),
+_Agradeço a oportunidade de servi-lo._`, { respectQuietHours: true }),
     sendCancelledEmail({ admin, userId: profile.user_id, until }),
   ])
 }
