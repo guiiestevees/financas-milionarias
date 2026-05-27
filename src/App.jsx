@@ -9,6 +9,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Confirm from './pages/auth/Confirm'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import Landing from './pages/Landing'
 
 function FullscreenLoader() {
   return (
@@ -28,15 +29,27 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <FullscreenLoader />
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to="/app" replace />
   return children
+}
+
+// Rota raiz "/": decide se mostra a landing (não-logado) ou o app
+function RootRoute() {
+  const { user, loading } = useAuth()
+  if (loading) return <FullscreenLoader />
+  if (user) return <Navigate to="/app" replace />
+  return <Landing />
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+        {/* Raiz: landing pra visitantes / redirect pro app pra logados */}
+        <Route path="/" element={<RootRoute />} />
+
+        {/* App protegido (logado) */}
+        <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
         <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
 
@@ -48,6 +61,7 @@ export default function App() {
           <Route path="/confirm" element={<Confirm />} />
         </Route>
 
+        {/* Fallback: tudo desconhecido vai pra raiz */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

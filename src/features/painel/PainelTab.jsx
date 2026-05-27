@@ -419,7 +419,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
 }
 
 // ---------- BudgetCategoriesPanel ----------
-function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease }) {
+function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease, setTab }) {
   const [quickName, setQuickName] = useState(null)
   const [quickAmount, setQuickAmount] = useState('')
   const [quickDesc, setQuickDesc] = useState('')
@@ -438,7 +438,19 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
   return (
     <Card className="p-4 sm:p-6" accent="rose">
       <SectionTitle icon={Target} title="Orçamentos do mês" subtitle="Toque no orçamento pra expandir. Use os botões pra adicionar gasto ou transferir saldo." accent="rose" />
-      {categories.length === 0 ? <Empty text="Cadastre orçamentos em Configurações pra controlar limites mensais" /> : (
+      {categories.length === 0 ? (
+        <Empty
+          icon={Target}
+          accent="rose"
+          text="Nenhum orçamento ainda"
+          description="Crie orçamentos como Mercado, Lazer, Saídas — defina limites mensais e veja em tempo real onde está estourando."
+          action={{
+            label: 'Criar primeiro orçamento',
+            icon: Plus,
+            onClick: () => setTab?.('config'),
+          }}
+        />
+      ) : (
         <div className="space-y-5">
           {categories.map((c) => {
             const a = accents[c.accent] || accents.rose
@@ -902,7 +914,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} togglePaidDespesa={togglePaid} />
-          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} />}
+          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} setTab={setTab} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} setPaidBulk={setPaidBulk} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>

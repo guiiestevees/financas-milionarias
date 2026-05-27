@@ -171,7 +171,7 @@ export default function Assinar() {
   const onPaymentSuccess = () => {
     setTimeout(() => {
       subscription.refresh?.()
-      navigate('/')
+      navigate('/app')
     }, 1500)
   }
 
@@ -180,7 +180,7 @@ export default function Assinar() {
       <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
         {/* Voltar */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/app')}
           className="flex items-center gap-2 text-white/55 hover:text-white text-sm mb-6 transition"
         >
           <ArrowLeft size={16} /> Voltar

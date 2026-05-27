@@ -1,12 +1,34 @@
-import { Outlet } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { Outlet, useLocation, Link } from 'react-router-dom'
+import { Sparkles, ArrowLeft } from 'lucide-react'
+
+// Mensagens contextuais por rota
+const HEADINGS = {
+  '/login': { lead: 'Bem-vindo de', accent: 'volta.', back: true },
+  '/signup': { lead: 'Crie sua', accent: 'conta.', back: true },
+  '/forgot-password': { lead: 'Recupere o', accent: 'acesso.', back: true },
+  '/reset-password': { lead: 'Nova', accent: 'senha.', back: false },
+  '/confirm': { lead: 'Quase', accent: 'lá.', back: false },
+}
 
 export default function AuthLayout() {
+  const { pathname } = useLocation()
+  const h = HEADINGS[pathname] || HEADINGS['/login']
+
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative"
       style={{ background: '#070912' }}
     >
+      {/* Botão pra voltar pra landing */}
+      {h.back && (
+        <Link
+          to="/"
+          className="absolute top-5 left-5 text-xs text-white/45 hover:text-white/85 transition flex items-center gap-1.5"
+        >
+          <ArrowLeft size={13} /> Voltar
+        </Link>
+      )}
+
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2 mb-3">
           <Sparkles size={14} style={{ color: '#d4af37' }} />
@@ -18,7 +40,7 @@ export default function AuthLayout() {
           style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
           className="text-4xl text-white"
         >
-          Bem-vindo de{' '}
+          {h.lead}{' '}
           <em
             style={{
               fontStyle: 'italic',
@@ -27,7 +49,7 @@ export default function AuthLayout() {
               color: 'transparent',
             }}
           >
-            volta.
+            {h.accent}
           </em>
         </h1>
       </div>

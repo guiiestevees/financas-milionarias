@@ -16,7 +16,11 @@ import CofresTab from '../../features/cofres/CofresTab'
 import ConfigTab from '../../features/config/ConfigTab'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBlocked from '../../components/SubscriptionBlocked'
+import WelcomeTour from '../../components/WelcomeTour'
 import { useSubscription } from '../../hooks/useSubscription'
+
+// Chave do localStorage pra marcar que o tour foi dispensado
+const TOUR_DISMISSED_KEY = 'fm_welcome_tour_dismissed_v1'
 
 export default function AppShell() {
   const { signOut, user } = useAuth()
@@ -26,9 +30,34 @@ export default function AppShell() {
   const [activeMonth, setActiveMonth] = useState(getCurrentMonth())
   const [tab, setTab] = useState('painel')
   const [saving, setSaving] = useState(false)
+  const [showTour, setShowTour] = useState(false)
   const saveTimer = useRef(null)
   const initialized = useRef(false)
   const loadedUserId = useRef(null)
+
+  // Mostra o welcome tour no primeiro acesso (por usuário).
+  // Critério: nunca dispensou antes E ainda não tem dados configurados.
+  useEffect(() => {
+    if (!data || !user) return
+    if (initialized.current === false) return  // espera a inicialização
+    const key = `${TOUR_DISMISSED_KEY}_${user.id}`
+    const alreadyDismissed = localStorage.getItem(key) === '1'
+    if (alreadyDismissed) return
+    // Considera "novo" se não tem cartões nem categorias cadastradas
+    const cfg = data.months?.[activeMonth]?.config || {}
+    const hasCards = Array.isArray(cfg.cards) && cfg.cards.length > 0
+    const hasCategories = Array.isArray(cfg.categories) && cfg.categories.length > 0
+    if (!hasCards && !hasCategories) {
+      setShowTour(true)
+    }
+  }, [data, user, activeMonth])
+
+  const dismissTour = () => {
+    if (user?.id) {
+      localStorage.setItem(`${TOUR_DISMISSED_KEY}_${user.id}`, '1')
+    }
+    setShowTour(false)
+  }
 
   const loadFromStorage = useCallback(() => {
     storage.load().then((raw) => {
@@ -753,6 +782,7 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#070912' }}>
+      {showTour && <WelcomeTour userName={user?.user_metadata?.name || ''} onClose={dismissTour} />}
       <SubscriptionBanner />
       <div className="w-full max-w-4xl mx-auto px-4 pt-8">
         <Header
