@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { AtSign, User } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 const inputStyle = {
@@ -14,19 +15,36 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
+// Aplica máscara de CPF se for puro número (e tiver começado a digitar CPF)
+function maskCpfIfNumeric(input) {
+  const trimmed = String(input || '')
+  // Se tem @ ou letras, é email — não aplica máscara
+  if (/[a-zA-Z@]/.test(trimmed)) return trimmed
+  // É puro número → aplica máscara de CPF (000.000.000-00)
+  const d = trimmed.replace(/\D/g, '').slice(0, 11)
+  return d
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+}
+
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signInWithIdentifier } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Detecta visualmente se tá digitando CPF (pra ícone + máscara)
+  const looksLikeCpf = !identifier.includes('@') && identifier.replace(/\D/g, '').length > 0 && !/[a-zA-Z]/.test(identifier)
+  const Icon = looksLikeCpf ? User : AtSign
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error: err } = await signIn(email, password)
+    const { error: err } = await signInWithIdentifier(identifier, password)
     setLoading(false)
     if (err) { setError(err.message); return }
     navigate('/')
@@ -41,7 +59,7 @@ export default function Login() {
         >
           Entrar
         </h2>
-        <p className="text-sm text-white/45">Acesse seu app de finanças pessoais</p>
+        <p className="text-sm text-white/45">Acesse com email ou CPF</p>
       </div>
 
       {error && (
@@ -55,17 +73,30 @@ export default function Login() {
 
       <div className="space-y-3">
         <div>
-          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">E-mail</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
-            required
-            autoComplete="email"
-            style={inputStyle}
-            className="placeholder:text-white/20 focus:border-white/25"
-          />
+          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">
+            Email ou CPF
+          </label>
+          <div className="relative">
+            <Icon
+              size={14}
+              style={{
+                position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                color: 'rgba(255,255,255,0.35)', pointerEvents: 'none',
+                transition: 'color 0.15s',
+              }}
+            />
+            <input
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(maskCpfIfNumeric(e.target.value))}
+              placeholder="seu@email.com  ou  000.000.000-00"
+              required
+              autoComplete="username"
+              maxLength={50}
+              style={{ ...inputStyle, paddingLeft: 36 }}
+              className="placeholder:text-white/20 focus:border-white/25"
+            />
+          </div>
         </div>
         <div>
           <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">Senha</label>

@@ -35,14 +35,45 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
-  const signUp = async (email, password, name) => {
+  // Login flexível: aceita email OU CPF (apenas dígitos ou formatado).
+  // Se for CPF, consulta a RPC pra descobrir o email vinculado.
+  const signInWithIdentifier = async (identifier, password) => {
+    if (!supabase) return { error: { message: 'Sistema indisponível' } }
+    const id = String(identifier || '').trim()
+    let email = id
+
+    // Se NÃO parece email (sem @), trata como CPF/CNPJ
+    if (!id.includes('@')) {
+      const cpfDigits = id.replace(/\D/g, '')
+      if (cpfDigits.length < 11) {
+        return { error: { message: 'Informe um email válido ou CPF completo' } }
+      }
+      // Consulta RPC pra resolver o email
+      const { data, error } = await supabase.rpc('lookup_email_by_cpf', { p_cpf: cpfDigits })
+      if (error) {
+        console.error('CPF lookup error:', error)
+        return { error: { message: 'Falha ao buscar cadastro. Tente com email.' } }
+      }
+      if (!data) {
+        return { error: { message: 'Não encontrei nenhum cadastro com esse CPF' } }
+      }
+      email = data
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error }
+  }
+
+  const signUp = async (email, password, name, cpf = null) => {
     if (!supabase) return { error: null }
-    const { error } = await supabase.auth.signUp({
+    // Guarda CPF nos metadados pra um trigger no Supabase popular user_profiles
+    // depois (ou a gente faz manualmente após confirmar email)
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: { data: { name, cpf: cpf || null } },
     })
-    return { error }
+    return { error, data }
   }
 
   const signOut = async () => {
@@ -66,7 +97,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signIn, signUp, signOut, resetPassword, updatePassword }}
+      value={{ session, user: session?.user ?? null, loading, signIn, signInWithIdentifier, signUp, signOut, resetPassword, updatePassword }}
     >
       {children}
     </AuthContext.Provider>

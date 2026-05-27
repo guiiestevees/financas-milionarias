@@ -136,12 +136,19 @@ export default async function handler(req, res) {
       })
     }
 
-    // 5) Salva refs no profile
-    await admin().from('user_profiles').update({
+    // 5) Salva refs no profile (incluindo CPF — útil pra login com CPF depois)
+    // Só salva CPF se for CPF (11 dígitos) — pra CNPJ a gente não vincula login
+    const cpfClean = String(holder.cpfCnpj || '').replace(/\D/g, '')
+    const isCpf = cpfClean.length === 11
+    const profileUpdate = {
       asaas_customer_id: customer.id,
       asaas_subscription_id: subscription.id,
       updated_at: new Date().toISOString(),
-    }).eq('user_id', user.id)
+    }
+    if (isCpf) {
+      profileUpdate.cpf = cpfClean
+    }
+    await admin().from('user_profiles').update(profileUpdate).eq('user_id', user.id)
 
     // 6) Busca primeira cobrança da assinatura
     const paymentsRes = await fetch(`${ASAAS_BASE}/subscriptions/${subscription.id}/payments`, {

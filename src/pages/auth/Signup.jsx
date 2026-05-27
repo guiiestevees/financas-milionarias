@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
 
 const inputStyle = {
   background: 'rgba(255,255,255,0.04)',
@@ -14,11 +15,20 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
+function maskCpf(input) {
+  const d = String(input || '').replace(/\D/g, '').slice(0, 11)
+  return d
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+}
+
 export default function Signup() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [cpf, setCpf] = useState('')
   const [password, setPassword] = useState('')
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const [error, setError] = useState('')
@@ -29,10 +39,36 @@ export default function Signup() {
     setError('')
     if (password.length < 6) { setError('Senha deve ter ao menos 6 caracteres'); return }
     if (!acceptedPrivacy) { setError('Você precisa aceitar a Política de Privacidade pra continuar'); return }
+
+    const cpfDigits = cpf.replace(/\D/g, '')
+    // CPF é OPCIONAL — mas se preencheu, tem que ter 11 dígitos
+    if (cpfDigits && cpfDigits.length !== 11) {
+      setError('CPF deve ter 11 dígitos (ou deixe em branco)')
+      return
+    }
+
     setLoading(true)
-    const { error: err } = await signUp(email, password, name)
+    const { error: err, data } = await signUp(email, password, name, cpfDigits || null)
+    if (err) {
+      setLoading(false)
+      setError(err.message)
+      return
+    }
+
+    // Se o CPF foi informado, salva no profile (RLS deixa porque é o
+    // próprio usuário; a row pode já ter sido criada por trigger ou
+    // ser criada agora pela primeira gravação)
+    if (cpfDigits && data?.user?.id) {
+      try {
+        await supabase
+          .from('user_profiles')
+          .upsert({ user_id: data.user.id, cpf: cpfDigits }, { onConflict: 'user_id' })
+      } catch (err) {
+        console.warn('Erro ao salvar CPF (vai tentar de novo após login):', err)
+      }
+    }
+
     setLoading(false)
-    if (err) { setError(err.message); return }
     navigate('/confirm')
   }
 
@@ -80,6 +116,22 @@ export default function Signup() {
             required
             autoComplete="email"
             style={inputStyle}
+            className="placeholder:text-white/20 focus:border-white/25"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">
+            CPF <span className="lowercase tracking-normal text-white/35 normal-case ml-1">(opcional, mas permite login com CPF)</span>
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={cpf}
+            onChange={(e) => setCpf(maskCpf(e.target.value))}
+            placeholder="000.000.000-00"
+            maxLength={14}
+            autoComplete="off"
+            style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
             className="placeholder:text-white/20 focus:border-white/25"
           />
         </div>
