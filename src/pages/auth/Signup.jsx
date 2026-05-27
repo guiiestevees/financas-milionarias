@@ -353,7 +353,11 @@ export default function Signup() {
           style={{ width: 16, height: 16, marginTop: 2, accentColor: '#d4af37', cursor: 'pointer' }}
         />
         <span className="text-xs text-white/55 leading-relaxed">
-          Li e concordo com a{' '}
+          Li e concordo com os{' '}
+          <Link to="/termos" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
+            Termos de Uso
+          </Link>
+          {' '}e com a{' '}
           <Link to="/privacidade" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
             Política de Privacidade
           </Link>

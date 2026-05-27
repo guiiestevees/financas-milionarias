@@ -482,6 +482,7 @@ function Footer() {
           <span className="text-xs text-white/40">Domus © {new Date().getFullYear()}</span>
         </div>
         <div className="flex items-center gap-5 text-xs text-white/40">
+          <Link to="/termos" className="hover:text-white/65 transition">Termos de Uso</Link>
           <Link to="/privacidade" className="hover:text-white/65 transition">Política de Privacidade</Link>
           <Link to="/login" className="hover:text-white/65 transition">Entrar</Link>
         </div>

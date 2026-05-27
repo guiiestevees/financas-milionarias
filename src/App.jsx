@@ -9,6 +9,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Confirm from './pages/auth/Confirm'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
 
 function FullscreenLoader() {
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
         <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
+        <Route path="/termos" element={<TermsOfUse />} />
 
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
