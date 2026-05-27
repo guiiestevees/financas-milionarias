@@ -36,8 +36,8 @@ const PLANS = [
   {
     id: 'monthly',
     name: 'Mensal',
-    price: 19.00,
-    priceLabel: 'R$ 19',
+    price: 1.00,  // ⚠️ TESTE — voltar pra 19 antes do lançamento
+    priceLabel: 'R$ 1',
     period: 'por mês',
     accent: 'emerald',
     description: 'Cobrança recorrente. Cancele quando quiser.',

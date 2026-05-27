@@ -293,7 +293,7 @@ function Pricing() {
           style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg mb-1 text-white/80">Mensal</div>
           <div className="flex items-baseline gap-1 mb-1">
-            <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-4xl font-semibold">R$ 19</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-4xl font-semibold">R$ 1</span>
             <span className="text-xs text-white/45">/mês</span>
           </div>
           <div className="text-xs text-white/45 mb-4">Cobrança recorrente. Cancele quando quiser.</div>
