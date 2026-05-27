@@ -20,9 +20,9 @@ export const PLANS = {
   monthly: {
     id: 'monthly',
     name: 'Mensal',
-    value: 1.00,  // ⚠️ TESTE — voltar pra 19.00 antes do lançamento
+    value: 5.00,  // ⚠️ TESTE — voltar pra 19.00 antes do lançamento (mín Asaas: R$ 5)
     cycle: 'MONTHLY',
-    label: 'R$ 1,00/mês',
+    label: 'R$ 5,00/mês',
     description: 'Acesso completo + WhatsApp com Alfred',
   },
   annual: {

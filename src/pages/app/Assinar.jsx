@@ -36,8 +36,8 @@ const PLANS = [
   {
     id: 'monthly',
     name: 'Mensal',
-    price: 1.00,  // ⚠️ TESTE — voltar pra 19 antes do lançamento
-    priceLabel: 'R$ 1',
+    price: 5.00,  // ⚠️ TESTE — voltar pra 19 antes do lançamento
+    priceLabel: 'R$ 5',
     period: 'por mês',
     accent: 'emerald',
     description: 'Cobrança recorrente. Cancele quando quiser.',
@@ -68,21 +68,20 @@ const PLANS = [
 
 const METHODS = [
   {
-    id: 'PIX_AUTOMATIC',
-    name: 'PIX Automático',
-    description: 'Pague o primeiro PIX e autorize débito recorrente no app do banco',
-    icon: Zap,
-    accent: '#10b981',
-    accentSoft: 'rgba(16,185,129,0.08)',
-    badge: 'Recomendado',
-  },
-  {
     id: 'CREDIT_CARD',
     name: 'Cartão de Crédito',
     description: 'Cobrança recorrente automática no cartão',
     icon: CreditCard,
     accent: '#c9a961',
     accentSoft: 'rgba(201,169,97,0.08)',
+  },
+  {
+    id: 'PIX_AUTOMATIC',
+    name: 'PIX Automático',
+    description: 'Pague o primeiro PIX e autorize débito recorrente no app do banco',
+    icon: Zap,
+    accent: '#10b981',
+    accentSoft: 'rgba(16,185,129,0.08)',
   },
 ]
 
