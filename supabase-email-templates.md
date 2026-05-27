@@ -8,7 +8,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
 
 ## 1. Confirm signup (cadastro)
 
-**Subject:** 🎩 Confirme seu acesso — Finanças Milionárias
+**Subject:** 🎩 Confirme seu acesso — Domus
 
 **Message body (HTML):**
 
@@ -19,17 +19,17 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
   <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;padding:32px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">
     <div style="text-align:center;border-bottom:1px solid #eee;padding-bottom:20px;margin-bottom:24px;">
       <div style="font-family:Georgia,serif;font-size:24px;color:#1a1a1a;">🎩 <strong>Alfred</strong></div>
-      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Finanças Milionárias</div>
+      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Domus</div>
     </div>
     <h1 style="font-family:Georgia,serif;font-size:22px;color:#1a1a1a;margin:0 0 16px;">Ao seu dispor.</h1>
-    <p style="color:#444;font-size:15px;">Permita-me confirmar: você acaba de criar sua conta no <strong>Finanças Milionárias</strong>. Bem-vindo.</p>
+    <p style="color:#444;font-size:15px;">Permita-me confirmar: você acaba de criar sua conta no <strong>Domus</strong>. Bem-vindo.</p>
     <p style="color:#444;font-size:15px;">Para ativar o acesso, basta clicar no botão abaixo:</p>
     <div style="text-align:center;margin:24px 0;">
       <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 28px;background:linear-gradient(180deg,#c9a961,#a88a4a);color:#0a0d18;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;">Confirmar e acessar</a>
     </div>
     <p style="color:#888;font-size:13px;text-align:center;">Você ganhou <strong>7 dias gratuitos</strong> para conhecer tudo — sem cartão, sem pegadinha.</p>
     <div style="border-top:1px solid #eee;margin-top:28px;padding-top:20px;font-size:12px;color:#999;text-align:center;">
-      Ao seu dispor,<br><strong style="color:#666;">Alfred · Finanças Milionárias</strong>
+      Ao seu dispor,<br><strong style="color:#666;">Alfred · Domus</strong>
     </div>
   </div>
 </body></html>
@@ -39,7 +39,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
 
 ## 2. Magic Link (login sem senha)
 
-**Subject:** 🎩 Acesso direto — Finanças Milionárias
+**Subject:** 🎩 Acesso direto — Domus
 
 **Message body:**
 
@@ -50,7 +50,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
   <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;padding:32px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">
     <div style="text-align:center;border-bottom:1px solid #eee;padding-bottom:20px;margin-bottom:24px;">
       <div style="font-family:Georgia,serif;font-size:24px;color:#1a1a1a;">🎩 <strong>Alfred</strong></div>
-      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Finanças Milionárias</div>
+      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Domus</div>
     </div>
     <h1 style="font-family:Georgia,serif;font-size:22px;color:#1a1a1a;margin:0 0 16px;">Seu acesso, pronto.</h1>
     <p style="color:#444;font-size:15px;">Você solicitou um link para acessar sua conta. Basta clicar abaixo — o login é automático.</p>
@@ -60,7 +60,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
     <p style="color:#888;font-size:13px;text-align:center;">Por segurança, este link funciona apenas uma vez e expira em 1 hora.</p>
     <p style="color:#888;font-size:13px;text-align:center;">Não foi você? Pode ignorar este email — sua conta permanece segura.</p>
     <div style="border-top:1px solid #eee;margin-top:28px;padding-top:20px;font-size:12px;color:#999;text-align:center;">
-      Ao seu dispor,<br><strong style="color:#666;">Alfred · Finanças Milionárias</strong>
+      Ao seu dispor,<br><strong style="color:#666;">Alfred · Domus</strong>
     </div>
   </div>
 </body></html>
@@ -70,7 +70,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
 
 ## 3. Reset Password (recuperar senha)
 
-**Subject:** 🎩 Redefinir sua senha — Finanças Milionárias
+**Subject:** 🎩 Redefinir sua senha — Domus
 
 **Message body:**
 
@@ -81,7 +81,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
   <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;padding:32px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">
     <div style="text-align:center;border-bottom:1px solid #eee;padding-bottom:20px;margin-bottom:24px;">
       <div style="font-family:Georgia,serif;font-size:24px;color:#1a1a1a;">🎩 <strong>Alfred</strong></div>
-      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Finanças Milionárias</div>
+      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Domus</div>
     </div>
     <h1 style="font-family:Georgia,serif;font-size:22px;color:#1a1a1a;margin:0 0 16px;">Redefinir senha</h1>
     <p style="color:#444;font-size:15px;">Recebi seu pedido para redefinir a senha. Clique abaixo para escolher uma nova:</p>
@@ -93,7 +93,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
     </div>
     <p style="color:#888;font-size:13px;text-align:center;">Este link expira em 1 hora por segurança.</p>
     <div style="border-top:1px solid #eee;margin-top:28px;padding-top:20px;font-size:12px;color:#999;text-align:center;">
-      Ao seu dispor,<br><strong style="color:#666;">Alfred · Finanças Milionárias</strong>
+      Ao seu dispor,<br><strong style="color:#666;">Alfred · Domus</strong>
     </div>
   </div>
 </body></html>
@@ -103,7 +103,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
 
 ## 4. Change Email Address (trocar email)
 
-**Subject:** 🎩 Confirmar troca de email — Finanças Milionárias
+**Subject:** 🎩 Confirmar troca de email — Domus
 
 **Message body:**
 
@@ -114,7 +114,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
   <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;padding:32px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">
     <div style="text-align:center;border-bottom:1px solid #eee;padding-bottom:20px;margin-bottom:24px;">
       <div style="font-family:Georgia,serif;font-size:24px;color:#1a1a1a;">🎩 <strong>Alfred</strong></div>
-      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Finanças Milionárias</div>
+      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Domus</div>
     </div>
     <h1 style="font-family:Georgia,serif;font-size:22px;color:#1a1a1a;margin:0 0 16px;">Confirmar novo email</h1>
     <p style="color:#444;font-size:15px;">Você pediu para trocar o email de acesso da sua conta para <strong>{{ .NewEmail }}</strong>.</p>
@@ -126,7 +126,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
       <strong>⚠ Não solicitou esta troca?</strong> Acesse imediatamente sua conta, altere a senha e ignore este email.
     </div>
     <div style="border-top:1px solid #eee;margin-top:28px;padding-top:20px;font-size:12px;color:#999;text-align:center;">
-      Ao seu dispor,<br><strong style="color:#666;">Alfred · Finanças Milionárias</strong>
+      Ao seu dispor,<br><strong style="color:#666;">Alfred · Domus</strong>
     </div>
   </div>
 </body></html>
@@ -136,7 +136,7 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
 
 ## 5. Invite User (convidar usuário — opcional, pra futuro)
 
-**Subject:** 🎩 Você foi convidado — Finanças Milionárias
+**Subject:** 🎩 Você foi convidado — Domus
 
 **Message body:**
 
@@ -147,15 +147,15 @@ Existem 5 templates pra customizar. Cole o HTML de cada seção no template corr
   <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;padding:32px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">
     <div style="text-align:center;border-bottom:1px solid #eee;padding-bottom:20px;margin-bottom:24px;">
       <div style="font-family:Georgia,serif;font-size:24px;color:#1a1a1a;">🎩 <strong>Alfred</strong></div>
-      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Finanças Milionárias</div>
+      <div style="font-size:12px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">Domus</div>
     </div>
     <h1 style="font-family:Georgia,serif;font-size:22px;color:#1a1a1a;margin:0 0 16px;">Você foi convidado.</h1>
-    <p style="color:#444;font-size:15px;">Permita-me dar as boas-vindas. Você foi convidado a fazer parte do <strong>Finanças Milionárias</strong> — onde cuidaremos das suas finanças com a discrição e o zelo que merecem.</p>
+    <p style="color:#444;font-size:15px;">Permita-me dar as boas-vindas. Você foi convidado a fazer parte do <strong>Domus</strong> — onde cuidaremos das suas finanças com a discrição e o zelo que merecem.</p>
     <div style="text-align:center;margin:24px 0;">
       <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 28px;background:linear-gradient(180deg,#c9a961,#a88a4a);color:#0a0d18;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;">Aceitar convite</a>
     </div>
     <div style="border-top:1px solid #eee;margin-top:28px;padding-top:20px;font-size:12px;color:#999;text-align:center;">
-      Ao seu dispor,<br><strong style="color:#666;">Alfred · Finanças Milionárias</strong>
+      Ao seu dispor,<br><strong style="color:#666;">Alfred · Domus</strong>
     </div>
   </div>
 </body></html>
@@ -175,7 +175,7 @@ Pra os emails saírem com seu domínio (e não com o `noreply@supabase.co`):
 | Campo | Valor |
 |---|---|
 | **Sender email** | `onboarding@resend.dev` (ou seu domínio se já verificou) |
-| **Sender name** | `Alfred — Finanças Milionárias` |
+| **Sender name** | `Alfred — Domus` |
 | **Host** | `smtp.resend.com` |
 | **Port** | `465` |
 | **Username** | `resend` |

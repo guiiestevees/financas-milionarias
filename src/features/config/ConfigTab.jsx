@@ -54,7 +54,7 @@ function sanitizeMoneyInput(raw) {
 // ---------- BrandConfig ----------
 function BrandConfig({ brand, updateBrand }) {
   const [name, setName] = useState(brand?.name || '')
-  const [subtitle, setSubtitle] = useState(brand?.subtitle || 'Finanças Milionárias')
+  const [subtitle, setSubtitle] = useState(brand?.subtitle || 'Domus')
   return (
     <Card className="p-6" accent="gold">
       <SectionTitle icon={Sparkles} title="Identidade do app" subtitle="Personalize o título que aparece no topo." accent="gold" />
@@ -66,8 +66,8 @@ function BrandConfig({ brand, updateBrand }) {
         </div>
         <div>
           <label className="uppercase text-white/45 mb-1.5 block" style={{ fontSize: '10px', letterSpacing: '0.1em' }}>Nome do app (subtítulo grande)</label>
-          <TextInput value={subtitle} onChange={setSubtitle} onBlur={() => updateBrand({ subtitle: subtitle.trim() || 'Finanças Milionárias' })} placeholder="Finanças Milionárias" />
-          <div className="text-xs text-white/40 mt-1">Padrão: "Finanças Milionárias". Última palavra recebe o destaque dourado.</div>
+          <TextInput value={subtitle} onChange={setSubtitle} onBlur={() => updateBrand({ subtitle: subtitle.trim() || 'Domus' })} placeholder="Domus" />
+          <div className="text-xs text-white/40 mt-1">Padrão: "Domus". Última palavra recebe o destaque dourado.</div>
         </div>
       </div>
     </Card>

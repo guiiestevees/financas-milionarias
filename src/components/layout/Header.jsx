@@ -81,7 +81,7 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   }
 
   const displayName = brand?.name?.trim() || 'Seu nome aqui'
-  const subtitle = brand?.subtitle || 'Finanças Milionárias'
+  const subtitle = brand?.subtitle || 'Domus'
   const hasName = !!brand?.name?.trim()
 
   return (

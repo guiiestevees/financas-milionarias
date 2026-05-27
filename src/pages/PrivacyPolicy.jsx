@@ -43,7 +43,7 @@ export default function PrivacyPolicy() {
 
         <SectionTitle>1. Quem somos</SectionTitle>
         <P>
-          O <strong className="text-white/90">Finanças Milionárias</strong> é um aplicativo de gestão financeira pessoal.
+          O <strong className="text-white/90">Domus</strong> é um aplicativo de gestão financeira pessoal.
           Esta política descreve como tratamos seus dados pessoais, em conformidade com a Lei Geral de
           Proteção de Dados (LGPD — Lei nº 13.709/2018).
         </P>

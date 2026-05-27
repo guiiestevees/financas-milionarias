@@ -33,7 +33,7 @@ export default function AuthLayout() {
         <div className="flex items-center justify-center gap-2 mb-3">
           <Sparkles size={14} style={{ color: '#d4af37' }} />
           <span style={{ letterSpacing: '0.25em', color: '#d4af37', fontSize: '11px' }} className="uppercase">
-            Finanças Milionárias
+            Domus
           </span>
         </div>
         <h1

@@ -80,7 +80,7 @@ export async function createOrFindCustomer({ userId, name, email, cpfCnpj, phone
 
   // Cria novo
   const payload = {
-    name: name || email || 'Usuário Finanças Milionárias',
+    name: name || email || 'Usuário Domus',
     email: email || undefined,
     cpfCnpj: cpfCnpj || undefined,
     mobilePhone: phone || undefined,
@@ -114,7 +114,7 @@ export async function createSubscription({ customerId, planId, billingType = 'UN
     nextDueDate: firstDueDate,
     value: plan.value,
     cycle: plan.cycle,
-    description: `${plan.name} — Finanças Milionárias`,
+    description: `${plan.name} — Domus`,
     externalReference: `plan:${planId}`,
   }
 
@@ -196,7 +196,7 @@ export async function createSubscriptionWithCard({ customerId, planId, cardData,
     nextDueDate: firstDueDate,
     value: plan.value,
     cycle: plan.cycle,
-    description: `${plan.name} — Finanças Milionárias`,
+    description: `${plan.name} — Domus`,
     externalReference: `plan:${planId}`,
     creditCard: {
       holderName: cardData.holderName,

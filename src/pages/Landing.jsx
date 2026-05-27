@@ -28,7 +28,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <Sparkles size={14} style={{ color: '#d4af37' }} />
             <span style={{ letterSpacing: '0.2em', color: '#d4af37', fontSize: '11px' }} className="uppercase font-semibold">
-              Finanças Milionárias
+              Domus
             </span>
           </div>
           <Link
@@ -479,7 +479,7 @@ function Footer() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Sparkles size={12} style={{ color: '#d4af37' }} />
-          <span className="text-xs text-white/40">Finanças Milionárias © {new Date().getFullYear()}</span>
+          <span className="text-xs text-white/40">Domus © {new Date().getFullYear()}</span>
         </div>
         <div className="flex items-center gap-5 text-xs text-white/40">
           <Link to="/privacidade" className="hover:text-white/65 transition">Política de Privacidade</Link>

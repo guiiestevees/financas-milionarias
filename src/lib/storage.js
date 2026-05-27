@@ -42,7 +42,7 @@ async function supabaseLoad() {
 
   return {
     months,
-    brand: profileRes.data?.brand ?? { name: '', subtitle: 'Finanças Milionárias' },
+    brand: profileRes.data?.brand ?? { name: '', subtitle: 'Domus' },
     cofres: Array.isArray(profileRes.data?.cofres) ? profileRes.data.cofres : [],
     whatsappPhone: profileRes.data?.whatsapp_phone || null,
     pendingActions: Array.isArray(profileRes.data?.pending_actions) ? profileRes.data.pending_actions : [],
@@ -79,7 +79,7 @@ async function supabaseSave(appData) {
       .upsert(
         {
           user_id: user.id,
-          brand: appData.brand ?? { name: '', subtitle: 'Finanças Milionárias' },
+          brand: appData.brand ?? { name: '', subtitle: 'Domus' },
           cofres: Array.isArray(appData.cofres) ? appData.cofres : [],
           whatsapp_phone: appData.whatsappPhone || null,
           pending_actions: Array.isArray(appData.pendingActions) ? appData.pendingActions : [],

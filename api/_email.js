@@ -104,14 +104,14 @@ function wrap({ title, body, cta }) {
         🎩 <strong>Alfred</strong>
       </div>
       <div style="font-size: 12px; color: #888; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 4px;">
-        Finanças Milionárias
+        Domus
       </div>
     </div>
     <h1 style="font-family: Georgia, serif; font-size: 22px; color: #1a1a1a; margin: 0 0 16px;">${title}</h1>
     <div style="color: #444; font-size: 15px;">${body}</div>
     ${cta ? `<div style="text-align: center; margin-top: 24px;"><a href="${cta.href}" style="${ctaStyles}">${cta.label}</a></div>` : ''}
     <div style="border-top: 1px solid #eee; margin-top: 28px; padding-top: 20px; font-size: 12px; color: #999; text-align: center;">
-      Ao seu dispor,<br><strong style="color: #666;">Alfred · Finanças Milionárias</strong>
+      Ao seu dispor,<br><strong style="color: #666;">Alfred · Domus</strong>
     </div>
   </div>
 </body></html>`

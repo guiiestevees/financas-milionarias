@@ -1,7 +1,7 @@
 {
-  "name": "Finanças Milionárias",
-  "short_name": "Finanças",
-  "description": "Controle suas finanças pessoais",
+  "name": "Domus — Mordomo Financeiro",
+  "short_name": "Domus",
+  "description": "Cuidado financeiro com a discrição de um mordomo. Converse com Alfred no WhatsApp.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#070912",

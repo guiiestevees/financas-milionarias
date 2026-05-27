@@ -2,7 +2,7 @@ import { safeConfig, safeCofre } from './constants'
 
 const DEFAULT_DATA = () => ({
   months: {},
-  brand: { name: '', subtitle: 'Finanças Milionárias' },
+  brand: { name: '', subtitle: 'Domus' },
   cofres: [],
   whatsappPhone: null,
   pendingActions: [],
@@ -84,7 +84,7 @@ export const migrateData = (data) => {
 
   return {
     ...dataRest,
-    brand: data.brand || { name: '', subtitle: 'Finanças Milionárias' },
+    brand: data.brand || { name: '', subtitle: 'Domus' },
     months,
     currentMonth,
     cofres,

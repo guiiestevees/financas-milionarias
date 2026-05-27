@@ -195,7 +195,7 @@ export default function Assinar() {
         {/* ============ HEADER ============ */}
         <div className="text-center mb-8">
           <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
-            Assinar Finanças Milionárias
+            Assinar Domus
           </h1>
           <p className="text-white/65 text-sm max-w-lg mx-auto leading-relaxed">
             🎩 Escolha seu plano e forma de pagamento — Alfred fica ao seu dispor logo em seguida.

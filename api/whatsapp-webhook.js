@@ -20,7 +20,7 @@ const WHISPER_MODEL = 'whisper-1'
 // ---------- Onboarding / Help ----------
 const ONBOARDING_MESSAGE = `🎩 *Ao seu dispor.*
 
-Eu sou *Alfred*, seu mordomo financeiro do *Finanças Milionárias*. Cuidarei das suas finanças com a discrição e o zelo que merecem. 🦇
+Eu sou *Alfred*, seu mordomo financeiro do *Domus*. Cuidarei das suas finanças com a discrição e o zelo que merecem. 🦇
 
 💡 _Permita-me uma sugestão:_ salve este contato como *Alfred* — fica mais fácil me chamar quando precisar.
 
@@ -147,7 +147,7 @@ export default async function handler(req, res) {
 
     if (profileErr) console.error('profile lookup error:', profileErr)
     if (!profile) {
-      await sendWhatsApp(from, '🎩 Olá. Este número ainda não está vinculado a uma conta do Finanças Milionárias. Permita-me orientar: abra o aplicativo, vá em Configurações → WhatsApp e cadastre seu número. Aguardarei seu retorno.')
+      await sendWhatsApp(from, '🎩 Olá. Este número ainda não está vinculado a uma conta do Domus. Permita-me orientar: abra o aplicativo, vá em Configurações → WhatsApp e cadastre seu número. Aguardarei seu retorno.')
       return res.status(200).json({ ok: true })
     }
 

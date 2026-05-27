@@ -803,7 +803,7 @@ export default function AppShell() {
     return <SubscriptionBlocked reason={reason} />
   }
 
-  const brand = data.brand || { name: '', subtitle: 'Finanças Milionárias' }
+  const brand = data.brand || { name: '', subtitle: 'Domus' }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#070912' }}>
