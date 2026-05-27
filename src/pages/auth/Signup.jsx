@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
+import EmailInput from '../../components/EmailInput'
 
 const inputStyle = {
   background: 'rgba(255,255,255,0.04)',
@@ -38,12 +39,16 @@ export default function Signup() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [emailConfirm, setEmailConfirm] = useState('')
   const [cpf, setCpf] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Email mismatch ao vivo (só mostra se o user já digitou algo no campo confirmar)
+  const emailMismatch = emailConfirm.length > 0 && email.trim().toLowerCase() !== emailConfirm.trim().toLowerCase()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -52,6 +57,10 @@ export default function Signup() {
     // Validações obrigatórias
     if (!name.trim()) { setError('Informe seu nome'); return }
     if (!email.trim()) { setError('Informe seu email'); return }
+    if (email.trim().toLowerCase() !== emailConfirm.trim().toLowerCase()) {
+      setError('Os emails não coincidem. Confira se digitou exatamente igual nos dois campos.')
+      return
+    }
 
     const cpfDigits = cpf.replace(/\D/g, '')
     if (cpfDigits.length !== 11) {
@@ -100,6 +109,16 @@ export default function Signup() {
       } else {
         setError(err.message)
       }
+      return
+    }
+
+    // Detecta "email já cadastrado" no fluxo silencioso do Supabase
+    // (quando o email já existe, Supabase retorna data.user sem identities
+    // — sem erro explícito, por anti-enumeration. A gente captura aqui.)
+    const identities = data?.user?.identities
+    if (Array.isArray(identities) && identities.length === 0) {
+      setLoading(false)
+      setError('Este email já está cadastrado. Tente entrar — ou recupere a senha por "Esqueceu a senha?".')
       return
     }
 
@@ -160,16 +179,34 @@ export default function Signup() {
         </div>
         <div>
           <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">E-mail</label>
-          <input
-            type="email"
+          <EmailInput
+            id="signup-email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={setEmail}
             placeholder="seu@email.com"
             required
             autoComplete="email"
-            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">Confirmar e-mail</label>
+          <input
+            type="email"
+            value={emailConfirm}
+            onChange={(e) => setEmailConfirm(e.target.value)}
+            placeholder="digite o e-mail de novo"
+            required
+            autoComplete="email"
+            onPaste={(e) => e.preventDefault()}
+            style={{
+              ...inputStyle,
+              border: `1px solid ${emailMismatch ? 'rgba(244,63,94,0.45)' : 'rgba(255,255,255,0.1)'}`,
+            }}
             className="placeholder:text-white/20 focus:border-white/25"
           />
+          {emailMismatch && (
+            <p className="text-xs text-rose-300 mt-1.5 px-1">⚠ Os emails não coincidem</p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">CPF</label>
@@ -242,16 +279,16 @@ export default function Signup() {
 
       <button
         type="submit"
-        disabled={loading || !acceptedPrivacy}
+        disabled={loading || !acceptedPrivacy || emailMismatch}
         style={{
-          background: (loading || !acceptedPrivacy) ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
+          background: (loading || !acceptedPrivacy || emailMismatch) ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.9)',
           color: '#070912',
           fontWeight: 600,
           width: '100%',
           padding: '11px',
           borderRadius: 10,
           fontSize: 14,
-          cursor: (loading || !acceptedPrivacy) ? 'not-allowed' : 'pointer',
+          cursor: (loading || !acceptedPrivacy || emailMismatch) ? 'not-allowed' : 'pointer',
           border: 'none',
           transition: 'opacity 0.15s',
         }}
