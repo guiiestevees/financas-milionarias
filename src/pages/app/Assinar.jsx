@@ -78,7 +78,7 @@ const METHODS = [
   {
     id: 'PIX_AUTOMATIC',
     name: 'PIX Automático',
-    description: 'Pague o primeiro PIX e autorize débito recorrente no app do banco',
+    description: 'Pague o primeiro QR Code e autorize débito automático mensal no seu banco — sem QR todo mês',
     icon: Zap,
     accent: '#10b981',
     accentSoft: 'rgba(16,185,129,0.08)',

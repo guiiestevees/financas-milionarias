@@ -8,7 +8,7 @@
 // Response: { status, isPaid, isPending, isFailed, paidAt? }
 
 import { createClient } from '@supabase/supabase-js'
-import { getPayment, nextExpirationDate, PLANS } from './_asaas.js'
+import { getPayment, getPixAutomaticAuthorization, nextExpirationDate, PLANS } from './_asaas.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -39,12 +39,33 @@ export default async function handler(req, res) {
     const paymentId = req.query.paymentId
     if (!paymentId) return res.status(400).json({ error: 'paymentId obrigatório' })
 
-    const payment = await getPayment(paymentId)
+    // Tenta primeiro como pagamento normal. Se 404, tenta como autorização
+    // de Pix Automático (que tem outro endpoint).
+    let payment = null
+    let isAuthorization = false
+    try {
+      payment = await getPayment(paymentId)
+    } catch (e) {
+      if (e?.status === 404) {
+        try {
+          payment = await getPixAutomaticAuthorization(paymentId)
+          isAuthorization = true
+        } catch (e2) {
+          console.warn('Nem pagamento nem autorização encontrados pra id:', paymentId)
+          throw e2
+        }
+      } else {
+        throw e
+      }
+    }
+
     const status = payment?.status || 'UNKNOWN'
 
-    const isPaid = ['RECEIVED', 'CONFIRMED'].includes(status)
+    // Status de Payment: RECEIVED, CONFIRMED, PENDING, REFUNDED, OVERDUE, DELETED
+    // Status de Authorization Pix Automático: ACTIVATED, PENDING, REFUSED, etc
+    const isPaid = ['RECEIVED', 'CONFIRMED', 'ACTIVATED'].includes(status)
     const isPending = ['PENDING'].includes(status)
-    const isFailed = ['REFUNDED', 'OVERDUE', 'DELETED'].includes(status)
+    const isFailed = ['REFUNDED', 'OVERDUE', 'DELETED', 'REFUSED', 'CANCELLED'].includes(status)
 
     // ============================================================
     // 🚀 Atualização defensiva: quando detectamos pagamento confirmado,
@@ -57,14 +78,20 @@ export default async function handler(req, res) {
         const a = admin()
         const { data: profile } = await a
           .from('user_profiles')
-          .select('subscription_status, last_payment_id, asaas_customer_id, asaas_subscription_id')
+          .select('subscription_status, last_payment_id, asaas_customer_id, asaas_subscription_id, pix_automatic_authorization_id')
           .eq('user_id', user.id)
           .maybeSingle()
 
-        // Só processa se ainda não foi processado e o pagamento pertence a este user
+        // Verifica que o pagamento/autorização pertence a este user.
+        // Pra Pix Automático, comparamos pelo authorization_id no profile.
+        // Pra outros, comparamos pelo customer.
+        const belongsToUser = isAuthorization
+          ? profile?.pix_automatic_authorization_id === paymentId
+          : profile?.asaas_customer_id === payment.customer
+
         if (profile
           && profile.last_payment_id !== paymentId
-          && profile.asaas_customer_id === payment.customer) {
+          && belongsToUser) {
           const value = Number(payment.value) || 0
           const planId = value >= 50 ? 'annual' : 'monthly'
           const until = nextExpirationDate(planId)
@@ -78,7 +105,7 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString(),
           }).eq('user_id', user.id)
 
-          console.log(`✅ Polling antecipou ativação: user ${user.id} → ${planId}`)
+          console.log(`✅ Polling antecipou ativação: user ${user.id} → ${planId} (${isAuthorization ? 'pix-auto' : 'payment'})`)
         }
       } catch (err) {
         // Se falhar, não bloqueia a resposta — webhook eventualmente atualiza

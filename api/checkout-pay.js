@@ -19,6 +19,7 @@ import {
   createOrFindCustomer,
   createSubscription,
   createSubscriptionWithCard,
+  createPixAutomaticAuthorization,
   getFirstChargeUrl,
   getPixQrCode,
   PLANS,
@@ -99,7 +100,64 @@ export default async function handler(req, res) {
       phone: holder.phone,
     })
 
-    // 4) Cria assinatura conforme método
+    // 4) Cria recurso conforme método (subscription pra cartão/pix comum,
+    //    ou authorization pra Pix Automático Bacen)
+    const cpfClean = String(holder.cpfCnpj || '').replace(/\D/g, '')
+    const isCpf = cpfClean.length === 11
+
+    // ============= PIX AUTOMÁTICO (Bacen — fluxo de Adesão Imediata) =============
+    if (method === 'PIX_AUTOMATIC') {
+      // Cria AUTORIZAÇÃO de Pix Automático com pagamento imediato.
+      // O QR Code retornado paga o primeiro PIX e autoriza débitos
+      // recorrentes futuros no app do banco do cliente.
+      let authorization
+      try {
+        authorization = await createPixAutomaticAuthorization({
+          customerId: customer.id,
+          planId,
+        })
+      } catch (e) {
+        console.error('Falha ao criar autorização Pix Automático:', e?.data || e?.message)
+        return res.status(500).json({
+          error: 'Não foi possível criar autorização de Pix Automático no momento. Tente com Cartão ou PIX comum.',
+          detail: e?.data,
+        })
+      }
+
+      console.log('💚 Pix Automático authorization created:', JSON.stringify(authorization).slice(0, 500))
+
+      // Salva o authorization id no profile (precisamos pra criar cobranças
+      // mensais via cron job futuro)
+      const profileUpdate = {
+        asaas_customer_id: customer.id,
+        pix_automatic_authorization_id: authorization.id,
+        updated_at: new Date().toISOString(),
+      }
+      if (isCpf) profileUpdate.cpf = cpfClean
+      await admin().from('user_profiles').update(profileUpdate).eq('user_id', user.id)
+
+      // Extrai o QR Code da resposta. Asaas pode retornar em vários formatos —
+      // tentamos os mais comuns. Se nenhum bater, logamos pra debugar.
+      const qrCode = authorization.qrCode || authorization.pixQrCode || {}
+      if (!qrCode.encodedImage && !qrCode.payload) {
+        console.warn('⚠ Resposta sem QR Code óbvio:', JSON.stringify(authorization).slice(0, 500))
+      }
+
+      return res.status(200).json({
+        ok: true,
+        paymentId: authorization.id,  // usamos authorization.id pra polling
+        authorizationId: authorization.id,
+        method,
+        value: plan.value,
+        qrCode: {
+          encodedImage: qrCode.encodedImage || null,
+          payload: qrCode.payload || null,
+          expirationDate: qrCode.expirationDate || null,
+        },
+      })
+    }
+
+    // ============= CARTÃO ou PIX COMUM (via subscription) =============
     let subscription
     if (method === 'CREDIT_CARD') {
       // Cobrança imediata no cartão
@@ -125,21 +183,16 @@ export default async function handler(req, res) {
         trialDays: 0,
       })
     } else {
-      // PIX ou PIX_AUTOMATIC — cria assinatura, primeira cobrança gera o QR.
-      // Asaas usa billingType='PIX' nos 2 casos; a autorização recorrente
-      // (PIX Automático) é opt-in que o cliente faz no app do banco dele.
+      // PIX comum — cria assinatura, Asaas gera QR Code novo a cada vencimento
       subscription = await createSubscription({
         customerId: customer.id,
         planId,
-        billingType: asaasBillingType,  // sempre 'PIX' (mapeado)
+        billingType: 'PIX',
         trialDays: 0,
       })
     }
 
-    // 5) Salva refs no profile (incluindo CPF — útil pra login com CPF depois)
-    // Só salva CPF se for CPF (11 dígitos) — pra CNPJ a gente não vincula login
-    const cpfClean = String(holder.cpfCnpj || '').replace(/\D/g, '')
-    const isCpf = cpfClean.length === 11
+    // 5) Salva refs no profile
     const profileUpdate = {
       asaas_customer_id: customer.id,
       asaas_subscription_id: subscription.id,
@@ -161,8 +214,7 @@ export default async function handler(req, res) {
     }
 
     // 7) Resposta por método
-    if (method === 'PIX' || method === 'PIX_AUTOMATIC') {
-      // Busca QR Code (vale pra ambos — Asaas gera QR mesmo pra PIX Automático)
+    if (method === 'PIX') {
       const qrCode = await getPixQrCode(firstPayment.id)
       return res.status(200).json({
         ok: true,
@@ -170,7 +222,7 @@ export default async function handler(req, res) {
         subscriptionId: subscription.id,
         method,
         value: firstPayment.value,
-        invoiceUrl: firstPayment.invoiceUrl,   // link fallback pra PIX Automático (se cliente preferir link)
+        invoiceUrl: firstPayment.invoiceUrl,
         qrCode: {
           encodedImage: qrCode.encodedImage,
           payload: qrCode.payload,

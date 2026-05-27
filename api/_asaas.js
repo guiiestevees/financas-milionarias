@@ -165,6 +165,51 @@ export async function getPixQrCode(paymentId) {
   return asaasFetch(`/payments/${paymentId}/pixQrCode`)
 }
 
+// ---------- PIX Automático (Adesão Imediata) ----------
+/**
+ * Cria uma autorização de PIX Automático com adesão imediata.
+ * O QR Code retornado paga o primeiro PIX E autoriza débito recorrente
+ * para os próximos meses, tudo no mesmo escaneamento.
+ *
+ * Bacen Pix Automático — exige que o banco do cliente suporte.
+ *
+ * @param customerId   ID do cliente no Asaas
+ * @param planId       'monthly' ou 'annual'
+ * @returns objeto com id da autorização + QR Code
+ */
+export async function createPixAutomaticAuthorization({ customerId, planId }) {
+  const plan = PLANS[planId]
+  if (!plan) throw new Error(`Plano inválido: ${planId}`)
+
+  // frequency aceita: WEEKLY, MONTHLY, QUARTERLY, SEMIANNUALLY, YEARLY
+  const frequency = plan.cycle === 'YEARLY' ? 'YEARLY' : 'MONTHLY'
+
+  // Hoje (o cliente paga agora E autoriza débitos futuros no mesmo ato)
+  const startDate = new Date().toISOString().slice(0, 10)
+
+  const payload = {
+    customer: customerId,
+    value: plan.value,
+    frequency,
+    startDate,
+    description: `${plan.name} — Domus`,
+    originType: 'IMMEDIATE_PAYMENT_AND_RECURRING_QR_CODE',
+    externalReference: `plan:${planId}`,
+  }
+
+  return asaasFetch('/pix/automatic/authorizations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
+ * Busca status de uma autorização Pix Automático (pra polling).
+ */
+export async function getPixAutomaticAuthorization(authorizationId) {
+  return asaasFetch(`/pix/automatic/authorizations/${authorizationId}`)
+}
+
 /**
  * Busca status de um pagamento (pra polling do PIX).
  */

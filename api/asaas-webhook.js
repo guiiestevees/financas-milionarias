@@ -81,6 +81,12 @@ export default async function handler(req, res) {
         break
       }
 
+      // Pix Automático: cliente pagou o primeiro QR + autorizou débito recorrente
+      case 'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED': {
+        await handlePixAutomaticActivated(admin, event)
+        break
+      }
+
       default:
         console.log(`⏭ Evento ignorado: ${eventType}`)
     }
@@ -355,4 +361,65 @@ async function sendCancelledEmail({ admin, userId, until }) {
   if (!email) return
   const tpl = subscriptionCancelledEmail({ name: '', validUntil: until })
   await sendEmail({ to: email, ...tpl })
+}
+
+// ---------- Pix Automático: autorização ativada ----------
+// Disparado quando cliente paga o primeiro QR de Pix Automático E
+// autoriza débitos recorrentes no banco. A partir daí, podemos criar
+// cobranças futuras vinculadas à autorização (via cron job).
+async function handlePixAutomaticActivated(admin, event) {
+  // O Asaas pode mandar a info em diferentes campos — pegamos o que tiver
+  const auth = event?.pixAutomaticAuthorization || event?.authorization || event?.payment || {}
+  const authId = auth.id || event?.id
+
+  if (!authId) {
+    console.warn('PIX_AUTOMATIC_ACTIVATED sem id de autorização:', JSON.stringify(event).slice(0, 300))
+    return
+  }
+
+  // Acha o usuário pelo authorization_id que salvamos no checkout-pay
+  const { data: profile } = await admin
+    .from('user_profiles')
+    .select('user_id, whatsapp_phone, subscription_status')
+    .eq('pix_automatic_authorization_id', authId)
+    .maybeSingle()
+
+  if (!profile) {
+    console.warn(`PIX Automático ativado pra auth ${authId}, mas não achei o usuário`)
+    return
+  }
+
+  // Determina plano pelo valor (assume mensal — anual também passa)
+  const value = Number(auth.value) || 0
+  const planId = value >= 50 ? 'annual' : 'monthly'
+  const until = nextExpirationDate(planId)
+  const wasFirstPayment = profile.subscription_status !== 'active'
+
+  await admin
+    .from('user_profiles')
+    .update({
+      subscription_status: 'active',
+      subscription_until: until,
+      subscription_plan: planId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', profile.user_id)
+
+  console.log(`✅ Pix Automático ativado: user ${profile.user_id} → ${planId} até ${until}`)
+
+  // Notificações (mesmo padrão dos outros pagamentos)
+  const plan = PLANS[planId]
+  await Promise.allSettled([
+    sendPaymentConfirmedWhatsApp({
+      to: profile.whatsapp_phone,
+      planName: plan?.name || planId,
+      value: value || plan?.value || 0,
+      isFirst: wasFirstPayment,
+    }),
+    sendPaymentConfirmedEmail({
+      admin, userId: profile.user_id,
+      planName: plan?.name || planId,
+      value: value || plan?.value || 0, until,
+    }),
+  ])
 }
