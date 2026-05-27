@@ -437,9 +437,9 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
 
   return (
     <Card className="p-4 sm:p-6" accent="rose">
-      <SectionTitle icon={Target} title="Orçamentos do mês" subtitle="Clique no orçamento para ver lançamentos. Use o + pra adicionar." accent="rose" />
+      <SectionTitle icon={Target} title="Orçamentos do mês" subtitle="Toque no orçamento pra expandir. Use os botões pra adicionar gasto ou transferir saldo." accent="rose" />
       {categories.length === 0 ? <Empty text="Cadastre orçamentos em Configurações pra controlar limites mensais" /> : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {categories.map((c) => {
             const a = accents[c.accent] || accents.rose
             const remaining = (c.budget || 0) - c.spent
@@ -449,56 +449,87 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
             const isExpanded = expanded === c.name
             const items = c.items || []
             return (
-              <div key={c.name}>
-                <div className="flex items-center justify-between mb-1.5 gap-2">
-                  <button
-                    onClick={() => setExpanded(isExpanded ? null : c.name)}
-                    className="flex items-center gap-2 text-sm min-w-0 flex-1 text-left hover:opacity-80 transition"
-                    title={items.length > 0 ? `${items.length} lançamento(s)` : 'Nenhum lançamento'}
-                  >
-                    <div style={{ background: a.soft, color: a.hex }} className="p-1 rounded-md shrink-0"><Target size={12} /></div>
-                    <span className="font-medium truncate">{c.name}</span>
-                    {items.length > 0 && (
-                      <span className="text-xs text-white/35 shrink-0">{items.length}</span>
-                    )}
-                    <ChevronDown size={12} className={`text-white/30 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-xs tabular-nums">
-                      <span style={{ color: over ? accents.rose.hex : 'white' }}>{fmtBRL(c.spent)}</span>
-                      <span className="text-white/40"> / {fmtBRL(c.budget)}</span>
-                    </span>
-                    <button
-                      onClick={() => setTransferFrom(c)}
-                      title="Transferir ou liberar"
-                      className="p-1.5 rounded transition shrink-0 text-white/55 hover:text-white hover:bg-white/5"
-                    >
-                      <ArrowLeftRight size={12} />
-                    </button>
-                    <button onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(''); setQuickDesc('') }}
-                            className="p-1.5 rounded transition shrink-0"
-                            style={{ background: quickOpen ? a.soft : 'rgba(255,255,255,0.05)', color: quickOpen ? a.hex : 'rgba(255,255,255,0.55)' }}>
-                      {quickOpen ? <X size={12} /> : <Plus size={12} />}
-                    </button>
+              <div key={c.name} className="rounded-xl p-3 sm:p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                {/* ===== HEADER: nome em destaque ===== */}
+                <button
+                  onClick={() => setExpanded(isExpanded ? null : c.name)}
+                  className="w-full flex items-center gap-3 text-left hover:opacity-90 transition mb-3 -m-1 p-1 rounded-lg"
+                  title={items.length > 0 ? `${items.length} lançamento(s)` : 'Toque pra expandir'}
+                >
+                  <div style={{ background: a.soft, color: a.hex }} className="p-2 rounded-lg shrink-0">
+                    <Target size={16} />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-base sm:text-lg truncate">{c.name}</span>
+                      {items.length > 0 && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)' }}>
+                          {items.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronDown size={16} className={`text-white/35 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* ===== VALORES: gastou / orçamento ===== */}
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums">
+                    <span className="text-lg font-semibold" style={{ color: over ? accents.rose.hex : 'white' }}>{fmtBRL(c.spent)}</span>
+                    <span className="text-xs text-white/40"> de {fmtBRL(c.budget)}</span>
+                  </div>
+                  <span className={`text-xs font-medium shrink-0 ${over ? 'text-rose-400' : 'text-emerald-300/75'}`}>
+                    {over ? `${pct.toFixed(0)}%` : `${(100 - pct).toFixed(0)}% disponível`}
+                  </span>
                 </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <div className="h-full transition-all" style={{
+
+                {/* ===== PROGRESSO ===== */}
+                <div className="h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full transition-all duration-500" style={{
                     width: `${Math.min(100, pct)}%`,
                     background: over ? `linear-gradient(90deg, ${accents.rose.hex}, ${accents.amber.hex})` : `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`,
                     boxShadow: `0 0 12px ${a.glow}`,
                   }} />
                 </div>
-                <div className="flex justify-between text-xs text-white/45 mt-1">
-                  <span>{pct.toFixed(0)}% gasto</span>
-                  <span className={over ? 'text-rose-400' : ''}>{over ? 'Estourou ' : 'Sobra '}{fmtBRL(Math.abs(remaining))}</span>
+
+                {/* ===== SOBRA / ESTOUROU ===== */}
+                <div className={`text-xs mb-3 ${over ? 'text-rose-400 font-medium' : 'text-white/55'}`}>
+                  {over ? `🔴 Estourou em ${fmtBRL(Math.abs(remaining))}` : `Sobra ${fmtBRL(remaining)}`}
                 </div>
+
                 {c.adjusted && (
-                  <div className="text-xs text-amber-300/75 mt-1 flex items-center gap-1">
-                    <ArrowLeftRight size={10} />
-                    Ajustado esse mês (era {fmtBRL(c.originalBudget)})
+                  <div className="text-xs text-amber-300/75 mb-3 flex items-center gap-1.5 px-2 py-1 rounded" style={{ background: 'rgba(245,158,11,0.06)' }}>
+                    <ArrowLeftRight size={11} />
+                    <span>Ajustado esse mês (era {fmtBRL(c.originalBudget)})</span>
                   </div>
                 )}
+
+                {/* ===== AÇÕES: 2 botões grandes ===== */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(''); setQuickDesc('') }}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition"
+                    style={{
+                      background: quickOpen ? a.soft : `${a.soft}80`,
+                      color: a.hex,
+                      border: `1px solid ${a.hex}30`,
+                    }}
+                  >
+                    {quickOpen ? <><X size={15} /> Fechar</> : <><Plus size={15} /> Adicionar gasto</>}
+                  </button>
+                  <button
+                    onClick={() => setTransferFrom(c)}
+                    title="Transferir saldo pra outro orçamento ou pro caixa"
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'rgba(255,255,255,0.75)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <ArrowLeftRight size={15} /> Transferir
+                  </button>
+                </div>
                 {quickOpen && (
                   <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
                     <input
