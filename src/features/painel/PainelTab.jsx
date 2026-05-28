@@ -3,7 +3,7 @@ import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
   X, Plus, Pencil, Trash2, ChevronDown, PiggyBank, ArrowLeftRight, Wallet,
-  MessageCircle,
+  MessageCircle, PieChart as PieChartIcon,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard, Btn, Field, MoneyInput, Select } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
@@ -415,6 +415,198 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------- CategoryPieChart ----------
+// Donut SVG nativo (sem dependência externa) mostrando proporção de gastos
+// por categoria no mês. Cada fatia colorida com o accent da categoria.
+// Hover destaca a fatia.
+function CategoryPieChart({ categories, totalGeral }) {
+  const [hovered, setHovered] = useState(null)
+
+  // Só categorias com gasto > 0, ordenadas por valor desc.
+  const data = useMemo(() => {
+    return categories
+      .filter((c) => Number(c.spent) > 0)
+      .map((c) => ({
+        name: c.name,
+        value: Number(c.spent),
+        color: (accents[c.accent] || accents.rose).hex,
+        soft: (accents[c.accent] || accents.rose).soft,
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [categories])
+
+  const total = data.reduce((s, d) => s + d.value, 0)
+  if (data.length < 2 || total <= 0) return null  // só faz sentido com 2+ categorias
+
+  // Geometria do donut
+  const size = 200
+  const stroke = 32
+  const radius = (size - stroke) / 2
+  const circ = 2 * Math.PI * radius
+
+  // Calcula posição de cada fatia (cumulative offset)
+  let cum = 0
+  const arcs = data.map((d) => {
+    const pct = d.value / total
+    const len = circ * pct
+    const arc = {
+      ...d,
+      pct,
+      // strokeDasharray: "len gap" — desenha 'len' depois deixa o resto vazio
+      dasharray: `${len} ${circ - len}`,
+      // strokeDashoffset: começa N pra trás (em unidades de circumferência)
+      dashoffset: -circ * cum,
+    }
+    cum += pct
+    return arc
+  })
+
+  const showAsHovered = hovered != null ? data[hovered]?.name : null
+
+  // % das categorias sem gasto pra mostrar no rodapé
+  const semGasto = categories.length - data.length
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle
+        icon={PieChartIcon}
+        title="Gastos por categoria"
+        subtitle={`${data.length} categoria${data.length > 1 ? 's' : ''} ativa${data.length > 1 ? 's' : ''} no mês${semGasto > 0 ? ` · ${semGasto} sem gasto` : ''}`}
+        accent="violet"
+      />
+
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-7">
+        {/* Donut */}
+        <div className="relative shrink-0" style={{ width: size, height: size }}>
+          <svg
+            viewBox={`0 0 ${size} ${size}`}
+            style={{ transform: 'rotate(-90deg)' }}
+          >
+            {/* Anel de fundo sutil pra preencher buracos visuais */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="var(--bg-elev3)"
+              strokeWidth={stroke}
+            />
+            {arcs.map((arc, i) => {
+              const isHovered = hovered === i
+              const isOtherHovered = hovered != null && hovered !== i
+              return (
+                <circle
+                  key={arc.name}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="none"
+                  stroke={arc.color}
+                  strokeWidth={isHovered ? stroke + 4 : stroke}
+                  strokeDasharray={arc.dasharray}
+                  strokeDashoffset={arc.dashoffset}
+                  style={{
+                    opacity: isOtherHovered ? 0.35 : 1,
+                    cursor: 'pointer',
+                    transition: 'opacity 150ms ease, stroke-width 150ms ease',
+                  }}
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                />
+              )
+            })}
+          </svg>
+
+          {/* Centro: total ou nome+valor da fatia em hover */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-3 text-center">
+            {showAsHovered ? (
+              <>
+                <div className="text-[10px] uppercase tracking-widest mb-0.5 truncate max-w-full" style={{ color: 'var(--text-muted)' }}>
+                  {showAsHovered}
+                </div>
+                <div
+                  style={{ fontFamily: 'JetBrains Mono, monospace', color: data[hovered].color }}
+                  className="text-lg sm:text-xl font-semibold tabular-nums"
+                >
+                  {fmtBRL(data[hovered].value)}
+                </div>
+                <div className="text-xs tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
+                  {(data[hovered].pct * 100).toFixed(1)}%
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Total
+                </div>
+                <div
+                  style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                  className="text-lg sm:text-xl font-semibold tabular-nums"
+                >
+                  {fmtBRL(total)}
+                </div>
+                <div className="text-[10px] tabular-nums" style={{ color: 'var(--text-faint)' }}>
+                  em categorias
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Legenda */}
+        <div className="flex-1 min-w-0 w-full space-y-1.5">
+          {arcs.map((arc, i) => (
+            <button
+              key={arc.name}
+              type="button"
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              className="w-full flex items-center gap-2.5 py-1.5 px-2 rounded-lg transition text-left"
+              style={{
+                background: hovered === i ? arc.soft : 'transparent',
+              }}
+            >
+              <div
+                className="w-3 h-3 rounded shrink-0"
+                style={{ background: arc.color, boxShadow: hovered === i ? `0 0 0 2px ${arc.color}40` : 'none' }}
+              />
+              <span className="truncate flex-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {arc.name}
+              </span>
+              <span
+                style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                className="tabular-nums shrink-0 text-xs font-medium"
+              >
+                {fmtBRL(arc.value)}
+              </span>
+              <span
+                style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-muted)' }}
+                className="text-xs tabular-nums w-12 text-right shrink-0"
+              >
+                {(arc.pct * 100).toFixed(0)}%
+              </span>
+            </button>
+          ))}
+
+          {/* Indicador de "outros gastos" não categorizados (vs total geral de despesas) */}
+          {totalGeral > total && (
+            <div className="flex items-center gap-2.5 py-1.5 px-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <div className="w-3 h-3 rounded shrink-0" style={{ background: 'var(--border-strong)' }} />
+              <span className="truncate flex-1">Sem categoria</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums shrink-0">
+                {fmtBRL(totalGeral - total)}
+              </span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums w-12 text-right shrink-0">
+                {((totalGeral - total) / totalGeral * 100).toFixed(0)}%
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -1042,6 +1234,8 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
         <MetricCard label="Já pago" value={fmtBRL(agg.totalPago)} icon={CheckCircle2} accent="cyan" sub={agg.totalDespesas > 0 ? `${Math.round(agg.totalPago / agg.totalDespesas * 100)}% das despesas` : '—'} />
         <MetricCard label="A pagar" value={fmtBRL(agg.totalAPagar)} icon={Bell} accent="amber" sub={agg.totalAPagar > 0 ? 'ainda pendente' : 'tudo em dia 🎯'} />
       </div>
+      {/* Gráfico de pizza — só aparece com 2+ categorias com gasto > 0 */}
+      <CategoryPieChart categories={agg.categoryList} totalGeral={agg.totalDespesas} />
       {(showCards || showCategories || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} togglePaidDespesa={togglePaid} />
