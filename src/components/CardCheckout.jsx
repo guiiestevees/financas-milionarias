@@ -78,11 +78,29 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Pagamento recusado')
 
-      // Cartão processado — pode ser CONFIRMED ou PENDING (autorização)
-      setStatus('success')
-      playSuccess()  // 🎵 ding-ding refinado
-      // Aguarda webhook chegar e atualizar o status no banco
-      setTimeout(() => onSuccess?.(), 1500)
+      // Asaas pode retornar vários status. Só liberamos acesso pra
+      // cartão REALMENTE autorizado (CONFIRMED ou RECEIVED).
+      const cardStatus = data.status || 'UNKNOWN'
+
+      if (['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(cardStatus)) {
+        // ✅ Cartão autorizado, libera acesso
+        setStatus('success')
+        playSuccess()
+        setTimeout(() => onSuccess?.(), 1500)
+      } else if (cardStatus === 'AWAITING_RISK_ANALYSIS') {
+        // 🔍 Em análise antifraude — Asaas vai resolver em minutos/horas.
+        // NÃO libera acesso ainda.
+        throw new Error('Pagamento em análise antifraude. Aguarde o email de confirmação ou tente outra forma de pagamento.')
+      } else if (cardStatus === 'PENDING') {
+        // ⏳ Pendente — operadora não autorizou ainda ou recusou
+        throw new Error('Cartão não autorizado pela operadora. Verifique limite, dados e tente novamente — ou use outro cartão.')
+      } else if (['REFUSED', 'DELETED'].includes(cardStatus)) {
+        throw new Error('Pagamento recusado. Verifique os dados e tente outro cartão.')
+      } else {
+        // Status desconhecido — não libera, manda usuário tentar de novo
+        console.warn('Status inesperado:', cardStatus, data)
+        throw new Error(`Status inesperado (${cardStatus}). Tente novamente.`)
+      }
     } catch (err) {
       console.error('card payment error:', err)
       setError(err.message || 'Não foi possível processar o pagamento')
