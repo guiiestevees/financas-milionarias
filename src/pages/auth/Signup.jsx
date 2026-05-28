@@ -197,7 +197,14 @@ export default function Signup() {
     }
 
     setLoading(false)
-    navigate('/confirm')
+    // Se Email Confirmation tá DESLIGADO no Supabase, o signUp já cria sessão →
+    // mandamos pra /verify. Se ainda tá ligado, não há sessão, então cai em /confirm
+    // (fluxo antigo de "confirme seu email").
+    if (data?.session) {
+      navigate('/verify')
+    } else {
+      navigate('/confirm')
+    }
   }
 
   return (

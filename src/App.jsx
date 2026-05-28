@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { useVerified } from './hooks/useVerified'
 import AppShell from './pages/app/AppShell'
 import Assinar from './pages/app/Assinar'
 import AuthLayout from './pages/auth/AuthLayout'
@@ -8,6 +9,7 @@ import Signup from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Confirm from './pages/auth/Confirm'
+import VerifyAccount from './pages/auth/VerifyAccount'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
@@ -22,8 +24,21 @@ function FullscreenLoader() {
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return <FullscreenLoader />
+  const { verified, loading: vLoading } = useVerified()
+  if (loading || vLoading) return <FullscreenLoader />
   if (!user) return <Navigate to="/login" replace />
+  // Conta não verificada → forçar verificação antes de acessar o app
+  if (verified === false) return <Navigate to="/verify" replace />
+  return children
+}
+
+// Rota /verify só pra logados que AINDA NÃO verificaram
+function VerifyRoute({ children }) {
+  const { user, loading } = useAuth()
+  const { verified, loading: vLoading } = useVerified()
+  if (loading || vLoading) return <FullscreenLoader />
+  if (!user) return <Navigate to="/login" replace />
+  if (verified === true) return <Navigate to="/app" replace />
   return children
 }
 
@@ -61,6 +76,7 @@ export default function App() {
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/confirm" element={<Confirm />} />
+          <Route path="/verify" element={<VerifyRoute><VerifyAccount /></VerifyRoute>} />
         </Route>
 
         {/* Fallback: tudo desconhecido vai pra raiz */}
