@@ -229,64 +229,73 @@ function BudgetInput({ value, onChange }) {
 function CategoriesConfig({ config, setConfig }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
-  const [budget, setBudget] = useState('')  // string com vírgula ou ponto
+  const [budget, setBudget] = useState('')  // string com vírgula ou ponto — OPCIONAL
   const reset = () => { setName(''); setBudget(''); setAdding(false) }
   const parsedBudget = parseMoneyBR(budget)
-  const canSubmit = name.trim() && parsedBudget != null && parsedBudget > 0
+  // Limite é opcional — basta o nome pra criar
+  const canSubmit = !!name.trim()
   const add = () => {
     const n = name.trim()
+    if (!n || config.categories.find((c) => c.name === n)) { reset(); return }
     const b = parseMoneyBR(budget)
-    if (!n || b == null || b <= 0 || config.categories.find((c) => c.name === n)) { reset(); return }
+    const finalBudget = (b != null && b > 0) ? b : 0  // 0 = sem limite
     const accent = accentKeys[config.categories.length % accentKeys.length]
-    setConfig({ categories: [...config.categories, { name: n, budget: b, accent }] }); reset()
+    setConfig({ categories: [...config.categories, { name: n, budget: finalBudget, accent }] }); reset()
   }
 
   return (
     <Card className="p-4 sm:p-6 lg:col-span-2">
-      <SectionTitle icon={Target} title="Orçamentos" subtitle="Limite mensal pra controlar gastos variáveis" accent="rose" action={<AdderToggle open={adding} onToggle={setAdding} label="Novo orçamento" />} />
-      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <SectionTitle icon={Target} title="Categorias" subtitle="Agrupe gastos. Defina limite mensal pra acompanhar de perto (opcional)." accent="rose" action={<AdderToggle open={adding} onToggle={setAdding} label="Nova categoria" />} />
+      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
         <div className="flex items-start gap-2"><Sparkles size={14} className="mt-0.5 shrink-0 text-rose-300" />
-          <div>Crie um orçamento pra cada gasto que você quer acompanhar no mês — ex: <span className="text-rose-300">Mercado, Luz, Saídas, Lazer, Gasolina, Uber</span>. Qualquer categoria serve, fixa ou variável.</div>
+          <div>Crie uma categoria pra cada tipo de gasto — ex: <span className="text-rose-300">Mercado, Luz, Saídas, Lazer, Gasolina, Uber</span>. Coloque limite mensal nas que quer controlar de perto (elas vão pro topo do painel). Sem limite, a categoria só agrupa os gastos.</div>
         </div>
       </div>
       {adding && (
-        <AdderShell accent="rose" title="Novo orçamento">
+        <AdderShell accent="rose" title="Nova categoria">
           <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Mercado, Saídas, Gasolina)"
             onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) add(); if (e.key === 'Escape') reset() }}
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+            style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
             className="placeholder:text-white/30 focus:border-rose-400" />
           <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-lg overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <div className="flex items-center rounded-lg overflow-hidden flex-1" style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)' }}>
               <span className="px-3 text-sm text-white/40" style={{ fontFamily: 'JetBrains Mono, monospace' }}>R$</span>
-              <input type="text" inputMode="decimal" value={budget} onChange={(e) => setBudget(sanitizeMoneyInput(e.target.value))} placeholder="0,00"
+              <input type="text" inputMode="decimal" value={budget} onChange={(e) => setBudget(sanitizeMoneyInput(e.target.value))} placeholder="Limite (opcional)"
                 onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) add(); if (e.key === 'Escape') reset() }}
-                style={{ background: 'transparent', color: 'white', flex: 1, outline: 'none', padding: '8px 12px 8px 0', fontSize: 14, fontFamily: 'JetBrains Mono, monospace' }}
+                style={{ background: 'transparent', color: 'var(--text-primary)', flex: 1, outline: 'none', padding: '8px 12px 8px 0', fontSize: 14, fontFamily: 'JetBrains Mono, monospace' }}
                 className="placeholder:text-white/30" />
             </div>
             <button onClick={add} disabled={!canSubmit} style={{ opacity: canSubmit ? 1 : 0.4 }} className="px-3 py-2 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 transition shrink-0 flex items-center gap-1.5"><Check size={14} /><span className="text-sm">Salvar</span></button>
           </div>
+          <div className="text-[11px] text-white/40 px-0.5">Deixe o limite vazio pra criar uma categoria simples — você pode adicionar depois.</div>
         </AdderShell>
       )}
       <div className="space-y-2">
-        {config.categories.length === 0 && !adding && <Empty text="Nenhum orçamento cadastrado" />}
+        {config.categories.length === 0 && !adding && <Empty text="Nenhuma categoria cadastrada" />}
         {config.categories.map((c) => {
           const a = accents[c.accent] || accents.rose
+          const hasBudget = (Number(c.budget) || 0) > 0
           return (
             <div key={c.name} className="p-3 rounded-lg bg-white/5">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0"><div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Target size={13} /></div><span className="font-medium truncate">{c.name}</span></div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Target size={13} /></div>
+                  <span className="font-medium truncate">{c.name}</span>
+                  {!hasBudget && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-elev3)', color: 'var(--text-muted)' }}>sem limite</span>}
+                </div>
                 <DeleteIconBtn onClick={() => setConfig({ categories: config.categories.filter((x) => x.name !== c.name) })} />
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-white/45">Limite</span>
-                  <div className="flex items-center rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <div className="flex items-center rounded overflow-hidden" style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-medium)' }}>
                     <span className="px-1.5 text-xs text-white/35" style={{ fontFamily: 'JetBrains Mono, monospace' }}>R$</span>
                     <BudgetInput
                       value={c.budget}
                       onChange={(n) => setConfig({ categories: config.categories.map((x) => x.name === c.name ? { ...x, budget: n } : x) })}
                     />
                   </div>
+                  <span className="text-[11px] text-white/35">(0 = sem limite)</span>
                 </div>
                 <div className="flex gap-1">
                   {accentKeys.map((k) => (

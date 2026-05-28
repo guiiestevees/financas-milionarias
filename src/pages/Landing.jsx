@@ -227,7 +227,7 @@ function ChatExample({ title, messages }) {
 function Features() {
   const features = [
     { icon: MessageCircle, title: 'Alfred no WhatsApp', desc: 'Mande mensagem ou áudio. Ele entende português natural, mesmo com gírias.' },
-    { icon: Target, title: 'Orçamentos por categoria', desc: 'Mercado, Lazer, Saídas — defina limites e veja em tempo real onde tá apertando.' },
+    { icon: Target, title: 'Categorias com limite mensal', desc: 'Mercado, Lazer, Saídas — defina limites (opcional) e veja em tempo real onde tá apertando.' },
     { icon: Wallet, title: 'Cofres com metas', desc: 'Guarde dinheiro pro casamento, viagem ou reserva. Acompanhe a evolução.' },
     { icon: Users, title: 'Gastos compartilhados', desc: 'Comprou pro Pedro? Atribua a ele e acompanhe quem deve quanto pra você.' },
     { icon: Sparkles, title: 'Parcelados inteligentes', desc: 'Falou "10x de 200 no Nubank" e pronto — todas as parcelas geradas automaticamente.' },

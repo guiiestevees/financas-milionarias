@@ -87,7 +87,7 @@ export default function DespesaForm({ config, cofres = [], initial, onSubmit, on
       ]} />
 
       {config.categories.length > 0 && (
-        <Field label="Orçamento" hint="opcional">
+        <Field label="Categoria" hint="opcional">
           <div className="flex flex-wrap gap-1.5">
             {config.categories.map((c) => (
               <Chip key={c.name} selected={d.category === c.name} onClick={() => setD({ ...d, category: d.category === c.name ? '' : c.name })} accent={c.accent}>{c.name}</Chip>

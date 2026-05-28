@@ -73,24 +73,24 @@ export default function WelcomeTour({ userName = '', onClose }) {
       cta: 'Próximo',
     },
 
-    // STEP 2 — Categorias / orçamentos
+    // STEP 2 — Categorias
     {
-      title: 'Crie seus orçamentos',
-      subtitle: 'Defina limites do mês',
+      title: 'Crie suas categorias',
+      subtitle: 'Agrupe os gastos do mês',
       icon: Target,
       body: (
         <>
           <p className="text-white/75 leading-relaxed mb-3">
-            Crie categorias com limite mensal — Mercado, Saídas, Lazer, Gasolina:
+            Crie categorias — Mercado, Saídas, Lazer, Gasolina, Uber:
           </p>
           <ul className="space-y-2 text-sm text-white/65">
             <li className="flex items-start gap-2">
               <Check size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-              Vá em <strong className="text-white/85">Configurações → Orçamentos</strong>
+              Vá em <strong className="text-white/85">Configurações → Categorias</strong>
             </li>
             <li className="flex items-start gap-2">
               <Check size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-              Crie suas categorias e defina o limite mensal
+              Limite mensal é opcional — categorias com limite vão pro topo do painel
             </li>
             <li className="flex items-start gap-2">
               <Check size={14} className="text-emerald-400 shrink-0 mt-0.5" />

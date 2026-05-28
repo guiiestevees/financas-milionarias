@@ -126,7 +126,7 @@ function HeroBalance({ agg }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/[0.08]">
               <BreakdownItem label="Sobra real" value={agg.sobra} hint="receita − gastos lançados" emphasis />
-              <BreakdownItem label="Reservado em orçamentos" value={-agg.orcamentoReservado} hint="ainda não gasto" accent="amber" />
+              <BreakdownItem label="Reservado em categorias" value={-agg.orcamentoReservado} hint="ainda não gasto" accent="amber" />
               <BreakdownItem label="Disponível" value={agg.disponivel} hint="o que sobra de verdade" accent={positivo ? 'emerald' : 'rose'} emphasis />
             </div>
           </div>
@@ -365,7 +365,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
               : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
           >
-            <ArrowLeftRight size={13} /> Outro orçamento
+            <ArrowLeftRight size={13} /> Outra categoria
           </button>
           <button
             onClick={() => setMode('caixa')}
@@ -382,10 +382,10 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
         {mode === 'outro' && (
           others.length === 0 ? (
             <div className="text-sm text-amber-300/80 p-3 rounded-lg" style={{ background: accents.amber.soft, border: `1px solid ${accents.amber.hex}25` }}>
-              Você precisa de pelo menos 2 orçamentos com valor pra transferir entre eles.
+              Você precisa de pelo menos 2 categorias com limite definido pra transferir entre elas.
             </div>
           ) : (
-            <Field label="Para qual orçamento">
+            <Field label="Para qual categoria">
               <Select value={destName} onChange={setDestName} options={others.map((c) => c.name)} />
             </Field>
           )
@@ -418,8 +418,12 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
   )
 }
 
-// ---------- BudgetCategoriesPanel ----------
-function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease, setTab }) {
+// ---------- CategoriesPanel ----------
+// Mostra TODAS as categorias do mês, dividindo em dois grupos:
+//   - "Com limite" (destaque, em cima): card cheio com progresso, sobra/estouro, transferir
+//   - "Sem limite" (embaixo): card simples — só nome, quanto gastou e botão pra adicionar
+// Mantém toda a lógica de transferir/quickAdd/expand das categorias com limite.
+function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease, setTab }) {
   const [quickName, setQuickName] = useState(null)
   const [quickAmount, setQuickAmount] = useState('')
   const [quickDesc, setQuickDesc] = useState('')
@@ -435,33 +439,21 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
     setQuickName(null)
   }
 
-  return (
-    <Card className="p-4 sm:p-6" accent="rose">
-      <SectionTitle icon={Target} title="Orçamentos do mês" subtitle="Toque no orçamento pra expandir. Use os botões pra adicionar gasto ou transferir saldo." accent="rose" />
-      {categories.length === 0 ? (
-        <Empty
-          icon={Target}
-          accent="rose"
-          text="Nenhum orçamento ainda"
-          description="Crie orçamentos como Mercado, Lazer, Saídas — defina limites mensais e veja em tempo real onde está estourando."
-          action={{
-            label: 'Criar primeiro orçamento',
-            icon: Plus,
-            onClick: () => setTab?.('config'),
-          }}
-        />
-      ) : (
-        <div className="space-y-5">
-          {categories.map((c) => {
-            const a = accents[c.accent] || accents.rose
-            const remaining = (c.budget || 0) - c.spent
-            const pct = c.budget > 0 ? (c.spent / c.budget) * 100 : 0
-            const over = remaining < 0
-            const quickOpen = quickName === c.name
-            const isExpanded = expanded === c.name
-            const items = c.items || []
-            return (
-              <div key={c.name} className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+  // Separa categorias em dois grupos
+  const withBudget = categories.filter((c) => (Number(c.budget) || 0) > 0)
+  const withoutBudget = categories.filter((c) => !((Number(c.budget) || 0) > 0))
+
+  // Render do card "com limite" — completo (usado só pra categorias com budget)
+  const renderBudgetCard = (c) => {
+    const a = accents[c.accent] || accents.rose
+    const remaining = (c.budget || 0) - c.spent
+    const pct = c.budget > 0 ? (c.spent / c.budget) * 100 : 0
+    const over = remaining < 0
+    const quickOpen = quickName === c.name
+    const isExpanded = expanded === c.name
+    const items = c.items || []
+    return (
+      <div key={c.name} className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
                 {/* ===== HEADER: nome em destaque ===== */}
                 <button
                   onClick={() => setExpanded(isExpanded ? null : c.name)}
@@ -531,7 +523,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                   </button>
                   <button
                     onClick={() => setTransferFrom(c)}
-                    title="Transferir saldo pra outro orçamento ou pro caixa"
+                    title="Transferir saldo pra outra categoria ou pro caixa"
                     className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition"
                     style={{
                       background: 'var(--bg-elev1)',
@@ -569,38 +561,176 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                     </div>
                   </div>
                 )}
-                {isExpanded && (
-                  items.length === 0 ? (
-                    <div className="mt-2 text-xs text-white/35 italic px-2">Nenhum lançamento ainda</div>
-                  ) : (
-                    <div className="mt-2 space-y-0.5">
-                      {[...items].sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((d) => (
-                        <div key={d.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 group text-xs">
-                          <div className="flex-1 min-w-0">
-                            <div className={`truncate ${d.paid ? 'text-white/55' : 'text-white/85'}`}>{d.description || '—'}</div>
-                            <div className="text-white/35 text-[11px] truncate">
-                              {d.date ? new Date(d.date + 'T00:00').toLocaleDateString('pt-BR') : '—'}
-                              {d.paymentMethod ? ` · ${d.paymentMethod}` : ''}
-                              {d.installmentTotal > 1 ? ` · ${d.installmentCurrent}/${d.installmentTotal}` : ''}
-                            </div>
-                          </div>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums shrink-0">{fmtBRL(d.amount)}</span>
-                          {onEdit && <button onClick={() => onEdit(d)} className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition shrink-0"><Pencil size={12} /></button>}
-                          {onRemove && <button onClick={() => onRemove(d.id)} className="p-1 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition shrink-0"><Trash2 size={12} /></button>}
-                        </div>
-                      ))}
+        {isExpanded && (
+          items.length === 0 ? (
+            <div className="mt-2 text-xs text-white/35 italic px-2">Nenhum lançamento ainda</div>
+          ) : (
+            <div className="mt-2 space-y-0.5">
+              {[...items].sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((d) => (
+                <div key={d.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 group text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className={`truncate ${d.paid ? 'text-white/55' : 'text-white/85'}`}>{d.description || '—'}</div>
+                    <div className="text-white/35 text-[11px] truncate">
+                      {d.date ? new Date(d.date + 'T00:00').toLocaleDateString('pt-BR') : '—'}
+                      {d.paymentMethod ? ` · ${d.paymentMethod}` : ''}
+                      {d.installmentTotal > 1 ? ` · ${d.installmentCurrent}/${d.installmentTotal}` : ''}
                     </div>
-                  )
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums shrink-0">{fmtBRL(d.amount)}</span>
+                  {onEdit && <button onClick={() => onEdit(d)} className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition shrink-0"><Pencil size={12} /></button>}
+                  {onRemove && <button onClick={() => onRemove(d.id)} className="p-1 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition shrink-0"><Trash2 size={12} /></button>}
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    )
+  }
+  // ===== fim do renderBudgetCard =====
+
+  // Render do card "sem limite" — layout enxuto.
+  // Mostra: nome, quanto gastou, count, botão de adicionar gasto + expandir items.
+  const renderSimpleCard = (c) => {
+    const a = accents[c.accent] || accents.violet
+    const quickOpen = quickName === c.name
+    const isExpanded = expanded === c.name
+    const items = c.items || []
+    return (
+      <div key={c.name} className="rounded-xl p-3" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setExpanded(isExpanded ? null : c.name)}
+            className="flex items-center gap-2.5 flex-1 min-w-0 text-left hover:opacity-90 transition"
+            title={items.length > 0 ? `${items.length} lançamento(s) — toque pra expandir` : 'Toque pra expandir'}
+          >
+            <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0">
+              <Target size={13} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-medium truncate text-sm sm:text-base">{c.name}</span>
+                {items.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--text-tertiary)' }}>
+                    {items.length}
+                  </span>
                 )}
               </div>
-            )
-          })}
+            </div>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', color: c.spent > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }} className="tabular-nums font-semibold shrink-0">
+              {fmtBRL(c.spent)}
+            </span>
+            <ChevronDown size={14} className={`text-white/35 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          <button
+            onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(''); setQuickDesc('') }}
+            title={quickOpen ? 'Fechar' : 'Adicionar gasto'}
+            className="p-1.5 rounded-lg shrink-0 transition"
+            style={{ background: quickOpen ? a.soft : 'var(--bg-elev1)', color: quickOpen ? a.hex : 'var(--text-tertiary)', border: `1px solid ${quickOpen ? a.hex + '40' : 'var(--border-medium)'}` }}
+          >
+            {quickOpen ? <X size={14} /> : <Plus size={14} />}
+          </button>
+        </div>
+
+        {quickOpen && (
+          <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+            <input
+              type="text"
+              value={quickDesc}
+              onChange={(e) => setQuickDesc(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submitQuick(c.name); if (e.key === 'Escape') { setQuickName(null); setQuickAmount(''); setQuickDesc('') } }}
+              placeholder="Descrição (ex: Café da manhã)"
+              autoFocus
+              style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', outline: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 14 }}
+              className="placeholder:text-white/35"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/65 shrink-0">R$</span>
+              <div style={{ flex: 1, minWidth: 0 }} onKeyDown={(e) => { if (e.key === 'Enter') submitQuick(c.name); if (e.key === 'Escape') { setQuickName(null); setQuickAmount(''); setQuickDesc('') } }}>
+                <input type="text" inputMode="numeric" value={quickAmount === '' ? '' : Number(quickAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                       onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setQuickAmount(d === '' ? '' : parseInt(d, 10) / 100) }}
+                       placeholder="0,00"
+                       style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', outline: 'none', fontFamily: 'JetBrains Mono, monospace', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+              </div>
+              <button onClick={() => submitQuick(c.name)} disabled={!quickAmount}
+                      className="p-1.5 rounded bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/40 disabled:opacity-30 transition shrink-0">
+                <Check size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isExpanded && (
+          items.length === 0 ? (
+            <div className="mt-2 text-xs text-white/35 italic px-2">Nenhum lançamento ainda</div>
+          ) : (
+            <div className="mt-2 space-y-0.5">
+              {[...items].sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((d) => (
+                <div key={d.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 group text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className={`truncate ${d.paid ? 'text-white/55' : 'text-white/85'}`}>{d.description || '—'}</div>
+                    <div className="text-white/35 text-[11px] truncate">
+                      {d.date ? new Date(d.date + 'T00:00').toLocaleDateString('pt-BR') : '—'}
+                      {d.paymentMethod ? ` · ${d.paymentMethod}` : ''}
+                      {d.installmentTotal > 1 ? ` · ${d.installmentCurrent}/${d.installmentTotal}` : ''}
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums shrink-0">{fmtBRL(d.amount)}</span>
+                  {onEdit && <button onClick={() => onEdit(d)} className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition shrink-0"><Pencil size={12} /></button>}
+                  {onRemove && <button onClick={() => onRemove(d.id)} className="p-1 rounded text-white/40 hover:text-rose-400 hover:bg-white/5 transition shrink-0"><Trash2 size={12} /></button>}
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="p-4 sm:p-6" accent="rose">
+      <SectionTitle icon={Target} title="Categorias do mês" subtitle="Com limite no topo (acompanhar de perto). Sem limite embaixo (só agrupam)." accent="rose" />
+      {categories.length === 0 ? (
+        <Empty
+          icon={Target}
+          accent="rose"
+          text="Nenhuma categoria ainda"
+          description="Crie categorias como Mercado, Lazer, Saídas. As que tiverem limite mensal aparecem em destaque pra você acompanhar; as sem limite só agrupam os gastos."
+          action={{
+            label: 'Criar primeira categoria',
+            icon: Plus,
+            onClick: () => setTab?.('config'),
+          }}
+        />
+      ) : (
+        <div className="space-y-5">
+          {withBudget.length > 0 && (
+            <div className="space-y-3">
+              {withBudget.length > 0 && withoutBudget.length > 0 && (
+                <div className="text-[10px] uppercase tracking-widest text-white/40 px-1">
+                  Com limite mensal
+                </div>
+              )}
+              {withBudget.map(renderBudgetCard)}
+            </div>
+          )}
+
+          {withoutBudget.length > 0 && (
+            <div className="space-y-2">
+              {withBudget.length > 0 && (
+                <div className="text-[10px] uppercase tracking-widest text-white/40 px-1 pt-2 border-t border-white/5">
+                  Sem limite — só agrupam
+                </div>
+              )}
+              {withoutBudget.map(renderSimpleCard)}
+            </div>
+          )}
         </div>
       )}
       {transferFrom && (
         <BudgetTransferModal
           fromCat={transferFrom}
-          allCategories={categories}
+          allCategories={categories.filter((c) => (Number(c.budget) || 0) > 0)}
           onTransfer={onTransfer}
           onRelease={onRelease}
           onClose={() => setTransferFrom(null)}
@@ -886,7 +1016,8 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   }
 
   const showCards = agg.byCard.length > 0
-  const showBudgets = agg.categoryList.some((c) => c.budget)
+  // Mostra o painel se houver QUALQUER categoria cadastrada (com ou sem limite)
+  const showCategories = agg.categoryList.length > 0
   const showAReceber = agg.aReceberList.length > 0
 
   return (
@@ -911,10 +1042,10 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
         <MetricCard label="Já pago" value={fmtBRL(agg.totalPago)} icon={CheckCircle2} accent="cyan" sub={agg.totalDespesas > 0 ? `${Math.round(agg.totalPago / agg.totalDespesas * 100)}% das despesas` : '—'} />
         <MetricCard label="A pagar" value={fmtBRL(agg.totalAPagar)} icon={Bell} accent="amber" sub={agg.totalAPagar > 0 ? 'ainda pendente' : 'tudo em dia 🎯'} />
       </div>
-      {(showCards || showBudgets || showAReceber || month.despesas.length > 0) && (
+      {(showCards || showCategories || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} togglePaidDespesa={togglePaid} />
-          {showBudgets && <BudgetCategoriesPanel categories={agg.categoryList.filter((c) => c.budget)} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} setTab={setTab} />}
+          {showCategories && <CategoriesPanel categories={agg.categoryList} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} setTab={setTab} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} setPaidBulk={setPaidBulk} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
