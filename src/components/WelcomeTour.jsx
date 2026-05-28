@@ -65,7 +65,7 @@ export default function WelcomeTour({ userName = '', onClose }) {
               Bancos (pra gastos em débito ou PIX)
             </li>
           </ul>
-          <div className="mt-4 p-3 rounded-lg text-xs text-white/65" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="mt-4 p-3 rounded-lg text-xs text-white/65" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
             🎩 <em>"Assim, quando disser 'gastei 200 no Nubank', saberei exatamente do que se trata."</em>
           </div>
         </>
@@ -97,7 +97,7 @@ export default function WelcomeTour({ userName = '', onClose }) {
               Veja em tempo real onde tá estourando
             </li>
           </ul>
-          <div className="mt-4 p-3 rounded-lg text-xs text-white/65" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="mt-4 p-3 rounded-lg text-xs text-white/65" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
             💡 Comece com 3-5 categorias. Você ajusta com o tempo.
           </div>
         </>
@@ -195,8 +195,9 @@ export default function WelcomeTour({ userName = '', onClose }) {
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-md rounded-3xl"
         style={{
-          background: 'linear-gradient(180deg, #11162a, #0a0d18)',
+          background: 'var(--bg-app-soft)',
           border: '1px solid rgba(212,175,55,0.18)',
+          color: 'var(--text-primary)',
           boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 60px rgba(212,175,55,0.05)',
         }}
       >
@@ -261,7 +262,7 @@ export default function WelcomeTour({ userName = '', onClose }) {
                 style={{
                   width: i === step ? 22 : 6,
                   height: 6,
-                  background: i === step ? '#d4af37' : i < step ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.12)',
+                  background: i === step ? '#d4af37' : i < step ? 'rgba(212,175,55,0.4)' : 'var(--border-strong)',
                 }}
               />
             ))}
@@ -311,7 +312,7 @@ function ShortcutPill({ icon, label, onClick, hint }) {
     <button
       onClick={onClick}
       className="flex flex-col items-start gap-0.5 p-3 rounded-xl transition text-left"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
     >
       <div className="text-lg leading-none">{icon}</div>
       <div className="text-xs font-medium text-white/85 leading-tight">{label}</div>

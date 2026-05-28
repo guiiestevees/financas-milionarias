@@ -145,7 +145,7 @@ function HeroBalance({ agg }) {
 function BreakdownItem({ label, value, hint, accent, emphasis }) {
   const isNegative = value < 0
   const c = accent ? accents[accent] : null
-  const color = c ? c.hex : (emphasis ? 'white' : 'rgba(255,255,255,0.7)')
+  const color = c ? c.hex : (emphasis ? 'var(--text-primary)' : 'var(--text-secondary)')
   return (
     <div>
       <div className="uppercase text-white/45 mb-1" style={{ fontSize: '10px', letterSpacing: '0.12em' }}>{label}</div>
@@ -191,7 +191,7 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
             const dueMsg = !c.dueDay ? 'sem vencimento cadastrado' : isToday ? `vence HOJE (dia ${c.dueDay})` : `vence dia ${c.dueDay}`
             const dueColor = isToday ? 'text-amber-300' : 'text-white/55'
             return (
-              <div key={c.name} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
+              <div key={c.name} className="p-3 rounded-lg" style={{ background: 'var(--bg-elev2)' }}>
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><CreditCard size={14} /></div>
@@ -206,7 +206,7 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                   </div>
                 </div>
                 {c.total > 0 && (
-                  <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: 'var(--bg-hover)' }}>
                     <div className="h-full" style={{ width: `${pct}%`, background: isPaid ? accents.emerald.hex : a.hex }} />
                   </div>
                 )}
@@ -343,7 +343,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
 
   return (
     <div onClick={onClose} style={{ background: 'rgba(7,9,18,0.7)', backdropFilter: 'blur(8px)' }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'linear-gradient(180deg, #0f1525, #0a0d18)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, maxWidth: 460, width: '100%' }} className="p-5 sm:p-6 space-y-4">
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)', borderRadius: 16, maxWidth: 460, width: '100%', color: 'var(--text-primary)' }} className="p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <div style={{ background: a.soft, color: a.hex }} className="p-2 rounded-lg shrink-0"><ArrowLeftRight size={16} /></div>
@@ -362,7 +362,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-30"
             style={mode === 'outro'
               ? { background: accents.rose.soft, color: accents.rose.hex, border: `1px solid ${accents.rose.hex}50` }
-              : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }
+              : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
           >
             <ArrowLeftRight size={13} /> Outro orçamento
@@ -372,7 +372,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
             style={mode === 'caixa'
               ? { background: accents.gold.soft, color: accents.gold.hex, border: `1px solid ${accents.gold.hex}50` }
-              : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }
+              : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
           >
             <Wallet size={13} /> Pro caixa
@@ -461,7 +461,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
             const isExpanded = expanded === c.name
             const items = c.items || []
             return (
-              <div key={c.name} className="rounded-xl p-3 sm:p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div key={c.name} className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
                 {/* ===== HEADER: nome em destaque ===== */}
                 <button
                   onClick={() => setExpanded(isExpanded ? null : c.name)}
@@ -475,7 +475,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-base sm:text-lg truncate">{c.name}</span>
                       {items.length > 0 && (
-                        <span className="text-[11px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)' }}>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--text-tertiary)' }}>
                           {items.length}
                         </span>
                       )}
@@ -487,7 +487,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                 {/* ===== VALORES: gastou / orçamento ===== */}
                 <div className="flex items-baseline justify-between gap-2 mb-2">
                   <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="tabular-nums">
-                    <span className="text-lg font-semibold" style={{ color: over ? accents.rose.hex : 'white' }}>{fmtBRL(c.spent)}</span>
+                    <span className="text-lg font-semibold" style={{ color: over ? accents.rose.hex : 'var(--text-primary)' }}>{fmtBRL(c.spent)}</span>
                     <span className="text-xs text-white/40"> de {fmtBRL(c.budget)}</span>
                   </div>
                   <span className={`text-xs font-medium shrink-0 ${over ? 'text-rose-400' : 'text-emerald-300/75'}`}>
@@ -496,7 +496,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                 </div>
 
                 {/* ===== PROGRESSO ===== */}
-                <div className="h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--bg-elev3)' }}>
                   <div className="h-full transition-all duration-500" style={{
                     width: `${Math.min(100, pct)}%`,
                     background: over ? `linear-gradient(90deg, ${accents.rose.hex}, ${accents.amber.hex})` : `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`,
@@ -534,9 +534,9 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                     title="Transferir saldo pra outro orçamento ou pro caixa"
                     className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      color: 'rgba(255,255,255,0.75)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'var(--bg-elev1)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-medium)',
                     }}
                   >
                     <ArrowLeftRight size={15} /> Transferir
@@ -551,7 +551,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                       onKeyDown={(e) => { if (e.key === 'Enter') submitQuick(c.name); if (e.key === 'Escape') { setQuickName(null); setQuickAmount(''); setQuickDesc('') } }}
                       placeholder="Descrição (ex: Mercado Pão de Açúcar)"
                       autoFocus
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', outline: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 14 }}
+                      style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', outline: 'none', borderRadius: 8, padding: '6px 10px', fontSize: 14 }}
                       className="placeholder:text-white/35"
                     />
                     <div className="flex items-center gap-2">
@@ -560,7 +560,7 @@ function BudgetCategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, 
                         <input type="text" inputMode="numeric" value={quickAmount === '' ? '' : Number(quickAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setQuickAmount(d === '' ? '' : parseInt(d, 10) / 100) }}
                                placeholder="0,00"
-                               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', outline: 'none', fontFamily: 'JetBrains Mono, monospace', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+                               style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', outline: 'none', fontFamily: 'JetBrains Mono, monospace', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
                       </div>
                       <button onClick={() => submitQuick(c.name)} disabled={!quickAmount}
                               className="p-1.5 rounded bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/40 disabled:opacity-30 transition shrink-0">
@@ -689,7 +689,7 @@ function CofresPanel({ cofres, setTab }) {
           const goal = c.goal
           const pct = goal && goal.amount > 0 ? Math.min(100, (balance / goal.amount) * 100) : null
           return (
-            <div key={c.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)' }}>
+            <div key={c.id} className="p-3 rounded-lg" style={{ background: 'var(--bg-elev2)' }}>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><PiggyBank size={13} /></div>
@@ -699,7 +699,7 @@ function CofresPanel({ cofres, setTab }) {
               </div>
               {pct !== null && (
                 <div className="mt-2">
-                  <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
                     <div className="h-full" style={{ width: `${Math.max(0, pct)}%`, background: a.hex }} />
                   </div>
                   <div className="flex justify-between text-xs text-white/40 mt-1">
@@ -801,7 +801,7 @@ function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
                 <button
                   onClick={() => onDiscard(p.id)}
                   className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition text-white/50 hover:text-rose-400"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-medium)' }}
                 >
                   <X size={13} /> Descartar
                 </button>

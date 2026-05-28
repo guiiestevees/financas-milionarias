@@ -5,7 +5,7 @@ export function ModePicker({ value, onChange, options }) {
   return (
     <div
       className="flex flex-col gap-1.5 p-1.5 rounded-xl"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+      style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
     >
       {options.map((opt) => {
         const sel = value === opt.value
@@ -17,7 +17,7 @@ export function ModePicker({ value, onChange, options }) {
             onClick={() => onChange(opt.value)}
             style={{
               background: sel ? a.soft : 'transparent',
-              color: sel ? a.hex : 'rgba(255,255,255,0.65)',
+              color: sel ? a.hex : 'var(--text-tertiary)',
               border: sel ? `1px solid ${a.hex}50` : '1px solid transparent',
               boxShadow: sel ? `0 4px 14px -6px ${a.glow}` : 'none',
             }}
@@ -26,7 +26,7 @@ export function ModePicker({ value, onChange, options }) {
             {Icon && (
               <div
                 className="shrink-0 p-1.5 rounded-md"
-                style={{ background: sel ? `${a.hex}20` : 'rgba(255,255,255,0.04)' }}
+                style={{ background: sel ? `${a.hex}20` : 'var(--bg-elev1)' }}
               >
                 <Icon size={14} />
               </div>
@@ -34,7 +34,7 @@ export function ModePicker({ value, onChange, options }) {
             <div className="min-w-0 flex-1">
               <div className="font-medium text-sm">{opt.label}</div>
               {opt.description && (
-                <div className="text-xs" style={{ color: sel ? `${a.hex}cc` : 'rgba(255,255,255,0.4)' }}>
+                <div className="text-xs" style={{ color: sel ? `${a.hex}cc` : 'var(--text-muted)' }}>
                   {opt.description}
                 </div>
               )}

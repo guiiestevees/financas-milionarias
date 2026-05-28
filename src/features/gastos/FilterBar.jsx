@@ -51,7 +51,7 @@ export default function FilterBar({ used, filters, toggleFilter, setTextFilter, 
           value={text}
           onChange={(e) => setTextFilter && setTextFilter(e.target.value)}
           placeholder="Buscar por descrição..."
-          style={{ background: 'transparent', color: 'white', flex: 1, minWidth: 0, outline: 'none', fontSize: 14, padding: '4px 0' }}
+          style={{ background: 'transparent', color: 'var(--text-primary)', flex: 1, minWidth: 0, outline: 'none', fontSize: 14, padding: '4px 0' }}
           className="placeholder:text-white/30"
         />
         {text && (

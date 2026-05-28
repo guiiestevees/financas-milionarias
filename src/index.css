@@ -96,21 +96,36 @@ html, body {
 
 /* Backgrounds claros sobrescritos */
 [data-theme="light"] .bg-white\/5 { background-color: rgba(17,22,42,0.04) !important; }
-[data-theme="light"] .bg-white\/10 { background-color: rgba(17,22,42,0.06) !important; }
+[data-theme="light"] .bg-white\/10 { background-color: rgba(17,22,42,0.07) !important; }
+[data-theme="light"] .bg-white\/15 { background-color: rgba(17,22,42,0.09) !important; }
+[data-theme="light"] .bg-white\/20 { background-color: rgba(17,22,42,0.11) !important; }
 
 /* Placeholder de inputs */
 [data-theme="light"] .placeholder\:text-white\/30::placeholder { color: rgba(17,22,42,0.4) !important; }
 [data-theme="light"] .placeholder\:text-white\/40::placeholder { color: rgba(17,22,42,0.45) !important; }
+[data-theme="light"] .placeholder\:text-white\/50::placeholder { color: rgba(17,22,42,0.5) !important; }
 
 /* Bordas Tailwind */
-[data-theme="light"] .border-white\/5 { border-color: rgba(17,22,42,0.08) !important; }
-[data-theme="light"] .border-white\/8 { border-color: rgba(17,22,42,0.1) !important; }
-[data-theme="light"] .border-white\/10 { border-color: rgba(17,22,42,0.12) !important; }
+[data-theme="light"] .border-white\/5 { border-color: rgba(17,22,42,0.07) !important; }
+[data-theme="light"] .border-white\/8 { border-color: rgba(17,22,42,0.09) !important; }
+[data-theme="light"] .border-white\/10 { border-color: rgba(17,22,42,0.1) !important; }
+[data-theme="light"] .border-white\/15 { border-color: rgba(17,22,42,0.13) !important; }
+[data-theme="light"] .border-white\/20 { border-color: rgba(17,22,42,0.16) !important; }
 
 /* Hovers */
 [data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(17,22,42,0.04) !important; }
-[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(17,22,42,0.06) !important; }
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(17,22,42,0.07) !important; }
+[data-theme="light"] .hover\:bg-white\/15:hover { background-color: rgba(17,22,42,0.09) !important; }
 [data-theme="light"] .hover\:text-white:hover { color: var(--text-primary) !important; }
+[data-theme="light"] .hover\:text-white\/60:hover { color: rgba(17,22,42,0.65) !important; }
+[data-theme="light"] .hover\:text-white\/85:hover { color: rgba(17,22,42,0.85) !important; }
+
+/* Divisores */
+[data-theme="light"] .divide-white\/5 > * + * { border-color: rgba(17,22,42,0.07) !important; }
+[data-theme="light"] .divide-white\/10 > * + * { border-color: rgba(17,22,42,0.1) !important; }
+
+/* Backdrop modal — diminui opacidade no light pro overlay não ficar tão pesado */
+[data-theme="light"] .backdrop-blur-md { backdrop-filter: blur(8px) saturate(1.2); }
 
 /* Date input — inverte o filtro do ícone do calendário no light mode */
 [data-theme="light"] input[type='date']::-webkit-calendar-picker-indicator {

@@ -13,7 +13,7 @@ export default function SubscriptionBlocked({ reason = 'expired' }) {
   const isOverdueGrace = reason === 'overdue'
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 text-white" style={{ background: 'linear-gradient(180deg, #070912 0%, #0a0d18 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       <div className="max-w-md w-full text-center">
         {/* Alfred image */}
         <div className="flex justify-center mb-6">

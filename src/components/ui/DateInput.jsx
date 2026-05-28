@@ -22,9 +22,9 @@ const maskDate = (raw) => {
 }
 
 const baseStyle = {
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: 'white',
+  background: 'var(--bg-elev2)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   boxSizing: 'border-box',

@@ -6,9 +6,9 @@ import { supabase } from '../../lib/supabase'
 import EmailInput from '../../components/EmailInput'
 
 const inputStyle = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  color: 'white',
+  background: 'var(--bg-elev1)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   borderRadius: 10,
@@ -215,7 +215,7 @@ export default function Signup() {
       {error && (
         <div
           className="text-sm p-3 rounded-lg"
-          style={{ background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'rgba(255,255,255,0.85)' }}
+          style={{ background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -269,7 +269,7 @@ export default function Signup() {
             onPaste={(e) => e.preventDefault()}
             style={{
               ...inputStyle,
-              border: `1px solid ${showEmailMismatch ? 'rgba(244,63,94,0.45)' : 'rgba(255,255,255,0.1)'}`,
+              border: `1px solid ${showEmailMismatch ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}`,
             }}
             className="placeholder:text-white/20 focus:border-white/25"
           />
@@ -292,7 +292,7 @@ export default function Signup() {
             style={{
               ...inputStyle,
               fontFamily: 'JetBrains Mono, monospace',
-              border: `1px solid ${cpfStatus === 'taken' ? 'rgba(244,63,94,0.45)' : 'rgba(255,255,255,0.1)'}`,
+              border: `1px solid ${cpfStatus === 'taken' ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}`,
             }}
             className="placeholder:text-white/20 focus:border-white/25"
           />

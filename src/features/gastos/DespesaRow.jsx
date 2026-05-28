@@ -13,7 +13,7 @@ export default function DespesaRow({ d, config, activeMonth, onTogglePaid, onEdi
   const overdue = !d.paid && status.overdue && !cardObj
   const dueToday = !d.paid && status.isToday
 
-  let bg = d.paid ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)'
+  let bg = d.paid ? 'var(--bg-elev2)' : 'var(--bg-elev1)'
   let border = '1px solid transparent'
   if (overdue) { bg = 'rgba(244,63,94,0.06)'; border = `1px solid ${accents.rose.hex}40` }
   else if (dueToday) { bg = 'rgba(245,158,11,0.06)'; border = `1px solid ${accents.amber.hex}40` }
@@ -25,7 +25,7 @@ export default function DespesaRow({ d, config, activeMonth, onTogglePaid, onEdi
       </button>
       <div className="min-w-0 flex-1">
         <div className={`font-medium truncate ${d.paid ? 'line-through text-white/50' : ''}`}>{d.description || '—'}</div>
-        <div className="text-xs flex items-center gap-2 flex-wrap mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+        <div className="text-xs flex items-center gap-2 flex-wrap mt-0.5" style={{ color: 'var(--text-muted)' }}>
           {overdue && <span className="px-1.5 py-0.5 rounded font-medium flex items-center gap-1" style={{ background: accents.rose.soft, color: accents.rose.hex }}><AlertTriangle size={10} /> atrasada</span>}
           {dueToday && <span className="px-1.5 py-0.5 rounded font-medium flex items-center gap-1" style={{ background: accents.amber.soft, color: accents.amber.hex }}><Bell size={10} /> vence hoje</span>}
           {d.dueDay && !overdue && !dueToday && <span className="flex items-center gap-1"><Calendar size={10} /> dia {d.dueDay}</span>}

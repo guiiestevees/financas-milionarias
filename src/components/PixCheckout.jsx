@@ -110,7 +110,7 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 rounded-lg text-sm font-medium"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+          style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
         >
           Tentar de novo
         </button>
@@ -153,7 +153,7 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
 
       {/* Identificação do recebedor — transparência pro cliente */}
       <div className="rounded-lg px-3 py-2.5 text-xs text-white/60 leading-relaxed"
-        style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
         <div className="flex items-start gap-2">
           <span className="text-white/40 shrink-0">ℹ</span>
           <div>
@@ -171,9 +171,9 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
           onClick={copyPayload}
           className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition"
           style={{
-            background: copied ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${copied ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.1)'}`,
-            color: copied ? '#10b981' : 'rgba(255,255,255,0.85)',
+            background: copied ? 'rgba(16,185,129,0.1)' : 'var(--bg-elev1)',
+            border: `1px solid ${copied ? 'rgba(16,185,129,0.35)' : 'var(--border-medium)'}`,
+            color: copied ? '#10b981' : 'var(--text-primary)',
           }}
         >
           <span className="text-xs font-mono truncate flex-1 text-left" style={{ fontFamily: 'JetBrains Mono, monospace' }}>

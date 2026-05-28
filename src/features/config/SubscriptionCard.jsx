@@ -158,7 +158,7 @@ export default function SubscriptionCard() {
 
         {/* Status badge + plan */}
         <div className="space-y-4">
-          <div className="rounded-xl p-4 sm:p-5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="rounded-xl p-4 sm:p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-medium)' }}>
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider mb-2"
@@ -223,7 +223,7 @@ export default function SubscriptionCard() {
                 onClick={handleChangePayment}
                 disabled={changing}
                 className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition disabled:opacity-50"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.85)' }}
+                style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
               >
                 <span className="font-medium flex items-center gap-2">
                   <CreditCard size={14} /> Trocar forma de pagamento
@@ -298,7 +298,7 @@ export default function SubscriptionCard() {
       {/* Modal de confirmação de cancelamento */}
       {showCancelConfirm && (
         <div onClick={() => !cancelling && setShowCancelConfirm(false)} style={{ background: 'rgba(7,9,18,0.7)', backdropFilter: 'blur(8px)' }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'linear-gradient(180deg, #0f1525, #0a0d18)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, maxWidth: 460, width: '100%' }} className="p-5 sm:p-6">
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)', borderRadius: 16, maxWidth: 460, width: '100%', color: 'var(--text-primary)' }} className="p-5 sm:p-6">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="p-2 rounded-lg" style={{ background: 'rgba(244,63,94,0.1)', color: '#f43f5e' }}>
                 <AlertTriangle size={16} />

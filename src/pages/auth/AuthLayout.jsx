@@ -17,7 +17,7 @@ export default function AuthLayout() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative"
-      style={{ background: '#070912' }}
+      style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
     >
       {/* Botão pra voltar pra landing */}
       {h.back && (
@@ -56,8 +56,8 @@ export default function AuthLayout() {
       <div
         className="w-full max-w-sm rounded-2xl p-8"
         style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
         }}
       >
         <Outlet />

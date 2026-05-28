@@ -171,9 +171,9 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
             value={installments}
             onChange={(e) => setInstallments(Number(e.target.value))}
             style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: 'var(--bg-elev1)',
               border: '1px solid rgba(255,255,255,0.1)',
-              color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
+              color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px',
               fontSize: 14, outline: 'none',
               fontFamily: 'JetBrains Mono, monospace',
               cursor: 'pointer',
@@ -189,7 +189,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
               const n = i + 1
               const valuePerInstallment = (Number(value) / n).toFixed(2).replace('.', ',')
               return (
-                <option key={n} value={n} style={{ background: '#0f1525' }}>
+                <option key={n} value={n} style={{ background: 'var(--bg-app-soft)', color: 'var(--text-primary)' }}>
                   {n === 1
                     ? `À vista — R$ ${Number(value).toFixed(2).replace('.', ',')}`
                     : `${n}× de R$ ${valuePerInstallment} sem juros`}
@@ -206,7 +206,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
           <CreditCard size={11} /> Número do cartão
           {brand && brand !== 'unknown' && (
             <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ml-auto"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }}>
+              style={{ background: 'var(--bg-elev3)', color: 'var(--text-tertiary)' }}>
               {brand}
             </span>
           )}
@@ -221,9 +221,9 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
           placeholder="0000 0000 0000 0000"
           maxLength={19}
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: `1px solid ${number && !numValid ? 'rgba(244,63,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-            color: 'white', width: '100%', borderRadius: 10, padding: '11px 14px',
+            background: 'var(--bg-elev1)',
+            border: `1px solid ${number && !numValid ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
+            color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '11px 14px',
             fontSize: 15, outline: 'none', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.05em',
           }}
           className="placeholder:text-white/30 focus:border-amber-400"
@@ -241,9 +241,9 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
           onBlur={() => setFocused(null)}
           placeholder="COMO IMPRESSO NO CARTÃO"
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
+            background: 'var(--bg-elev1)',
+            border: '1px solid var(--border-medium)',
+            color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px',
             fontSize: 14, outline: 'none',
           }}
           className="placeholder:text-white/30 focus:border-amber-400"
@@ -264,9 +264,9 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
             placeholder="MM/AA"
             maxLength={5}
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: `1px solid ${expiry && !expValid ? 'rgba(244,63,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-              color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
+              background: 'var(--bg-elev1)',
+              border: `1px solid ${expiry && !expValid ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
+              color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px',
               fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace',
             }}
             className="placeholder:text-white/30 focus:border-amber-400"
@@ -284,9 +284,9 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
             placeholder="000"
             maxLength={4}
             style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: 'var(--bg-elev1)',
               border: '1px solid rgba(255,255,255,0.1)',
-              color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
+              color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px',
               fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace',
             }}
             className="placeholder:text-white/30 focus:border-amber-400"
@@ -309,7 +309,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
           onClick={onBack}
           disabled={submitting}
           className="px-4 py-3 rounded-xl text-sm transition"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.65)' }}
+          style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)', color: 'var(--text-tertiary)' }}
         >
           Voltar
         </button>

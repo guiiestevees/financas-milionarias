@@ -10,7 +10,7 @@ export default function EditDespesaModal({ despesa, config, cofres = [], onSave,
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: 'linear-gradient(180deg, #0f1525, #0a0d18)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, maxWidth: 800, width: '100%' }}
+        style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)', borderRadius: 18, maxWidth: 800, width: '100%', color: 'var(--text-primary)' }}
         className="p-6 sm:p-8"
       >
         <div className="flex items-center justify-between mb-5">

@@ -6,9 +6,9 @@ import { useAuth } from '../../hooks/useAuth'
 const SUPPORT_EMAIL = 'alquimiadigital08@gmail.com'
 
 const inputStyle = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  color: 'white',
+  background: 'var(--bg-elev1)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   borderRadius: 10,

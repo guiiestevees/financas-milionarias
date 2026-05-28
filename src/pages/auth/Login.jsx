@@ -4,9 +4,9 @@ import { AtSign, User } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 const inputStyle = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  color: 'white',
+  background: 'var(--bg-elev1)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   borderRadius: 10,
@@ -65,7 +65,7 @@ export default function Login() {
       {error && (
         <div
           className="text-sm p-3 rounded-lg"
-          style={{ background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'rgba(255,255,255,0.85)' }}
+          style={{ background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -81,7 +81,7 @@ export default function Login() {
               size={14}
               style={{
                 position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                color: 'rgba(255,255,255,0.35)', pointerEvents: 'none',
+                color: 'var(--text-muted)', pointerEvents: 'none',
                 transition: 'color 0.15s',
               }}
             />

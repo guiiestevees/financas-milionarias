@@ -58,9 +58,9 @@ export default function AddressFields({ value, onChange, disabled = false }) {
   }, [v.cep])
 
   const inputStyle = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: 'white',
+    background: 'var(--bg-elev1)',
+    border: '1px solid var(--border-medium)',
+    color: 'var(--text-primary)',
     width: '100%',
     borderRadius: 10,
     padding: '10px 14px',
@@ -90,7 +90,7 @@ export default function AddressFields({ value, onChange, disabled = false }) {
               maxLength={9}
               style={{
                 ...inputStyle,
-                border: `1px solid ${cepError ? 'rgba(244,63,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                border: `1px solid ${cepError ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
                 fontFamily: 'JetBrains Mono, monospace',
               }}
               className="placeholder:text-white/30 focus:border-amber-400"

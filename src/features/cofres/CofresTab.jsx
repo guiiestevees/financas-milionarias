@@ -122,7 +122,7 @@ function CofreForm({ initial, onSave, onCancel }) {
       </div>
 
       {hasGoal && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
           <Field label="Valor da meta">
             <MoneyInput value={goalAmount} onChange={setGoalAmount} />
           </Field>
@@ -265,7 +265,7 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
               {monthsLeft != null && monthsLeft < 0 && <span className="text-rose-400/80"> · atrasado</span>}
             </span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
             <div className="h-full transition-all" style={{ width: `${Math.max(0, pct)}%`, background: `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`, boxShadow: `0 0 12px ${a.glow}` }} />
           </div>
         </div>
@@ -306,7 +306,7 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
 
   return (
     <div onClick={onClose} style={{ background: 'rgba(7,9,18,0.7)', backdropFilter: 'blur(8px)' }} className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-8 overflow-y-auto">
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'linear-gradient(180deg, #0f1525, #0a0d18)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, maxWidth: 700, width: '100%' }} className="p-5 sm:p-7 space-y-5">
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)', borderRadius: 18, maxWidth: 700, width: '100%', color: 'var(--text-primary)' }} className="p-5 sm:p-7 space-y-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -335,7 +335,7 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
 
         {/* Goal info */}
         {cofre.goal && (
-          <div className="p-3 rounded-lg flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="p-3 rounded-lg flex items-center gap-3" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
             <Target size={14} className="text-white/55 shrink-0" />
             <div className="text-xs text-white/65 flex-1">
               Meta: <strong className="text-white/85">{fmtBRL(cofre.goal.amount)}</strong>
@@ -385,7 +385,7 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
 
         {/* Initial balance row */}
         {(Number(cofre.initialBalance) || 0) !== 0 && (
-          <div className="px-3 py-2 rounded-lg text-xs flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="px-3 py-2 rounded-lg text-xs flex items-center justify-between" style={{ background: 'var(--bg-elev2)' }}>
             <div className="flex items-center gap-2 text-white/55">
               <Calendar size={11} />
               <span>Saldo inicial em {formatDate(cofre.initialDate)}</span>
@@ -469,7 +469,7 @@ function EditMovementInline({ movement, onSave, onCancel }) {
   const [note, setNote] = useState(movement.note || '')
 
   return (
-    <div className="p-3 rounded-lg space-y-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="p-3 rounded-lg space-y-2" style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}>
       <div className="grid grid-cols-2 gap-2">
         <MoneyInput value={amount} onChange={setAmount} />
         <DateInput value={date} onChange={setDate} />

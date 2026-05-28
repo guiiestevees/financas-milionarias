@@ -1,7 +1,7 @@
 const inputBase = {
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: 'white',
+  background: 'var(--bg-elev2)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   minWidth: 0,
@@ -45,7 +45,7 @@ export function MoneyInput({ value, onChange, placeholder, className = '', style
       <span
         style={{
           position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-          color: 'rgba(255,255,255,0.4)', fontSize: '14px', pointerEvents: 'none',
+          color: 'var(--text-muted)', fontSize: '14px', pointerEvents: 'none',
           fontFamily: 'JetBrains Mono, monospace',
         }}
       >
@@ -70,15 +70,15 @@ export function Select({ value, onChange, options, className = '', placeholder }
     <select
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}
+      style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
       className={`px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-amber-400 transition ${className}`}
     >
-      {placeholder && <option value="" style={{ background: '#0f1525' }}>{placeholder}</option>}
+      {placeholder && <option value="" style={{ background: 'var(--bg-app-soft)', color: 'var(--text-primary)' }}>{placeholder}</option>}
       {options.map((o) => (
         <option
           key={typeof o === 'string' ? o : o.value}
           value={typeof o === 'string' ? o : o.value}
-          style={{ background: '#0f1525' }}
+          style={{ background: 'var(--bg-app-soft)', color: 'var(--text-primary)' }}
         >
           {typeof o === 'string' ? o : o.label}
         </option>
@@ -101,9 +101,9 @@ export function MiniInput({ value, onChange, placeholder, type = 'text', title, 
       max={max}
       maxLength={maxLength}
       style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        color: 'white',
+        background: 'var(--bg-elev3)',
+        border: '1px solid var(--border-medium)',
+        color: 'var(--text-primary)',
         width,
         boxSizing: 'border-box',
         minWidth: 0,

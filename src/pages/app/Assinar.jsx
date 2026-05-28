@@ -220,7 +220,7 @@ export default function Assinar() {
   }
 
   return (
-    <div className="min-h-screen text-white" style={{ background: 'linear-gradient(180deg, #070912 0%, #0a0d18 100%)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
         {/* Voltar */}
         <button
@@ -254,8 +254,8 @@ export default function Assinar() {
                   onClick={() => { setSelectedPlan(p.id); setMethod(null); setPixData(null) }}
                   className="text-left p-5 rounded-2xl transition relative"
                   style={{
-                    background: isSelected ? accentSoft : 'rgba(255,255,255,0.025)',
-                    border: `2px solid ${isSelected ? accentColor : 'rgba(255,255,255,0.08)'}`,
+                    background: isSelected ? accentSoft : 'var(--bg-elev2)',
+                    border: `2px solid ${isSelected ? accentColor : 'var(--border-medium)'}`,
                     boxShadow: isSelected ? `0 8px 24px ${accentColor}25` : 'none',
                   }}
                 >
@@ -292,7 +292,7 @@ export default function Assinar() {
         {/* ============ SECTION: DADOS PESSOAIS ============ */}
         <div className="mb-8">
           <div className="text-xs uppercase tracking-widest text-white/40 mb-3 px-1">2 · Seus dados</div>
-          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-white/55 mb-1 block">Nome completo</label>
@@ -301,7 +301,7 @@ export default function Assinar() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Como aparece no seu documento"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none' }}
+                  style={{ background: 'var(--bg-elev1)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none' }}
                   className="placeholder:text-white/30 focus:border-amber-400"
                 />
               </div>
@@ -316,9 +316,9 @@ export default function Assinar() {
                     placeholder="000.000.000-00"
                     maxLength={18}
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${cpfCnpj && !validCpfCnpj ? 'rgba(244,63,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                      color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
+                      background: 'var(--bg-elev1)',
+                      border: `1px solid ${cpfCnpj && !validCpfCnpj ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
+                      color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px',
                       fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace',
                     }}
                     className="placeholder:text-white/30 focus:border-amber-400"
@@ -333,7 +333,7 @@ export default function Assinar() {
                     onChange={(e) => setPhone(maskPhone(e.target.value))}
                     placeholder="(00) 00000-0000"
                     maxLength={15}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace' }}
+                    style={{ background: 'var(--bg-elev1)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', width: '100%', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace' }}
                     className="placeholder:text-white/30 focus:border-amber-400"
                   />
                 </div>
@@ -361,8 +361,8 @@ export default function Assinar() {
                   disabled={creating}
                   className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl transition disabled:opacity-50 relative"
                   style={{
-                    background: isSelected ? m.accentSoft : 'rgba(255,255,255,0.025)',
-                    border: `2px solid ${isSelected ? m.accent : 'rgba(255,255,255,0.08)'}`,
+                    background: isSelected ? m.accentSoft : 'var(--bg-elev2)',
+                    border: `2px solid ${isSelected ? m.accent : 'var(--border-medium)'}`,
                     boxShadow: isSelected ? `0 4px 16px ${m.accent}25` : 'none',
                   }}
                 >
@@ -403,7 +403,7 @@ export default function Assinar() {
 
         {/* ============ SECTION: PAGAMENTO EMBARCADO ============ */}
         {method && (
-          <div ref={paymentRef} className="rounded-2xl p-5 sm:p-6 mt-2" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div ref={paymentRef} className="rounded-2xl p-5 sm:p-6 mt-2" style={{ background: 'var(--bg-elev2)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="text-xs uppercase tracking-widest text-white/40 mb-4 px-1">4 · Concluir pagamento</div>
 
             {/* PIX ou PIX Automático */}

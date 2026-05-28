@@ -35,9 +35,9 @@ export function Chip({ children, selected, onClick, accent = 'violet', icon: Ico
       onClick={onClick}
       className={`rounded-full font-medium transition-all flex items-center gap-1.5 ${sizes[size]}`}
       style={{
-        background: selected ? a.soft : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${selected ? a.hex + '60' : 'rgba(255,255,255,0.08)'}`,
-        color: selected ? a.hex : 'rgba(255,255,255,0.7)',
+        background: selected ? a.soft : 'var(--bg-elev1)',
+        border: `1px solid ${selected ? a.hex + '60' : 'var(--border-medium)'}`,
+        color: selected ? a.hex : 'var(--text-secondary)',
         boxShadow: selected ? `0 0 0 2px ${a.hex}15, 0 4px 12px -4px ${a.glow}` : 'none',
       }}
     >
@@ -54,16 +54,16 @@ export function Toggle({ children, checked, onChange, accent = 'emerald', icon: 
       onClick={() => onChange(!checked)}
       className="rounded-full px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-2"
       style={{
-        background: checked ? a.soft : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${checked ? a.hex + '55' : 'rgba(255,255,255,0.08)'}`,
-        color: checked ? a.hex : 'rgba(255,255,255,0.65)',
+        background: checked ? a.soft : 'var(--bg-elev1)',
+        border: `1px solid ${checked ? a.hex + '55' : 'var(--border-medium)'}`,
+        color: checked ? a.hex : 'var(--text-tertiary)',
       }}
     >
       <span
         className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition"
         style={{
-          background: checked ? a.hex : 'rgba(255,255,255,0.05)',
-          border: checked ? 'none' : '1px solid rgba(255,255,255,0.2)',
+          background: checked ? a.hex : 'var(--bg-hover)',
+          border: checked ? 'none' : '1px solid var(--border-strong)',
         }}
       >
         {checked && <Check size={11} className="text-white" strokeWidth={3} />}

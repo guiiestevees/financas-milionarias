@@ -16,9 +16,9 @@ const POPULAR_DOMAINS = [
 ]
 
 const inputStyle = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  color: 'white',
+  background: 'var(--bg-elev1)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   borderRadius: 10,
@@ -102,7 +102,7 @@ export default function EmailInput({
           }}
         >
           <span style={{ visibility: 'hidden' }}>{value}</span>
-          <span style={{ color: 'rgba(255,255,255,0.28)' }}>{suggestion.rest}</span>
+          <span style={{ color: 'var(--text-faint)' }}>{suggestion.rest}</span>
         </div>
       )}
 
@@ -142,8 +142,8 @@ export default function EmailInput({
             top: '50%',
             transform: 'translateY(-50%)',
             fontSize: 10,
-            color: 'rgba(255,255,255,0.4)',
-            background: 'rgba(255,255,255,0.06)',
+            color: 'var(--text-muted)',
+            background: 'var(--bg-elev3)',
             padding: '2px 6px',
             borderRadius: 4,
             pointerEvents: 'none',
