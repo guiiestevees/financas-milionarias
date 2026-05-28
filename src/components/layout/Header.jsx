@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Sparkles, Pencil, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2 } from 'lucide-react'
 
 const MONTH_LABELS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 function MonthPicker({ activeMonth, onJumpTo, onClose }) {
-  const [year, setYear] = useState(() => Number(activeMonth?.slice(0, 4)) || new Date().getFullYear())
+  const today = new Date()
+  const todayYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  const [year, setYear] = useState(() => Number(activeMonth?.slice(0, 4)) || today.getFullYear())
   const activeY = Number(activeMonth?.slice(0, 4))
   const activeM = Number(activeMonth?.slice(5, 7))
 
@@ -17,6 +19,17 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
   const pick = (mIdx) => {
     const m = String(mIdx + 1).padStart(2, '0')
     onJumpTo(`${year}-${m}`)
+    onClose()
+  }
+
+  const goToday = () => {
+    onJumpTo(todayYM)
+    onClose()
+  }
+
+  const goPrevMonth = () => {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    onJumpTo(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
     onClose()
   }
 
@@ -34,43 +47,92 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
           borderRadius: 16,
           padding: 16,
           width: '100%',
-          maxWidth: 320,
+          maxWidth: 340,
           boxShadow: '0 20px 60px -10px rgba(0,0,0,0.6)',
         }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setYear((y) => y - 1)} className="p-2 rounded-lg hover:bg-white/5 transition" aria-label="Ano anterior">
-            <ChevronLeft size={16} className="text-white/55" />
+        {/* Atalhos rápidos */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={goToday}
+            className="flex-1 px-3 py-2 rounded-lg text-xs font-medium transition"
+            style={{
+              background: 'rgba(212,175,55,0.12)',
+              border: '1px solid rgba(212,175,55,0.3)',
+              color: '#d4af37',
+            }}
+          >
+            Hoje
           </button>
-          <span style={{ fontFamily: 'Fraunces, serif' }} className="text-xl font-medium tabular-nums">{year}</span>
-          <button onClick={() => setYear((y) => y + 1)} className="p-2 rounded-lg hover:bg-white/5 transition" aria-label="Próximo ano">
-            <ChevronRight size={16} className="text-white/55" />
+          <button
+            onClick={goPrevMonth}
+            className="flex-1 px-3 py-2 rounded-lg text-xs font-medium transition text-white/75 hover:bg-white/5"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            Mês passado
           </button>
         </div>
+
+        {/* Seletor de ano */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setYear((y) => y - 1)}
+            className="p-2 rounded-lg hover:bg-white/5 transition"
+            aria-label="Ano anterior"
+            style={{ minWidth: 40, minHeight: 40 }}
+          >
+            <ChevronLeft size={18} className="text-white/70 mx-auto" />
+          </button>
+          <span style={{ fontFamily: 'Fraunces, serif' }} className="text-2xl font-medium tabular-nums">{year}</span>
+          <button
+            onClick={() => setYear((y) => y + 1)}
+            className="p-2 rounded-lg hover:bg-white/5 transition"
+            aria-label="Próximo ano"
+            style={{ minWidth: 40, minHeight: 40 }}
+          >
+            <ChevronRight size={18} className="text-white/70 mx-auto" />
+          </button>
+        </div>
+
+        {/* Grid de meses */}
         <div className="grid grid-cols-3 gap-2">
           {MONTH_LABELS_SHORT.map((label, idx) => {
             const isActive = year === activeY && (idx + 1) === activeM
+            const isToday = year === today.getFullYear() && idx === today.getMonth()
             return (
               <button
                 key={idx}
                 onClick={() => pick(idx)}
-                className="py-3 rounded-lg text-sm font-medium transition"
+                className="py-3 rounded-lg text-sm font-medium transition relative"
                 style={isActive
                   ? { background: 'rgba(212,175,55,0.2)', color: '#d4af37', border: '1px solid rgba(212,175,55,0.5)' }
                   : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.05)' }
                 }
               >
                 {label}
+                {isToday && !isActive && (
+                  <span
+                    className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+                    style={{ background: '#d4af37' }}
+                  />
+                )}
               </button>
             )
           })}
+        </div>
+
+        <div className="mt-4 text-center text-[11px] text-white/35">
+          ESC para fechar
         </div>
       </div>
     </div>
   )
 }
 
-export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, onNext, onJumpTo, saving, onSignOut }) {
+export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, onNext, onJumpTo, saving }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState(brand?.name || '')
@@ -156,23 +218,48 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
           </div>
         )}
 
+        {/* Seletor de mês — maior, mais óbvio. Ocupa o lugar onde antes
+            ficava o botão "sair" (removido pra evitar logout acidental) */}
         <div className="relative">
           <div
-            className="flex items-center gap-1 rounded-full p-1 backdrop-blur"
-            style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)' }}
+            className="flex items-center gap-0.5 rounded-2xl p-1 backdrop-blur"
+            style={{
+              background: 'rgba(212,175,55,0.08)',
+              border: '1px solid rgba(212,175,55,0.28)',
+              boxShadow: '0 4px 12px rgba(212,175,55,0.06)',
+            }}
           >
-            <button onClick={onPrev} className="p-1.5 rounded-full hover:bg-white/10 transition" aria-label="Mês anterior">
-              <ChevronLeft size={16} />
+            <button
+              onClick={onPrev}
+              className="rounded-xl hover:bg-white/10 active:bg-white/15 transition flex items-center justify-center"
+              aria-label="Mês anterior"
+              style={{ minWidth: 40, minHeight: 40 }}
+            >
+              <ChevronLeft size={18} />
             </button>
+
             <button
               onClick={() => setPickerOpen((o) => !o)}
-              className="px-3 text-sm font-medium tabular-nums whitespace-nowrap rounded-full hover:bg-white/10 transition py-0.5"
+              className="flex items-center gap-2 px-3 sm:px-4 text-sm sm:text-base font-medium tabular-nums whitespace-nowrap rounded-xl hover:bg-white/10 active:bg-white/15 transition"
               title="Escolher mês"
+              style={{ minHeight: 40 }}
             >
-              {monthLabel}
+              <Calendar size={15} className="opacity-70 shrink-0" />
+              <span>{monthLabel}</span>
+              <ChevronDown
+                size={14}
+                className="opacity-60 shrink-0 transition-transform"
+                style={{ transform: pickerOpen ? 'rotate(180deg)' : 'none' }}
+              />
             </button>
-            <button onClick={onNext} className="p-1.5 rounded-full hover:bg-white/10 transition" aria-label="Próximo mês">
-              <ChevronRight size={16} />
+
+            <button
+              onClick={onNext}
+              className="rounded-xl hover:bg-white/10 active:bg-white/15 transition flex items-center justify-center"
+              aria-label="Próximo mês"
+              style={{ minWidth: 40, minHeight: 40 }}
+            >
+              <ChevronRight size={18} />
             </button>
           </div>
           {pickerOpen && (
@@ -183,16 +270,6 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
             />
           )}
         </div>
-
-        {onSignOut && (
-          <button
-            onClick={onSignOut}
-            className="text-xs text-white/30 hover:text-white/60 transition px-2 py-1 rounded"
-            title="Sair"
-          >
-            sair
-          </button>
-        )}
       </div>
     </header>
   )

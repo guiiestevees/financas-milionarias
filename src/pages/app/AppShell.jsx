@@ -819,7 +819,6 @@ export default function AppShell() {
           onNext={() => navigateMonth(1)}
           onJumpTo={navigateToMonth}
           saving={saving}
-          onSignOut={handleSignOut}
         />
         <Tabs tab={tab} setTab={setTab} />
       </div>

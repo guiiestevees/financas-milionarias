@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle } from 'lucide-react'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2 } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
@@ -507,6 +507,56 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
   )
 }
 
+// ---------- AccountSection (Sair) ----------
+// Botão de logout dedicado. Antes ficava no Header, mas como era próximo
+// do seletor de mês, gerava clique acidental de logout.
+function AccountSection() {
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+
+  const handleSignOut = async () => {
+    if (loading) return
+    setLoading(true)
+    try {
+      await signOut()
+      navigate('/login', { replace: true })
+    } catch (e) {
+      console.error('signOut error:', e)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={UserCircle2} title="Conta" subtitle="Sua sessão atual." accent="gold" />
+      <div className="space-y-3">
+        {user?.email && (
+          <div className="flex items-center justify-between gap-3 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="min-w-0">
+              <div className="text-xs text-white/45 mb-0.5">Logado como</div>
+              <div className="text-sm text-white/85 truncate font-mono">{user.email}</div>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={handleSignOut}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition disabled:opacity-60"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.85)',
+          }}
+        >
+          <LogOut size={15} />
+          {loading ? 'Saindo…' : 'Sair desta conta'}
+        </button>
+      </div>
+    </Card>
+  )
+}
+
 // ---------- DangerZone ----------
 function DangerZone() {
   const { signOut } = useAuth()
@@ -642,6 +692,8 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
         <AttributedConfig config={month.config} setConfig={setConfig} />
         <IncomeSourcesConfig config={month.config} setConfig={setConfig} />
       </div>
+
+      <AccountSection />
 
       <div className="pt-4 border-t border-white/5">
         <DangerZone />
