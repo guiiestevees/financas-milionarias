@@ -84,11 +84,19 @@ const METHODS_BY_PLAN = {
   annual: [
     {
       id: 'PIX',
-      name: 'PIX',
-      description: 'Pagamento único — você paga R$ 167 agora e fica 12 meses ao seu dispor',
+      name: 'PIX à vista',
+      description: 'Pague R$ 167 agora e fique 12 meses ao seu dispor',
       icon: QrCode,
       accent: '#10b981',
       accentSoft: 'rgba(16,185,129,0.08)',
+    },
+    {
+      id: 'CREDIT_CARD',
+      name: 'Cartão de Crédito',
+      description: 'Parcele em até 12× sem juros (R$ 13,92/mês no cartão se for 12x)',
+      icon: CreditCard,
+      accent: '#c9a961',
+      accentSoft: 'rgba(201,169,97,0.08)',
     },
   ],
 }
@@ -401,6 +409,7 @@ export default function Assinar() {
               <CardCheckout
                 planId={selectedPlan}
                 value={plan.price}
+                maxInstallments={selectedPlan === 'annual' ? 12 : 1}
                 holder={{
                   name: name.trim(),
                   email: user?.email,

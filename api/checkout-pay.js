@@ -20,6 +20,8 @@ import {
   createSubscription,
   createSubscriptionWithCard,
   createPixAutomaticAuthorization,
+  createInstallmentPaymentWithCard,
+  createPixPayment,
   getFirstChargeUrl,
   getPixQrCode,
   PLANS,
@@ -162,10 +164,47 @@ export default async function handler(req, res) {
       })
     }
 
-    // ============= CARTÃO ou PIX COMUM (via subscription) =============
-    let subscription
-    if (method === 'CREDIT_CARD') {
-      // Cobrança imediata no cartão
+    // ============= CARTÃO ou PIX =============
+    // Decisão de fluxo:
+    // - Mensal + CARTÃO       → subscription mensal recorrente
+    // - Anual  + CARTÃO       → pagamento parcelado (1× a 12×)
+    // - Anual  + PIX          → pagamento avulso (anual à vista)
+    // - Mensal + PIX (legado) → subscription PIX com QR mensal (não usamos mais na UI mas mantido)
+    const { installments = 1 } = req.body || {}
+    let subscription = null
+    let payment = null  // pra anual: payment direto sem subscription
+
+    if (planId === 'annual' && method === 'CREDIT_CARD') {
+      // Anual no cartão (1× a 12×)
+      payment = await createInstallmentPaymentWithCard({
+        customerId: customer.id,
+        planId,
+        installments,
+        cardData: {
+          holderName: card.holderName,
+          number: card.number.replace(/\D/g, ''),
+          expiryMonth: String(card.expiryMonth).padStart(2, '0'),
+          expiryYear: String(card.expiryYear),
+          ccv: card.ccv,
+        },
+        holderInfo: {
+          name: holder.name,
+          email: holder.email || user.email,
+          cpfCnpj: holder.cpfCnpj,
+          phone: holder.phone,
+          postalCode: holder.postalCode,
+          addressNumber: holder.addressNumber,
+          remoteIp: getRemoteIp(req),
+        },
+      })
+    } else if (planId === 'annual' && method === 'PIX') {
+      // Anual no PIX (à vista)
+      payment = await createPixPayment({
+        customerId: customer.id,
+        planId,
+      })
+    } else if (method === 'CREDIT_CARD') {
+      // Mensal recorrente no cartão
       subscription = await createSubscriptionWithCard({
         customerId: customer.id,
         planId,
@@ -188,7 +227,7 @@ export default async function handler(req, res) {
         trialDays: 0,
       })
     } else {
-      // PIX comum — cria assinatura, Asaas gera QR Code novo a cada vencimento
+      // Fallback: PIX comum mensal (deve estar oculto na UI)
       subscription = await createSubscription({
         customerId: customer.id,
         planId,
@@ -200,31 +239,37 @@ export default async function handler(req, res) {
     // 5) Salva refs no profile
     const profileUpdate = {
       asaas_customer_id: customer.id,
-      asaas_subscription_id: subscription.id,
       updated_at: new Date().toISOString(),
     }
-    if (isCpf) {
-      profileUpdate.cpf = cpfClean
-    }
+    if (subscription) profileUpdate.asaas_subscription_id = subscription.id
+    if (isCpf) profileUpdate.cpf = cpfClean
     await admin().from('user_profiles').update(profileUpdate).eq('user_id', user.id)
 
-    // 6) Busca primeira cobrança da assinatura
-    const paymentsRes = await fetch(`${ASAAS_BASE}/subscriptions/${subscription.id}/payments`, {
-      headers: { 'access_token': ASAAS_API_KEY },
-    })
-    const paymentsData = await paymentsRes.json()
-    const firstPayment = paymentsData?.data?.[0]
+    // 6) Busca/determina primeiro pagamento conforme fluxo
+    let firstPayment
+    if (payment) {
+      // Pagamento avulso (anual) — usa o próprio retorno
+      firstPayment = payment
+    } else if (subscription) {
+      // Subscription — busca primeira cobrança gerada
+      const paymentsRes = await fetch(`${ASAAS_BASE}/subscriptions/${subscription.id}/payments`, {
+        headers: { 'access_token': ASAAS_API_KEY },
+      })
+      const paymentsData = await paymentsRes.json()
+      firstPayment = paymentsData?.data?.[0]
+    }
     if (!firstPayment) {
       return res.status(500).json({ error: 'Cobrança não foi gerada' })
     }
 
     // 7) Resposta por método
     if (method === 'PIX') {
+      // PIX (anual à vista) — pega QR Code
       const qrCode = await getPixQrCode(firstPayment.id)
       return res.status(200).json({
         ok: true,
         paymentId: firstPayment.id,
-        subscriptionId: subscription.id,
+        subscriptionId: subscription?.id || null,
         method,
         value: firstPayment.value,
         invoiceUrl: firstPayment.invoiceUrl,
@@ -236,14 +281,16 @@ export default async function handler(req, res) {
       })
     }
 
-    // CREDIT_CARD
+    // CREDIT_CARD (mensal subscription OU anual parcelado)
     return res.status(200).json({
       ok: true,
       paymentId: firstPayment.id,
-      subscriptionId: subscription.id,
+      subscriptionId: subscription?.id || null,
+      installmentCount: installments || 1,
       method: 'CREDIT_CARD',
       value: firstPayment.value,
-      status: firstPayment.status,  // CONFIRMED | RECEIVED | PENDING
+      totalValue: payment?.totalValue || firstPayment.value,
+      status: firstPayment.status,
     })
   } catch (err) {
     console.error('checkout-pay error:', err)

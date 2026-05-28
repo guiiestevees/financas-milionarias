@@ -217,6 +217,101 @@ export async function getPayment(paymentId) {
   return asaasFetch(`/payments/${paymentId}`)
 }
 
+// ---------- Pagamento avulso parcelado no cartão (anual) ----------
+/**
+ * Cria UM pagamento (não é subscription) parcelado no cartão.
+ * Usado pro plano ANUAL pago no cartão (à vista ou em até 12x).
+ * Asaas cobra o cartão N vezes mensalmente sem juros, mas o
+ * recebível é nosso de uma vez.
+ */
+export async function createInstallmentPaymentWithCard({
+  customerId, planId, installments = 1, cardData, holderInfo,
+}) {
+  const plan = PLANS[planId]
+  if (!plan) throw new Error(`Plano inválido: ${planId}`)
+  const n = Math.max(1, Math.min(12, Number(installments) || 1))
+
+  const dueDate = new Date().toISOString().slice(0, 10)
+  const remoteIp = holderInfo.remoteIp || '127.0.0.1'
+
+  // Pra 1× usa /payments simples. Pra 2-12× usa /installments
+  if (n === 1) {
+    const payload = {
+      customer: customerId,
+      billingType: 'CREDIT_CARD',
+      value: plan.value,
+      dueDate,
+      description: `${plan.name} — Domus`,
+      externalReference: `plan:${planId}`,
+      creditCard: {
+        holderName: cardData.holderName,
+        number: cardData.number,
+        expiryMonth: cardData.expiryMonth,
+        expiryYear: cardData.expiryYear,
+        ccv: cardData.ccv,
+      },
+      creditCardHolderInfo: buildHolderInfo(holderInfo),
+      remoteIp,
+    }
+    return asaasFetch('/payments', { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  // Parcelado em 2-12×
+  const payload = {
+    customer: customerId,
+    billingType: 'CREDIT_CARD',
+    installmentCount: n,
+    totalValue: plan.value,  // valor total — Asaas divide em N
+    dueDate,
+    description: `${plan.name} — Domus (${n}x)`,
+    externalReference: `plan:${planId}`,
+    creditCard: {
+      holderName: cardData.holderName,
+      number: cardData.number,
+      expiryMonth: cardData.expiryMonth,
+      expiryYear: cardData.expiryYear,
+      ccv: cardData.ccv,
+    },
+    creditCardHolderInfo: buildHolderInfo(holderInfo),
+    remoteIp,
+  }
+  return asaasFetch('/payments', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+// Helper interno
+function buildHolderInfo(h) {
+  return {
+    name: h.name,
+    email: h.email,
+    cpfCnpj: h.cpfCnpj,
+    postalCode: h.postalCode || '01310100',
+    addressNumber: h.addressNumber || '0',
+    phone: h.phone || undefined,
+    mobilePhone: h.phone || undefined,
+  }
+}
+
+// ---------- Pagamento avulso PIX (anual à vista) ----------
+/**
+ * Cria UM pagamento PIX avulso (não é subscription).
+ * Usado pro plano ANUAL via PIX (paga R$ 167 e fica 12 meses).
+ */
+export async function createPixPayment({ customerId, planId }) {
+  const plan = PLANS[planId]
+  if (!plan) throw new Error(`Plano inválido: ${planId}`)
+
+  const dueDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10)  // amanhã
+  const payload = {
+    customer: customerId,
+    billingType: 'PIX',
+    value: plan.value,
+    dueDate,
+    description: `${plan.name} — Domus`,
+    externalReference: `plan:${planId}`,
+  }
+  return asaasFetch('/payments', { method: 'POST', body: JSON.stringify(payload) })
+}
+
 // ---------- Cartão de crédito (direto via API) ----------
 /**
  * Cria assinatura com cobrança direta no cartão.

@@ -12,17 +12,24 @@ import CardPreview from './CardPreview'
 //   planId, holder (nome/email/cpfCnpj/phone do step anterior), value
 //   onSuccess: () => void
 //   onBack: () => void
-export default function CardCheckout({ planId, holder, value, onSuccess, onBack }) {
+// maxInstallments: número máximo de parcelas no cartão.
+// - 1 (default): pagamento à vista (1×)
+// - >1 (ex: 12): mostra seletor de parcelas, deixa user escolher 1× até N×
+export default function CardCheckout({ planId, holder, value, onSuccess, onBack, maxInstallments = 1 }) {
   const [number, setNumber] = useState('')
   const [holderName, setHolderName] = useState(holder?.name || '')
   const [expiry, setExpiry] = useState('')
   const [cvv, setCvv] = useState('')
   const [postalCode, setPostalCode] = useState('')
   const [addressNumber, setAddressNumber] = useState('')
+  const [installments, setInstallments] = useState(1)  // 1× por padrão
   const [submitting, setSubmitting] = useState(false)
-  const [status, setStatus] = useState('form')  // 'form' | 'processing' | 'success' | 'error'
+  const [status, setStatus] = useState('form')
   const [error, setError] = useState(null)
-  const [focused, setFocused] = useState(null)  // 'number' | 'name' | 'expiry' | 'cvv'
+  const [focused, setFocused] = useState(null)
+
+  const showInstallments = maxInstallments > 1
+  const installmentValue = Number(value) / installments
 
   const brand = detectCardBrand(number)
   const numberDigits = number.replace(/\D/g, '')
@@ -52,6 +59,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
         body: JSON.stringify({
           planId,
           method: 'CREDIT_CARD',
+          installments,  // 1 (à vista) ou N (parcelado, só pra plano anual)
           holder: {
             ...holder,
             postalCode: postalCode.replace(/\D/g, ''),
@@ -125,6 +133,11 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
         <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-2xl font-semibold tabular-nums">
           R$ {Number(value).toFixed(2).replace('.', ',')}
         </div>
+        {showInstallments && installments > 1 && (
+          <div className="text-xs text-white/55 mt-1">
+            em <strong className="text-white/85">{installments}×</strong> de R$ {installmentValue.toFixed(2).replace('.', ',')} no cartão (sem juros)
+          </div>
+        )}
       </div>
 
       {/* Preview 3D do cartão — vira quando foca no CVV */}
@@ -135,6 +148,43 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack 
         cvv={cvv}
         focused={focused}
       />
+
+      {/* Seletor de parcelas — só aparece se maxInstallments > 1 (plano anual) */}
+      {showInstallments && (
+        <div>
+          <label className="text-xs text-white/55 mb-1 block">Parcelas no cartão</label>
+          <select
+            value={installments}
+            onChange={(e) => setInstallments(Number(e.target.value))}
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
+              fontSize: 14, outline: 'none',
+              fontFamily: 'JetBrains Mono, monospace',
+              cursor: 'pointer',
+              appearance: 'none',
+              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              paddingRight: 36,
+            }}
+            className="focus:border-amber-400"
+          >
+            {Array.from({ length: maxInstallments }, (_, i) => {
+              const n = i + 1
+              const valuePerInstallment = (Number(value) / n).toFixed(2).replace('.', ',')
+              return (
+                <option key={n} value={n} style={{ background: '#0f1525' }}>
+                  {n === 1
+                    ? `À vista — R$ ${Number(value).toFixed(2).replace('.', ',')}`
+                    : `${n}× de R$ ${valuePerInstallment} sem juros`}
+                </option>
+              )
+            })}
+          </select>
+        </div>
+      )}
 
       {/* Número do cartão */}
       <div>
