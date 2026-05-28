@@ -97,13 +97,13 @@ function CardsConfig({ config, setConfig }) {
         <AdderShell accent="cyan" title="Novo cartão">
           <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cartão (ex: Safra, Nubank)"
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') reset() }}
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+            style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
             className="placeholder:text-white/30 focus:border-cyan-400" />
           <div>
             <div className="text-xs text-white/45 mb-1">Vence dia</div>
             <input type="number" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="ex: 5"
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') reset() }}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+              style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
               className="placeholder:text-white/30 tabular-nums focus:border-cyan-400" />
           </div>
           <button onClick={submit} disabled={!name.trim()} style={{ opacity: name.trim() ? 1 : 0.4 }} className="w-full px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition flex items-center justify-center gap-1.5"><Check size={14} /><span className="text-sm">Salvar cartão</span></button>
@@ -157,7 +157,7 @@ function PaymentMethodsConfig({ config, setConfig }) {
           <div className="flex gap-2 items-center">
             <input autoFocus type="text" value={val} onChange={(e) => setVal(e.target.value)} placeholder="Ex: Boleto, Dinheiro"
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setVal(''); setAdding(false) } }}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', flex: 1, minWidth: 0, boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+              style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', flex: 1, minWidth: 0, boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
               className="placeholder:text-white/30 focus:border-emerald-400" />
             <button onClick={submit} disabled={!val.trim()} style={{ opacity: val.trim() ? 1 : 0.4 }} className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition shrink-0 flex items-center gap-1.5"><Check size={14} /><span className="text-sm">Salvar</span></button>
           </div>
@@ -208,9 +208,9 @@ function BudgetInput({ value, onChange }) {
       onBlur={() => setFocused(false)}
       placeholder="—"
       style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        color: 'white',
+        background: 'var(--bg-elev3)',
+        border: '1px solid var(--border-medium)',
+        color: 'var(--text-primary)',
         width: 80,
         boxSizing: 'border-box',
         minWidth: 0,
@@ -324,7 +324,7 @@ function AttributedConfig({ config, setConfig }) {
   return (
     <Card className="p-4 sm:p-6 lg:col-span-2">
       <SectionTitle icon={Users} title="Atribuído a" subtitle="Quem é dono do gasto. 🤝 = de terceiros (vai pra A receber)" accent="fuchsia" action={<AdderToggle open={adding} onToggle={setAdding} />} />
-      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-lg p-3 mb-4 text-xs text-white/65 leading-relaxed" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
         Marque com <strong className="text-emerald-300">👤 É meu</strong> os gastos que descontam do seu saldo (Eu, Casal, sua empresa). Marque com <strong className="text-amber-300">🤝 Adiantamento</strong> os de terceiros (Pai, Sogro) — vão pra "A receber" e <strong>não descontam</strong>.
       </div>
       {adding && (
@@ -332,7 +332,7 @@ function AttributedConfig({ config, setConfig }) {
           <div className="flex gap-2 items-center">
             <input autoFocus type="text" value={val} onChange={(e) => setVal(e.target.value)} placeholder="Ex: Esposa, Pai, Empresa X"
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setVal(''); setAdding(false) } }}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', flex: 1, minWidth: 0, boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+              style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', flex: 1, minWidth: 0, boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
               className="placeholder:text-white/30 focus:border-fuchsia-400" />
             <button onClick={submit} disabled={!val.trim()} style={{ opacity: val.trim() ? 1 : 0.4 }} className="px-3 py-2 rounded-lg bg-fuchsia-500/20 text-fuchsia-300 hover:bg-fuchsia-500/30 transition shrink-0 flex items-center gap-1.5"><Check size={14} /><span className="text-sm">Salvar</span></button>
           </div>
@@ -374,7 +374,7 @@ function IncomeSourcesConfig({ config, setConfig }) {
           <div className="flex gap-2 items-center">
             <input autoFocus type="text" value={val} onChange={(e) => setVal(e.target.value)} placeholder="Ex: Alquimia Digital, Rico Seguros"
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setVal(''); setAdding(false) } }}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', flex: 1, minWidth: 0, boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+              style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', flex: 1, minWidth: 0, boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
               className="placeholder:text-white/30 focus:border-emerald-400" />
             <button onClick={submit} disabled={!val.trim()} style={{ opacity: val.trim() ? 1 : 0.4 }} className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition shrink-0 flex items-center gap-1.5"><Check size={14} /><span className="text-sm">Salvar</span></button>
           </div>
@@ -458,7 +458,7 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
 
       {current ? (
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div style={{ background: accents.emerald.soft, color: accents.emerald.hex }} className="p-1.5 rounded-md shrink-0"><MessageCircle size={14} /></div>
               <div className="min-w-0">
@@ -496,9 +496,9 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
             onChange={(e) => setDraft(e.target.value)}
             placeholder="(11) 99999-8888"
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: 'white',
+              background: 'var(--bg-elev3)',
+              border: '1px solid var(--border-strong)',
+              color: 'var(--text-primary)',
               width: '100%',
               outline: 'none',
               borderRadius: 8,
@@ -603,7 +603,7 @@ function AccountSection() {
       <SectionTitle icon={UserCircle2} title="Conta" subtitle="Sua sessão atual." accent="gold" />
       <div className="space-y-3">
         {user?.email && (
-          <div className="flex items-center justify-between gap-3 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="flex items-center justify-between gap-3 p-3 rounded-lg" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
             <div className="min-w-0">
               <div className="text-xs text-white/45 mb-0.5">Logado como</div>
               <div className="text-sm text-white/85 truncate font-mono">{user.email}</div>
@@ -615,9 +615,9 @@ function AccountSection() {
           disabled={loading}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition disabled:opacity-60"
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.85)',
+            background: 'var(--bg-elev1)',
+            border: '1px solid var(--border-medium)',
+            color: 'var(--text-primary)',
           }}
         >
           <LogOut size={15} />
@@ -706,7 +706,7 @@ function DangerZone() {
             style={{
               background: 'rgba(244,63,94,0.06)',
               border: `1px solid ${accents.rose.hex}40`,
-              color: 'white',
+              color: 'var(--text-primary)',
               width: '100%',
               outline: 'none',
               borderRadius: 8,
