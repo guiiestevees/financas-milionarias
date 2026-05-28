@@ -6,6 +6,7 @@ import { useSubscription } from '../../hooks/useSubscription'
 import { supabase } from '../../lib/supabase'
 import PixCheckout from '../../components/PixCheckout'
 import CardCheckout from '../../components/CardCheckout'
+import AddressFields, { isAddressValid } from '../../components/AddressFields'
 
 // ---------- Máscaras BR ----------
 function maskCpfCnpj(input) {
@@ -117,6 +118,10 @@ export default function Assinar() {
   const [name, setName] = useState(user?.user_metadata?.name || '')
   const [cpfCnpj, setCpfCnpj] = useState('')
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState({
+    cep: '', street: '', number: '', complement: '',
+    neighborhood: '', city: '', state: '',
+  })
   const [method, setMethod] = useState(null)
 
   // ----- State do pagamento embarcado -----
@@ -132,14 +137,19 @@ export default function Assinar() {
   const availableMethods = METHODS_BY_PLAN[selectedPlan] || []
   const cpfCnpjDigits = cpfCnpj.replace(/\D/g, '')
   const validCpfCnpj = /^\d{11}$|^\d{14}$/.test(cpfCnpjDigits)
-  const formValid = name.trim().length >= 3 && validCpfCnpj
+  const addressOk = isAddressValid(address)
+  const formValid = name.trim().length >= 3 && validCpfCnpj && addressOk
 
   // ----- Quando user escolhe método de pagamento -----
   const selectMethod = async (m) => {
     setError(null)
 
     if (!formValid) {
-      setError('Preencha nome e CPF/CNPJ acima primeiro')
+      const missing = []
+      if (name.trim().length < 3) missing.push('nome completo')
+      if (!validCpfCnpj) missing.push('CPF/CNPJ')
+      if (!addressOk) missing.push('endereço completo')
+      setError(`Preencha ${missing.join(', ')} acima antes de continuar`)
       // scroll suave pro form
       window.scrollTo({ top: 350, behavior: 'smooth' })
       return
@@ -165,6 +175,15 @@ export default function Assinar() {
               email: user?.email,
               cpfCnpj: cpfCnpjDigits,
               phone: phone.replace(/\D/g, '') || undefined,
+              address: {
+                postalCode: address.cep.replace(/\D/g, ''),
+                street: address.street.trim(),
+                addressNumber: address.number.trim(),
+                complement: address.complement.trim() || undefined,
+                neighborhood: address.neighborhood.trim(),
+                city: address.city.trim(),
+                state: address.state.trim().toUpperCase(),
+              },
             },
           }),
         })
@@ -319,6 +338,11 @@ export default function Assinar() {
                   />
                 </div>
               </div>
+
+              {/* Endereço (pra nota fiscal + cadastro do cliente) */}
+              <div className="pt-2 mt-1 border-t border-white/5">
+                <AddressFields value={address} onChange={setAddress} />
+              </div>
             </div>
           </div>
         </div>
@@ -415,6 +439,15 @@ export default function Assinar() {
                   email: user?.email,
                   cpfCnpj: cpfCnpjDigits,
                   phone: phone.replace(/\D/g, '') || undefined,
+                  address: {
+                    postalCode: address.cep.replace(/\D/g, ''),
+                    street: address.street.trim(),
+                    addressNumber: address.number.trim(),
+                    complement: address.complement.trim() || undefined,
+                    neighborhood: address.neighborhood.trim(),
+                    city: address.city.trim(),
+                    state: address.state.trim().toUpperCase(),
+                  },
                 }}
                 onSuccess={onPaymentSuccess}
                 onBack={() => setMethod(null)}

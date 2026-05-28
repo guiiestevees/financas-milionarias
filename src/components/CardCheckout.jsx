@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Loader2, Lock, CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { maskCardNumber, maskCardExpiry, maskCardCvv, maskCep, detectCardBrand, validateCardNumber, validateCardExpiry, parseExpiry } from '../lib/cardUtils'
+import { maskCardNumber, maskCardExpiry, maskCardCvv, detectCardBrand, validateCardNumber, validateCardExpiry, parseExpiry } from '../lib/cardUtils'
 import { supabase } from '../lib/supabase'
 import { playSuccess } from '../lib/sounds'
 import CardPreview from './CardPreview'
@@ -20,8 +20,6 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
   const [holderName, setHolderName] = useState(holder?.name || '')
   const [expiry, setExpiry] = useState('')
   const [cvv, setCvv] = useState('')
-  const [postalCode, setPostalCode] = useState('')
-  const [addressNumber, setAddressNumber] = useState('')
   const [installments, setInstallments] = useState(1)  // 1× por padrão
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState('form')
@@ -37,7 +35,9 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
   const expValid = validateCardExpiry(expiry)
   const cvvValid = cvv.length >= 3
 
-  const formValid = numValid && expValid && cvvValid && holderName.trim().length > 2 && postalCode.replace(/\D/g, '').length === 8 && addressNumber.trim()
+  // CEP e endereço já foram capturados na tela anterior (Assinar.jsx → AddressFields)
+  // e vêm no holder.address. Não pedimos de novo aqui.
+  const formValid = numValid && expValid && cvvValid && holderName.trim().length > 2
 
   const submit = async () => {
     if (!formValid || submitting) return
@@ -60,11 +60,7 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
           planId,
           method: 'CREDIT_CARD',
           installments,  // 1 (à vista) ou N (parcelado, só pra plano anual)
-          holder: {
-            ...holder,
-            postalCode: postalCode.replace(/\D/g, ''),
-            addressNumber: addressNumber.trim(),
-          },
+          holder,  // já inclui address { postalCode, street, addressNumber, complement, neighborhood, city, state }
           card: {
             number: numberDigits,
             holderName: holderName.trim().toUpperCase(),
@@ -287,45 +283,6 @@ export default function CardCheckout({ planId, holder, value, onSuccess, onBack,
             onBlur={() => setFocused(null)}
             placeholder="000"
             maxLength={4}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
-              fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace',
-            }}
-            className="placeholder:text-white/30 focus:border-amber-400"
-          />
-        </div>
-      </div>
-
-      {/* CEP + número (Asaas exige pra antifraude) */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-white/55 mb-1 block">CEP do titular</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={postalCode}
-            onChange={(e) => setPostalCode(maskCep(e.target.value))}
-            placeholder="00000-000"
-            maxLength={9}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'white', width: '100%', borderRadius: 10, padding: '10px 14px',
-              fontSize: 14, outline: 'none', fontFamily: 'JetBrains Mono, monospace',
-            }}
-            className="placeholder:text-white/30 focus:border-amber-400"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-white/55 mb-1 block">Número</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={addressNumber}
-            onChange={(e) => setAddressNumber(e.target.value.replace(/[^\dA-Za-z]/g, '').slice(0, 6))}
-            placeholder="123"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.1)',

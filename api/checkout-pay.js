@@ -93,13 +93,14 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3) Cliente Asaas
+    // 3) Cliente Asaas (com endereço completo pra nota fiscal)
     const customer = await createOrFindCustomer({
       userId: user.id,
       name: holder.name,
       email: holder.email || user.email,
       cpfCnpj: holder.cpfCnpj,
       phone: holder.phone,
+      address: holder.address,  // { postalCode, street, addressNumber, complement, neighborhood, city, state }
     })
 
     // 4) Cria recurso conforme método (subscription pra cartão/pix comum,
@@ -192,8 +193,7 @@ export default async function handler(req, res) {
           email: holder.email || user.email,
           cpfCnpj: holder.cpfCnpj,
           phone: holder.phone,
-          postalCode: holder.postalCode,
-          addressNumber: holder.addressNumber,
+          address: holder.address,  // formato novo { postalCode, addressNumber, ... }
           remoteIp: getRemoteIp(req),
         },
       })
@@ -221,8 +221,7 @@ export default async function handler(req, res) {
           email: holder.email || user.email,
           cpfCnpj: holder.cpfCnpj,
           phone: holder.phone,
-          postalCode: holder.postalCode,
-          addressNumber: holder.addressNumber,
+          address: holder.address,  // formato novo { postalCode, addressNumber, ... }
           remoteIp: getRemoteIp(req),
         },
         trialDays: 0,

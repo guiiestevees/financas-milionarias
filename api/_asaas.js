@@ -67,30 +67,74 @@ async function asaasFetch(path, options = {}) {
 
 // ---------- Customer ----------
 /**
- * Cria um cliente no Asaas. Idempotente por externalReference (nosso user_id).
- * Se já existe, retorna o cliente existente.
+ * Cria um cliente no Asaas (ou atualiza se já existe).
+ * Idempotente por externalReference (nosso user_id).
+ *
+ * Endereço completo é necessário pra emissão de nota fiscal (Asaas Notas
+ * ou exportação pra outro emissor).
+ *
+ * @param address  { postalCode, street, addressNumber, complement,
+ *                   neighborhood, city, state }  — todos opcionais individualmente,
+ *                   mas Asaas só aceita NF se estiver preenchido.
  */
-export async function createOrFindCustomer({ userId, name, email, cpfCnpj, phone }) {
-  // Tenta achar pelo externalReference primeiro
-  const existing = await asaasFetch(`/customers?externalReference=${encodeURIComponent(userId)}`)
-    .catch(() => null)
-  if (existing?.data?.length > 0) {
-    return existing.data[0]
-  }
+export async function createOrFindCustomer({ userId, name, email, cpfCnpj, phone, address }) {
+  // Monta payload de endereço pro Asaas (campos com nomes que ele espera)
+  const addressPayload = address ? {
+    postalCode: (address.postalCode || '').replace(/\D/g, '') || undefined,
+    address: address.street || undefined,
+    addressNumber: address.addressNumber || undefined,
+    complement: address.complement || undefined,
+    province: address.neighborhood || undefined,  // Asaas chama bairro de "province"
+    city: address.city || undefined,
+    state: address.state || undefined,
+  } : {}
 
-  // Cria novo
-  const payload = {
+  const basePayload = {
     name: name || email || 'Usuário Domus',
     email: email || undefined,
     cpfCnpj: cpfCnpj || undefined,
     mobilePhone: phone || undefined,
-    externalReference: userId,
     notificationDisabled: true,  // a gente notifica pelo Alfred no WhatsApp
+    ...addressPayload,
   }
 
+  // Tenta achar pelo externalReference primeiro
+  const existing = await asaasFetch(`/customers?externalReference=${encodeURIComponent(userId)}`)
+    .catch(() => null)
+
+  if (existing?.data?.length > 0) {
+    const customer = existing.data[0]
+    // Se temos endereço novo OU dados que faltam, atualiza o customer.
+    // Asaas usa POST /customers/{id} pra update (não PUT).
+    const needsUpdate =
+      (address && addressPayload.postalCode && !customer.postalCode) ||
+      (address && addressPayload.address && !customer.address) ||
+      (cpfCnpj && !customer.cpfCnpj) ||
+      (phone && !customer.mobilePhone)
+
+    if (needsUpdate) {
+      try {
+        const updated = await asaasFetch(`/customers/${customer.id}`, {
+          method: 'POST',
+          body: JSON.stringify(basePayload),
+        })
+        return updated
+      } catch (e) {
+        // Se update falhar, retorna o existente mesmo — não bloqueia checkout
+        console.warn('Customer update falhou, usando existente:', e.message)
+        return customer
+      }
+    }
+    return customer
+  }
+
+  // Cria novo
   return asaasFetch('/customers', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...basePayload,
+      externalReference: userId,
+    }),
   })
 }
 
@@ -278,14 +322,20 @@ export async function createInstallmentPaymentWithCard({
   return asaasFetch('/payments', { method: 'POST', body: JSON.stringify(payload) })
 }
 
-// Helper interno
+// Helper interno: monta o creditCardHolderInfo que vai no Asaas pra antifraude.
+// Aceita o holder em dois formatos:
+//   (a) flat:    { postalCode, addressNumber }  ← formato legado
+//   (b) nested:  { address: { postalCode, addressNumber, ... } }  ← formato novo
 function buildHolderInfo(h) {
+  const addr = h.address || {}
+  const postalCode = (addr.postalCode || h.postalCode || '').replace(/\D/g, '')
+  const addressNumber = addr.addressNumber || h.addressNumber || ''
   return {
     name: h.name,
     email: h.email,
     cpfCnpj: h.cpfCnpj,
-    postalCode: h.postalCode || '01310100',
-    addressNumber: h.addressNumber || '0',
+    postalCode: postalCode || '01310100',  // fallback Av. Paulista (não recomendado)
+    addressNumber: addressNumber || '0',
     phone: h.phone || undefined,
     mobilePhone: h.phone || undefined,
   }
