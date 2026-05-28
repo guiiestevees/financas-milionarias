@@ -42,13 +42,14 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'linear-gradient(180deg, #0f1525, #0a0d18)',
+          background: 'var(--bg-elev1)',
           border: '1px solid rgba(212,175,55,0.25)',
           borderRadius: 16,
           padding: 16,
           width: '100%',
           maxWidth: 340,
           boxShadow: '0 20px 60px -10px rgba(0,0,0,0.6)',
+          color: 'var(--text-primary)',
         }}
       >
         {/* Atalhos rápidos */}

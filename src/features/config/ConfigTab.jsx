@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2 } from 'lucide-react'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2, Sun, Moon, Palette } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useTheme } from '../../hooks/useTheme'
 import SubscriptionCard from './SubscriptionCard'
 
 // ---------- Helpers de moeda BR ----------
@@ -507,6 +508,67 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
   )
 }
 
+// ---------- AppearanceSection (Tema light/dark) ----------
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme()
+
+  const Option = ({ value, label, icon: Icon, description }) => {
+    const isActive = theme === value
+    return (
+      <button
+        onClick={() => setTheme(value)}
+        className="flex-1 flex flex-col items-start gap-1.5 p-4 rounded-xl transition text-left"
+        style={{
+          background: isActive ? 'rgba(212,175,55,0.1)' : 'var(--bg-elev2)',
+          border: `1.5px solid ${isActive ? 'rgba(212,175,55,0.5)' : 'var(--border-soft)'}`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg"
+            style={{
+              background: isActive ? 'rgba(212,175,55,0.15)' : 'var(--bg-elev3)',
+              color: isActive ? '#d4af37' : 'var(--text-tertiary)',
+            }}
+          >
+            <Icon size={15} />
+          </div>
+          <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+            {label}
+          </div>
+          {isActive && <Check size={14} style={{ color: '#d4af37', marginLeft: 'auto' }} />}
+        </div>
+        <div className="text-xs leading-snug" style={{ color: 'var(--text-tertiary)' }}>
+          {description}
+        </div>
+      </button>
+    )
+  }
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={Palette} title="Aparência" subtitle="Escolha como o app deve parecer." accent="gold" />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Option
+          value="dark"
+          label="Escuro"
+          icon={Moon}
+          description="O visual original — recomendado pra uso noturno."
+        />
+        <Option
+          value="light"
+          label="Claro"
+          icon={Sun}
+          description="Fundo branco quente. Bom pra ambientes iluminados."
+        />
+      </div>
+      <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+        Sua preferência é salva neste dispositivo.
+      </div>
+    </Card>
+  )
+}
+
 // ---------- AccountSection (Sair) ----------
 // Botão de logout dedicado. Antes ficava no Header, mas como era próximo
 // do seletor de mês, gerava clique acidental de logout.
@@ -684,6 +746,7 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
       </Card>
       <SubscriptionCard />
       <BrandConfig brand={brand} updateBrand={updateBrand} />
+      <AppearanceSection />
       <WhatsAppConfig whatsappPhone={whatsappPhone} updateWhatsappPhone={updateWhatsappPhone} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CardsConfig config={month.config} setConfig={setConfig} />

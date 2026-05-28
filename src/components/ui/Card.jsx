@@ -2,8 +2,8 @@ import { accents } from '../../lib/constants'
 
 export function Card({ children, className = '', accent, glow = false, style = {} }) {
   const base = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'var(--card-bg)',
+    border: '1px solid var(--card-border)',
     borderRadius: 18,
     backdropFilter: 'blur(8px)',
     ...style,

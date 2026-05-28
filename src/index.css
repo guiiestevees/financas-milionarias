@@ -2,16 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   TEMA — variáveis CSS
+   Default = dark (idêntico ao app de sempre).
+   [data-theme="light"] = light mode (override).
+   ============================================================ */
+:root {
+  /* Backgrounds */
+  --bg-app: #070912;
+  --bg-app-soft: #0a0d18;
+  --bg-elev1: rgba(255, 255, 255, 0.04);     /* Cards */
+  --bg-elev2: rgba(255, 255, 255, 0.025);    /* Containers/seções */
+  --bg-elev3: rgba(255, 255, 255, 0.06);     /* Inputs */
+  --bg-hover: rgba(255, 255, 255, 0.05);
+
+  /* Texto */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-tertiary: rgba(255, 255, 255, 0.55);
+  --text-muted: rgba(255, 255, 255, 0.40);
+  --text-faint: rgba(255, 255, 255, 0.25);
+
+  /* Bordas */
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  /* Acentos (iguais nos dois temas) */
+  --gold: #d4af37;
+  --gold-soft: rgba(212, 175, 55, 0.08);
+
+  /* Card glass */
+  --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  --card-border: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] {
+  --bg-app: #f5f4ef;             /* off-white quente */
+  --bg-app-soft: #fafaf6;
+  --bg-elev1: #ffffff;
+  --bg-elev2: rgba(17, 22, 42, 0.025);
+  --bg-elev3: #ffffff;
+  --bg-hover: rgba(17, 22, 42, 0.04);
+
+  --text-primary: #11162a;
+  --text-secondary: rgba(17, 22, 42, 0.75);
+  --text-tertiary: rgba(17, 22, 42, 0.6);
+  --text-muted: rgba(17, 22, 42, 0.45);
+  --text-faint: rgba(17, 22, 42, 0.3);
+
+  --border-soft: rgba(17, 22, 42, 0.08);
+  --border-medium: rgba(17, 22, 42, 0.12);
+  --border-strong: rgba(17, 22, 42, 0.2);
+
+  --gold-soft: rgba(212, 175, 55, 0.14);
+
+  --card-bg: #ffffff;
+  --card-border: rgba(17, 22, 42, 0.1);
+}
+
 html, body {
   margin: 0;
   padding: 0;
-  background: #0a0a0c;
-  color: #e6e8ef;
+  background: var(--bg-app);
+  color: var(--text-primary);
   font-family: Manrope, system-ui, sans-serif;
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* ============================================================
+   Sobrescrita de utilities Tailwind no light mode
+   (cobre ~80% das telas sem precisar editar cada JSX)
+   ============================================================ */
+[data-theme="light"] .text-white { color: var(--text-primary) !important; }
+[data-theme="light"] .text-white\/90 { color: rgba(17,22,42,0.9) !important; }
+[data-theme="light"] .text-white\/85 { color: rgba(17,22,42,0.85) !important; }
+[data-theme="light"] .text-white\/80 { color: rgba(17,22,42,0.8) !important; }
+[data-theme="light"] .text-white\/75 { color: rgba(17,22,42,0.72) !important; }
+[data-theme="light"] .text-white\/70 { color: rgba(17,22,42,0.7) !important; }
+[data-theme="light"] .text-white\/65 { color: rgba(17,22,42,0.65) !important; }
+[data-theme="light"] .text-white\/60 { color: rgba(17,22,42,0.6) !important; }
+[data-theme="light"] .text-white\/55 { color: rgba(17,22,42,0.6) !important; }
+[data-theme="light"] .text-white\/50 { color: rgba(17,22,42,0.55) !important; }
+[data-theme="light"] .text-white\/45 { color: rgba(17,22,42,0.5) !important; }
+[data-theme="light"] .text-white\/40 { color: rgba(17,22,42,0.45) !important; }
+[data-theme="light"] .text-white\/35 { color: rgba(17,22,42,0.4) !important; }
+[data-theme="light"] .text-white\/30 { color: rgba(17,22,42,0.4) !important; }
+[data-theme="light"] .text-white\/25 { color: rgba(17,22,42,0.35) !important; }
+
+/* Backgrounds claros sobrescritos */
+[data-theme="light"] .bg-white\/5 { background-color: rgba(17,22,42,0.04) !important; }
+[data-theme="light"] .bg-white\/10 { background-color: rgba(17,22,42,0.06) !important; }
+
+/* Placeholder de inputs */
+[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: rgba(17,22,42,0.4) !important; }
+[data-theme="light"] .placeholder\:text-white\/40::placeholder { color: rgba(17,22,42,0.45) !important; }
+
+/* Bordas Tailwind */
+[data-theme="light"] .border-white\/5 { border-color: rgba(17,22,42,0.08) !important; }
+[data-theme="light"] .border-white\/8 { border-color: rgba(17,22,42,0.1) !important; }
+[data-theme="light"] .border-white\/10 { border-color: rgba(17,22,42,0.12) !important; }
+
+/* Hovers */
+[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(17,22,42,0.04) !important; }
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(17,22,42,0.06) !important; }
+[data-theme="light"] .hover\:text-white:hover { color: var(--text-primary) !important; }
+
+/* Date input — inverte o filtro do ícone do calendário no light mode */
+[data-theme="light"] input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.15);
+}
+
+/* Scrollbar light */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(17, 22, 42, 0.18);
 }
 
 /* Remove number input spinners */

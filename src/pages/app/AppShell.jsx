@@ -806,7 +806,7 @@ export default function AppShell() {
   const brand = data.brand || { name: '', subtitle: 'Domus' }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#070912' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-app)' }}>
       {showTour && <WelcomeTour userName={user?.user_metadata?.name || ''} onClose={dismissTour} />}
       <SubscriptionBanner />
       <div className="w-full max-w-4xl mx-auto px-4 pt-8">
