@@ -312,32 +312,41 @@ export async function createPixPayment({ customerId, planId }) {
   return asaasFetch('/payments', { method: 'POST', body: JSON.stringify(payload) })
 }
 
-// ---------- Cartão de crédito (direto via API) ----------
+// ---------- Cartão de crédito — fluxo híbrido (cobrança imediata + subscription) ----------
 /**
- * Cria assinatura com cobrança direta no cartão.
- * O Asaas processa imediatamente — não precisa redirect.
+ * Cria assinatura recorrente no cartão com COBRANÇA IMEDIATA do primeiro mês.
  *
- * cardData: { number, holderName, expiryMonth, expiryYear, ccv }
- * holderInfo: { name, email, cpfCnpj, phone, postalCode, addressNumber }
+ * Fluxo em 2 passos (porque o Asaas, ao criar subscription, agenda a primeira
+ * cobrança pro PRÓXIMO ciclo — não cobra "hoje"):
+ *
+ *  PASSO 1 — Cobra a primeira mensalidade AGORA via /payments
+ *            • Asaas autoriza o cartão imediatamente
+ *            • Retorna creditCardToken (cartão tokenizado pra próximas cobranças)
+ *            • Se cartão recusar, JOGA ERRO antes de criar subscription
+ *
+ *  PASSO 2 — Cria a subscription com nextDueDate = +30 dias
+ *            • Usa creditCardToken pra não re-pedir dados do cartão
+ *            • A partir do mês 2, Asaas cobra automaticamente
+ *
+ * Retorna { firstPayment, subscription } pra checkout-pay.js decidir o status.
  */
 export async function createSubscriptionWithCard({ customerId, planId, cardData, holderInfo, trialDays = 0 }) {
   const plan = PLANS[planId]
   if (!plan) throw new Error(`Plano inválido: ${planId}`)
 
-  const firstDueDate = new Date(Date.now() + trialDays * 86400000)
+  const today = new Date(Date.now() + trialDays * 86400000)
     .toISOString().slice(0, 10)
-
-  // IP do request (Asaas exige) — pegamos no handler
   const remoteIp = holderInfo.remoteIp || '127.0.0.1'
+  const holderInfoPayload = buildHolderInfo(holderInfo)
 
-  const payload = {
+  // ========== PASSO 1: cobra primeira mensalidade AGORA ==========
+  const firstPaymentPayload = {
     customer: customerId,
     billingType: 'CREDIT_CARD',
-    nextDueDate: firstDueDate,
     value: plan.value,
-    cycle: plan.cycle,
-    description: `${plan.name} — Domus`,
-    externalReference: `plan:${planId}`,
+    dueDate: today,
+    description: `${plan.name} — Domus (mês 1)`,
+    externalReference: `plan:${planId}:first`,
     creditCard: {
       holderName: cardData.holderName,
       number: cardData.number,
@@ -345,22 +354,48 @@ export async function createSubscriptionWithCard({ customerId, planId, cardData,
       expiryYear: cardData.expiryYear,
       ccv: cardData.ccv,
     },
-    creditCardHolderInfo: {
-      name: holderInfo.name,
-      email: holderInfo.email,
-      cpfCnpj: holderInfo.cpfCnpj,
-      postalCode: holderInfo.postalCode || '01310100',  // default SP centro se vier vazio
-      addressNumber: holderInfo.addressNumber || '0',
-      phone: holderInfo.phone || undefined,
-      mobilePhone: holderInfo.phone || undefined,
-    },
+    creditCardHolderInfo: holderInfoPayload,
     remoteIp,
   }
-
-  return asaasFetch('/subscriptions', {
+  const firstPayment = await asaasFetch('/payments', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(firstPaymentPayload),
   })
+
+  // Se a primeira cobrança não autorizou, NÃO criamos a subscription.
+  // Cliente vai ver o erro e tentar de novo com outro cartão.
+  if (!['CONFIRMED', 'RECEIVED'].includes(firstPayment.status)) {
+    const err = new Error(`Cartão não autorizado (status: ${firstPayment.status})`)
+    err.status = 400
+    err.data = { firstPayment }
+    throw err
+  }
+
+  // ========== PASSO 2: cria subscription pra renovações futuras ==========
+  // nextDueDate = hoje + 30 dias (primeira cobrança recorrente do mês 2)
+  // Usa creditCardToken retornado pelo passo 1 — evita re-pedir cartão
+  const nextDueDate = new Date(Date.now() + 30 * 86400000)
+    .toISOString().slice(0, 10)
+  const ccToken = firstPayment.creditCard?.creditCardToken
+
+  const subscriptionPayload = {
+    customer: customerId,
+    billingType: 'CREDIT_CARD',
+    nextDueDate,
+    value: plan.value,
+    cycle: plan.cycle,
+    description: `${plan.name} — Domus`,
+    externalReference: `plan:${planId}`,
+    creditCardToken: ccToken,
+    creditCardHolderInfo: holderInfoPayload,
+    remoteIp,
+  }
+  const subscription = await asaasFetch('/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify(subscriptionPayload),
+  })
+
+  return { firstPayment, subscription }
 }
 
 // ---------- Helpers ----------

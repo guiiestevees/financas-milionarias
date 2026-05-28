@@ -204,8 +204,9 @@ export default async function handler(req, res) {
         planId,
       })
     } else if (method === 'CREDIT_CARD') {
-      // Mensal recorrente no cartão
-      subscription = await createSubscriptionWithCard({
+      // Mensal recorrente no cartão (fluxo híbrido: cobra primeira mensalidade
+      // AGORA via /payments, depois cria subscription pra renovações)
+      const result = await createSubscriptionWithCard({
         customerId: customer.id,
         planId,
         cardData: {
@@ -226,6 +227,8 @@ export default async function handler(req, res) {
         },
         trialDays: 0,
       })
+      subscription = result.subscription
+      payment = result.firstPayment  // primeira cobrança imediata pra validar status
     } else {
       // Fallback: PIX comum mensal (deve estar oculto na UI)
       subscription = await createSubscription({
