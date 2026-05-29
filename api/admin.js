@@ -41,11 +41,10 @@ async function handleStats(req, res) {
   const startMonth = startOfMonthISO()
   const startLastMonth = startOfLastMonthISO()
 
-  // NOTA: user_profiles não tem coluna created_at — pegamos do auth.users (authById)
+  // Defensivo: select('*') pra evitar erros se schema mudar. Datas vêm do auth.users.
   const { data: profiles, error } = await a
     .from('user_profiles')
-    .select('user_id, subscription_status, subscription_until, asaas_subscription_id, updated_at, plan_id, asaas_customer_id')
-    .order('updated_at', { ascending: false })
+    .select('*')
     .limit(10000)
   if (error) throw error
   const list = profiles || []
@@ -86,7 +85,7 @@ async function handleStats(req, res) {
 
   const cancelsThisMonth = list.filter((p) =>
     (p.subscription_status === 'cancelled' || p.subscription_status === 'expired')
-    && p.updated_at >= startMonth
+    && (p.updated_at || '') >= startMonth
   ).length
 
   const activeAtStart = active.length + cancelsThisMonth
@@ -177,7 +176,7 @@ async function handleUsers(req, res) {
 
   let query = a.from('user_profiles')
     .select('*', { count: 'exact' })
-    .order('updated_at', { ascending: false })
+    .order('user_id', { ascending: false })  // user_id é sempre PK, nunca falha
   if (status) query = query.eq('subscription_status', status)
 
   const { data: profiles, count, error } = await query.range(offset, offset + limit - 1)
