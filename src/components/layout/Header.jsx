@@ -69,10 +69,11 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
           </button>
           <button
             onClick={goPrevMonth}
-            className="flex-1 px-3 py-2 rounded-lg text-xs font-medium transition text-white/75 hover:bg-white/5"
+            className="flex-1 px-3 py-2 rounded-lg text-xs font-medium transition hover:bg-white/5"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'var(--bg-elev2)',
+              border: '1px solid var(--border-medium)',
+              color: 'var(--text-secondary)',
             }}
           >
             Mês passado
@@ -87,7 +88,7 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
             aria-label="Ano anterior"
             style={{ minWidth: 40, minHeight: 40 }}
           >
-            <ChevronLeft size={18} className="text-white/70 mx-auto" />
+            <ChevronLeft size={18} className="mx-auto" style={{ color: 'var(--text-secondary)' }} />
           </button>
           <span style={{ fontFamily: 'Fraunces, serif' }} className="text-2xl font-medium tabular-nums">{year}</span>
           <button
@@ -96,7 +97,7 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
             aria-label="Próximo ano"
             style={{ minWidth: 40, minHeight: 40 }}
           >
-            <ChevronRight size={18} className="text-white/70 mx-auto" />
+            <ChevronRight size={18} className="mx-auto" style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
 
@@ -111,8 +112,8 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
                 onClick={() => pick(idx)}
                 className="py-3 rounded-lg text-sm font-medium transition relative"
                 style={isActive
-                  ? { background: 'rgba(212,175,55,0.2)', color: '#d4af37', border: '1px solid rgba(212,175,55,0.5)' }
-                  : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.05)' }
+                  ? { background: 'rgba(212,175,55,0.2)', color: 'var(--accent-gold)', border: '1px solid rgba(212,175,55,0.5)' }
+                  : { background: 'var(--bg-elev2)', color: 'var(--text-secondary)', border: '1px solid var(--border-soft)' }
                 }
               >
                 {label}

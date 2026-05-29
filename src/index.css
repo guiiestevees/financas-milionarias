@@ -32,6 +32,18 @@
   --gold: #d4af37;
   --gold-soft: rgba(212, 175, 55, 0.08);
 
+  /* Cores accent — DARK MODE (mais vivas pra contraste em fundo escuro) */
+  --accent-gold:    #d4af37;
+  --accent-emerald: #10b981;
+  --accent-rose:    #f43f5e;
+  --accent-amber:   #f59e0b;
+  --accent-cyan:    #06b6d4;
+  --accent-violet:  #8b5cf6;
+  --accent-sky:     #0ea5e9;
+  --accent-fuchsia: #d946ef;
+  --accent-lime:    #84cc16;
+  --accent-orange:  #f97316;
+
   /* Card glass */
   --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
   --card-border: rgba(255, 255, 255, 0.08);
@@ -59,6 +71,18 @@
 
   --card-bg: #ffffff;
   --card-border: rgba(17, 22, 42, 0.1);
+
+  /* Cores accent — LIGHT MODE (mais escuras pra contraste em fundo claro) */
+  --accent-gold:    #a87f1f;  /* dourado mais escuro */
+  --accent-emerald: #047857;  /* verde escuro */
+  --accent-rose:    #be123c;  /* vermelho escuro */
+  --accent-amber:   #b45309;  /* laranja escuro */
+  --accent-cyan:    #0e7490;
+  --accent-violet:  #6d28d9;
+  --accent-sky:     #0369a1;
+  --accent-fuchsia: #a21caf;
+  --accent-lime:    #4d7c0f;
+  --accent-orange:  #c2410c;
 }
 
 html, body {
