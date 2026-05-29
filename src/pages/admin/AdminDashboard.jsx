@@ -116,7 +116,7 @@ export default function AdminDashboard() {
           value={stats.cancelsThisMonth}
           icon={AlertTriangle}
           accent="#f43f5e"
-          sub={`Churn: ${fmtPct(stats.churnPct)}`}
+          sub={`Churn: ${fmtPct(stats.churnPct)} · só ex-pagantes`}
         />
         <MetricCard
           label="ARPU"
@@ -145,6 +145,11 @@ export default function AdminDashboard() {
             <StatusRow label="Expirados" count={stats.expiredUsers} color="#f43f5e" />
             <StatusRow label="Total" count={stats.totalUsers} color="#d4af37" emphasis />
           </div>
+          {stats.neverPaid > 0 && (
+            <div className="mt-3 pt-3 border-t text-xs flex items-center justify-between" style={{ borderColor: 'var(--border-soft)', color: 'var(--text-tertiary)' }}>
+              <span>↳ Dos expirados, <strong>{stats.neverPaid}</strong> nunca chegou a pagar (não conta como churn)</span>
+            </div>
+          )}
         </Card>
       </div>
 

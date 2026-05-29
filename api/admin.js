@@ -83,11 +83,23 @@ async function handleStats(req, res) {
     return createdAt && createdAt >= startLastMonth && createdAt < startMonth
   }).length
 
+  // Cancelamentos REAIS — só conta quem já foi pagante (tem asaas_customer_id).
+  // Contas com status 'expired' que NUNCA passaram pelo Asaas são apenas leads frios
+  // (criaram conta e nunca pagaram) — não devem virar churn.
+  const wasPayingCustomer = (p) => !!(p.asaas_customer_id || p.asaas_subscription_id)
+
   const cancelsThisMonth = list.filter((p) =>
     (p.subscription_status === 'cancelled' || p.subscription_status === 'expired')
+    && wasPayingCustomer(p)
     && (p.updated_at || '') >= startMonth
   ).length
 
+  // Quantos NUNCA pagaram (leads frios) — métrica separada pra você ver à parte
+  const neverPaid = list.filter((p) =>
+    p.subscription_status === 'expired' && !wasPayingCustomer(p)
+  ).length
+
+  // Ativos no início do mês = ativos atuais + cancelados reais do mês
   const activeAtStart = active.length + cancelsThisMonth
   const churnPct = activeAtStart > 0 ? (cancelsThisMonth / activeAtStart) * 100 : 0
 
@@ -192,9 +204,10 @@ async function handleStats(req, res) {
     overdueUsers: overdue.length,
     mrr, arr, arpu, monthlyRevenue, predictedNextMonth,
     newThisMonth, newLastMonth, cancelsThisMonth, churnPct,
+    neverPaid,  // contas que nunca pagaram (leads frios, não conta como churn)
     planMix: { monthly: monthlyCount, annual: annualCount },
     subscribersOverTime,
-    monthlyRevenueHistory,  // novo: receita mensal dos últimos 12 meses
+    monthlyRevenueHistory,
   })
 }
 
