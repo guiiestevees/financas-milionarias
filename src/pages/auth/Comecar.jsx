@@ -471,36 +471,34 @@ export default function Comecar() {
                     </Field>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <Field label="Senha">
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
-                        required
-                        autoComplete="new-password"
-                        style={inputStyle}
-                        className="placeholder:text-white/25 focus:border-amber-400"
-                      />
-                    </Field>
-                    <Field label="Confirmar senha">
-                      <input
-                        type="password"
-                        value={passwordConfirm}
-                        onChange={(e) => setPasswordConfirm(e.target.value)}
-                        placeholder="repita a senha"
-                        required
-                        autoComplete="new-password"
-                        onPaste={(e) => e.preventDefault()}
-                        style={{ ...inputStyle, border: `1px solid ${passwordConfirm.length > 0 && !passwordsMatch ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}` }}
-                        className="placeholder:text-white/25 focus:border-amber-400"
-                      />
-                    </Field>
-                  </div>
-                  {passwordConfirm.length > 0 && !passwordsMatch && (
-                    <div className="text-xs text-rose-300/85 px-1">⚠ As senhas não coincidem</div>
-                  )}
+                  <Field label="Senha">
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                      autoComplete="new-password"
+                      style={inputStyle}
+                      className="placeholder:text-white/25 focus:border-amber-400"
+                    />
+                  </Field>
+                  <Field label="Confirmar senha">
+                    <input
+                      type="password"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      placeholder="repita a senha"
+                      required
+                      autoComplete="new-password"
+                      onPaste={(e) => e.preventDefault()}
+                      style={{ ...inputStyle, border: `1px solid ${passwordConfirm.length > 0 && !passwordsMatch ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}` }}
+                      className="placeholder:text-white/25 focus:border-amber-400"
+                    />
+                    {passwordConfirm.length > 0 && !passwordsMatch && (
+                      <div className="text-xs text-rose-300/85 mt-1.5">⚠ As senhas não coincidem</div>
+                    )}
+                  </Field>
                 </div>
 
                 <div className="mt-3 text-xs flex items-start gap-2" style={{ color: 'var(--text-tertiary)' }}>
