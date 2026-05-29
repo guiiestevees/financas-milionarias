@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Check, CreditCard, QrCode, Loader2, Lock, ShieldCheck, AlertCircle, CheckCircle2,
+  ArrowLeft, ArrowRight, Check, CreditCard, QrCode, Loader2, Lock, ShieldCheck,
+  AlertCircle, CheckCircle2,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import EmailInput from '../../components/EmailInput'
@@ -36,6 +37,7 @@ const PLANS = [
     priceLabel: 'R$ 19',
     period: 'por mês',
     description: 'Cobrança recorrente. Cancele quando quiser.',
+    features: ['Acesso completo ao app', 'Alfred no WhatsApp', 'Cancele a qualquer momento'],
     accent: 'emerald',
   },
   {
@@ -45,14 +47,14 @@ const PLANS = [
     priceLabel: 'R$ 167',
     period: 'por ano',
     description: 'Pague 1× e fique 12 meses tranquilo. Economia de R$ 61.',
-    badge: 'Mais escolhido',
+    features: ['Tudo do plano Mensal', 'Economia de R$ 61 (~27%)', 'Sem preocupação com cobrança mensal'],
     accent: 'gold',
   },
 ]
 
 const METHODS_BY_PLAN = {
   monthly: [
-    { id: 'CREDIT_CARD', name: 'Cartão de Crédito', description: 'Cobrança recorrente automática', icon: CreditCard },
+    { id: 'CREDIT_CARD', name: 'Cartão de Crédito', description: 'Cobrança recorrente automática', icon: CreditCard, accent: '#c9a961' },
   ],
   annual: [
     { id: 'PIX', name: 'PIX à vista', description: 'Pague R$ 167 agora e fique 12 meses', icon: QrCode, accent: '#10b981' },
@@ -75,6 +77,7 @@ const inputStyle = {
 // ---------- Componente principal ----------
 export default function Comecar() {
   const navigate = useNavigate()
+  const [step, setStep] = useState(1)
 
   // ---- Plano ----
   const [planId, setPlanId] = useState('annual')
@@ -96,7 +99,7 @@ export default function Comecar() {
   })
 
   // ---- Pagamento ----
-  const [method, setMethod] = useState(null)  // será setado quando user escolher (PIX ou CREDIT_CARD)
+  const [method, setMethod] = useState(null)
   const [installments, setInstallments] = useState(1)
   const [cardNumber, setCardNumber] = useState('')
   const [cardHolderName, setCardHolderName] = useState('')
@@ -108,7 +111,7 @@ export default function Comecar() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [pixData, setPixData] = useState(null)  // { qrCode, paymentId, value }
+  const [pixData, setPixData] = useState(null)
 
   // ---- Validações ----
   const cpfDigits = cpf.replace(/\D/g, '')
@@ -120,7 +123,6 @@ export default function Comecar() {
   const validPassword = password.length >= 6
   const addressOk = isAddressValid(address)
 
-  // Validações de cartão (só se método=cartão)
   const numDigits = cardNumber.replace(/\D/g, '')
   const numValid = validateCardNumber(numDigits)
   const expValid = validateCardExpiry(cardExpiry)
@@ -129,27 +131,41 @@ export default function Comecar() {
     numValid && expValid && cvvValid && cardHolderName.trim().length > 2
   )
 
-  // Métodos disponíveis pra esse plano
+  // Por step
+  const step1Valid = !!planId
+  const step2Valid = name.trim().length >= 3 && validEmail && emailMatches && validCpf && validPhone && validPassword && addressOk
+  const step3Valid = method && cardOk && acceptedPrivacy
+
   const availableMethods = METHODS_BY_PLAN[planId] || []
   const maxInstallments = planId === 'annual' ? 12 : 1
   const showInstallments = method === 'CREDIT_CARD' && maxInstallments > 1
   const installmentValue = method === 'CREDIT_CARD' && installments > 0
     ? Number(plan.price) / installments : Number(plan.price)
 
-  // Form 100% válido?
-  const dataOk = name.trim().length >= 3 && validEmail && emailMatches && validCpf && validPhone && validPassword
-  const formValid = dataOk && addressOk && method && cardOk && acceptedPrivacy
-
-  // Pula automaticamente pra próximo step se mudar plano
+  // Reset método quando troca plano (porque planos têm métodos diferentes)
   const onPlanChange = (id) => {
     setPlanId(id)
-    setMethod(null)  // reseta método porque planos têm métodos diferentes
+    setMethod(null)
+  }
+
+  const goNext = () => {
+    setError('')
+    if (step === 1 && step1Valid) setStep(2)
+    else if (step === 2 && step2Valid) setStep(3)
+    // step 3 = submit, vai pelo onClick do botão
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goBack = () => {
+    setError('')
+    setStep((s) => Math.max(1, s - 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // ---- Submit ----
   const submit = async (e) => {
     e?.preventDefault?.()
-    if (!formValid || submitting) return
+    if (!step3Valid || submitting) return
     setError('')
     setSubmitting(true)
 
@@ -174,21 +190,20 @@ export default function Comecar() {
       const session = signUpData?.session
       if (!user) throw new Error('Falha ao criar conta')
       if (!session) {
-        // Se Confirm Email tá ON, não retorna sessão — manda pro fluxo antigo
         throw new Error('Conta criada, mas o Supabase exige confirmar email primeiro. Acesse seu email e clique no link, depois faça login.')
       }
 
-      // 2) Cria/atualiza profile
+      // 2) Profile
       await supabase.from('user_profiles').upsert({
         user_id: user.id,
         cpf: cpfDigits,
         whatsapp_phone: phoneFull,
-        subscription_status: 'expired',  // será ativado pelo backend após pagamento
+        subscription_status: 'expired',
         subscription_until: new Date().toISOString(),
         trial_started_at: null,
       }, { onConflict: 'user_id' })
 
-      // 3) Monta o holder com endereço
+      // 3) Holder com endereço
       const holder = {
         name: name.trim(),
         email: email.trim().toLowerCase(),
@@ -205,7 +220,7 @@ export default function Comecar() {
         },
       }
 
-      // 4) Chama /api/checkout-pay
+      // 4) checkout-pay
       const body = { planId, method, holder }
       if (method === 'CREDIT_CARD') {
         const exp = parseExpiry(cardExpiry)
@@ -230,19 +245,13 @@ export default function Comecar() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Pagamento recusado')
 
-      // 5) Tratamento por método
+      // 5) Resposta
       if (method === 'PIX') {
-        // Mostra QR code + polling
-        setPixData({
-          qrCode: data.qrCode,
-          paymentId: data.paymentId,
-          value: data.value,
-        })
+        setPixData({ qrCode: data.qrCode, paymentId: data.paymentId, value: data.value })
         setSubmitting(false)
         return
       }
 
-      // Cartão — checa status
       const status = data.status || 'UNKNOWN'
       if (['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(status)) {
         setSuccess(true)
@@ -264,7 +273,7 @@ export default function Comecar() {
     }
   }
 
-  // ----- Tela de sucesso -----
+  // ===== TELA: sucesso =====
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--bg-app)' }}>
@@ -285,7 +294,7 @@ export default function Comecar() {
     )
   }
 
-  // ----- Tela de PIX (QR code + polling) -----
+  // ===== TELA: PIX =====
   if (pixData) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -315,29 +324,36 @@ export default function Comecar() {
     )
   }
 
-  // ----- Tela principal (signup + checkout) -----
+  // ===== TELA principal — wizard 3 steps =====
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
       <div className="max-w-2xl mx-auto px-4 py-6 sm:py-10">
 
-        {/* Voltar */}
-        <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm mb-5 transition" style={{ color: 'var(--text-tertiary)' }}>
-          <ArrowLeft size={16} /> Voltar
-        </button>
+        {/* Voltar pra landing (só no step 1) */}
+        {step === 1 && (
+          <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm mb-5 transition" style={{ color: 'var(--text-tertiary)' }}>
+            <ArrowLeft size={16} /> Voltar
+          </button>
+        )}
 
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <img src="/domus-logo-512.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
             <span className="text-xs uppercase tracking-widest" style={{ color: '#d4af37' }}>Domus</span>
           </div>
           <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }} className="text-3xl sm:text-4xl mb-2">
-            Comece em poucos minutos
+            {step === 1 ? 'Escolha seu plano' : step === 2 ? 'Seus dados' : 'Finalizar pagamento'}
           </h1>
-          <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
-            🎩 Escolha o plano, preencha seus dados, pague — e Alfred fica ao seu dispor.
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {step === 1 && '🎩 Comece sua experiência com Alfred.'}
+            {step === 2 && 'Precisamos de algumas informações pra criar sua conta.'}
+            {step === 3 && 'Escolha como pagar e seu acesso libera na hora.'}
           </p>
         </div>
+
+        {/* Indicador de progresso */}
+        <ProgressBar step={step} />
 
         {error && (
           <div className="mb-5 rounded-lg p-3 text-sm flex items-start gap-2"
@@ -347,11 +363,11 @@ export default function Comecar() {
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-8">
+        <form onSubmit={(e) => { e.preventDefault(); if (step === 3) submit(e); else goNext() }}>
 
-          {/* ============ 1 · PLANO ============ */}
-          <Section number="1" title="Escolha o plano">
-            <div className="grid sm:grid-cols-2 gap-3">
+          {/* ====================== STEP 1 — PLANO ====================== */}
+          {step === 1 && (
+            <div className="grid sm:grid-cols-2 gap-3 mb-6">
               {PLANS.map((p) => {
                 const isSel = planId === p.id
                 const color = p.accent === 'gold' ? '#c9a961' : '#10b981'
@@ -361,336 +377,352 @@ export default function Comecar() {
                     key={p.id}
                     type="button"
                     onClick={() => onPlanChange(p.id)}
-                    className="text-left p-4 rounded-2xl transition relative"
+                    className="text-left p-5 rounded-2xl transition relative"
                     style={{
                       background: isSel ? soft : 'var(--bg-elev2)',
                       border: `2px solid ${isSel ? color : 'var(--border-soft)'}`,
-                      boxShadow: isSel ? `0 8px 20px ${color}25` : 'none',
+                      boxShadow: isSel ? `0 8px 24px ${color}25` : 'none',
                     }}
                   >
-                    {p.badge && (
-                      <div className="absolute -top-2 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ background: color, color: '#070912' }}>
-                        {p.badge}
-                      </div>
-                    )}
-                    <div className="flex items-baseline justify-between mb-1">
-                      <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color }} className="text-lg">{p.name}</div>
-                      {isSel && <Check size={16} style={{ color }} />}
+                    <div className="flex items-baseline justify-between mb-2">
+                      <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color }} className="text-xl">{p.name}</div>
+                      {isSel && <Check size={18} style={{ color }} />}
                     </div>
                     <div className="flex items-baseline gap-1.5 mb-1">
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-2xl font-semibold tabular-nums">{p.priceLabel}</span>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-3xl font-semibold tabular-nums">{p.priceLabel}</span>
                       <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{p.period}</span>
                     </div>
-                    <div className="text-xs leading-snug" style={{ color: 'var(--text-tertiary)' }}>{p.description}</div>
+                    <div className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>{p.description}</div>
+                    <ul className="space-y-1.5">
+                      {p.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          <Check size={11} style={{ color, marginTop: 2 }} className="shrink-0" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </button>
                 )
               })}
             </div>
-          </Section>
+          )}
 
-          {/* ============ 2 · DADOS PESSOAIS ============ */}
-          <Section number="2" title="Seus dados">
-            <div className="space-y-3">
-              <Field label="Nome completo">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Como aparece no seu documento"
-                  required
-                  autoComplete="name"
-                  style={inputStyle}
-                  className="placeholder:text-white/25 focus:border-amber-400"
-                />
-              </Field>
+          {/* ====================== STEP 2 — DADOS + ENDEREÇO ====================== */}
+          {step === 2 && (
+            <div className="space-y-6 mb-6">
 
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="E-mail">
-                  <EmailInput
-                    id="comecar-email"
-                    value={email}
-                    onChange={setEmail}
-                    placeholder="seu@email.com"
-                    required
-                    autoComplete="email"
-                  />
-                </Field>
-                <Field label="Confirmar e-mail">
-                  <input
-                    type="email"
-                    value={emailConfirm}
-                    onChange={(e) => setEmailConfirm(e.target.value)}
-                    placeholder="repita o e-mail"
-                    required
-                    autoComplete="email"
-                    onPaste={(e) => e.preventDefault()}
-                    style={{ ...inputStyle, border: `1px solid ${emailConfirm.length > 0 && !emailMatches ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}` }}
-                    className="placeholder:text-white/25 focus:border-amber-400"
-                  />
-                </Field>
-              </div>
+              {/* Dados pessoais */}
+              <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+                <div className="text-xs uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Conta</div>
 
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="CPF">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={cpf}
-                    onChange={(e) => setCpf(maskCpf(e.target.value))}
-                    placeholder="000.000.000-00"
-                    required
-                    maxLength={14}
-                    style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
-                    className="placeholder:text-white/25 focus:border-amber-400"
-                  />
-                </Field>
-                <Field label="Celular (com DDD)">
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(maskPhone(e.target.value))}
-                    placeholder="(00) 00000-0000"
-                    required
-                    maxLength={15}
-                    style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
-                    className="placeholder:text-white/25 focus:border-amber-400"
-                  />
-                </Field>
-              </div>
-
-              <Field label="Senha">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  required
-                  autoComplete="new-password"
-                  style={inputStyle}
-                  className="placeholder:text-white/25 focus:border-amber-400"
-                />
-              </Field>
-            </div>
-
-            <div className="mt-3 text-xs flex items-start gap-2 px-1" style={{ color: 'var(--text-tertiary)' }}>
-              <ShieldCheck size={12} className="mt-0.5 shrink-0 text-amber-300/70" />
-              <span>CPF e celular ajudam você a recuperar acesso se um dia perder a senha ou o email.</span>
-            </div>
-          </Section>
-
-          {/* ============ 3 · ENDEREÇO ============ */}
-          <Section number="3" title="Endereço">
-            <AddressFields value={address} onChange={setAddress} />
-          </Section>
-
-          {/* ============ 4 · FORMA DE PAGAMENTO ============ */}
-          <Section number="4" title="Forma de pagamento">
-            <div className="space-y-2">
-              {availableMethods.map((m) => {
-                const isSel = method === m.id
-                const Icon = m.icon
-                const color = m.accent || '#c9a961'
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setMethod(m.id)}
-                    className="w-full flex items-center gap-3 p-4 rounded-xl transition relative"
-                    style={{
-                      background: isSel ? `${color}15` : 'var(--bg-elev2)',
-                      border: `2px solid ${isSel ? color : 'var(--border-soft)'}`,
-                    }}
-                  >
-                    <div className="p-2 rounded-lg shrink-0" style={{ background: `${color}25`, color }}>
-                      <Icon size={18} />
-                    </div>
-                    <div className="text-left flex-1 min-w-0">
-                      <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.name}</div>
-                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{m.description}</div>
-                    </div>
-                    {isSel && <Check size={16} style={{ color }} />}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Campos de cartão (só se método = CREDIT_CARD) */}
-            {method === 'CREDIT_CARD' && (
-              <div className="mt-5 space-y-4">
-                {/* Parcelas */}
-                {showInstallments && (
-                  <div>
-                    <label className="text-xs mb-1.5 block" style={{ color: 'var(--text-tertiary)' }}>Parcelas</label>
-                    <select
-                      value={installments}
-                      onChange={(e) => setInstallments(Number(e.target.value))}
-                      style={{
-                        ...inputStyle,
-                        fontFamily: 'JetBrains Mono, monospace',
-                        cursor: 'pointer',
-                        appearance: 'none',
-                        backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 12px center',
-                        paddingRight: 36,
-                      }}
-                    >
-                      {Array.from({ length: maxInstallments }, (_, i) => {
-                        const n = i + 1
-                        const v = (Number(plan.price) / n).toFixed(2).replace('.', ',')
-                        return (
-                          <option key={n} value={n} style={{ background: '#0f1525' }}>
-                            {n === 1 ? `À vista — R$ ${Number(plan.price).toFixed(2).replace('.', ',')}` : `${n}× de R$ ${v} sem juros`}
-                          </option>
-                        )
-                      })}
-                    </select>
-                  </div>
-                )}
-
-                {/* Preview do cartão */}
-                <CardPreview
-                  number={cardNumber}
-                  holderName={cardHolderName}
-                  expiry={cardExpiry}
-                  cvv={cardCvv}
-                  focused={cardFocused}
-                />
-
-                {/* Número */}
-                <Field label="Número do cartão">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(maskCardNumber(e.target.value))}
-                    onFocus={() => setCardFocused('number')}
-                    onBlur={() => setCardFocused(null)}
-                    placeholder="0000 0000 0000 0000"
-                    maxLength={19}
-                    style={{
-                      ...inputStyle,
-                      border: `1px solid ${cardNumber && !numValid ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      letterSpacing: '0.05em',
-                    }}
-                    className="placeholder:text-white/25 focus:border-amber-400"
-                  />
-                </Field>
-
-                <Field label="Nome no cartão">
-                  <input
-                    type="text"
-                    value={cardHolderName}
-                    onChange={(e) => setCardHolderName(e.target.value.toUpperCase())}
-                    onFocus={() => setCardFocused('name')}
-                    onBlur={() => setCardFocused(null)}
-                    placeholder="COMO IMPRESSO NO CARTÃO"
-                    style={inputStyle}
-                    className="placeholder:text-white/25 focus:border-amber-400"
-                  />
-                </Field>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Validade">
+                <div className="space-y-3">
+                  <Field label="Nome completo">
                     <input
                       type="text"
-                      inputMode="numeric"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(maskCardExpiry(e.target.value))}
-                      onFocus={() => setCardFocused('expiry')}
-                      onBlur={() => setCardFocused(null)}
-                      placeholder="MM/AA"
-                      maxLength={5}
-                      style={{
-                        ...inputStyle,
-                        border: `1px solid ${cardExpiry && !expValid ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
-                        fontFamily: 'JetBrains Mono, monospace',
-                      }}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Como aparece no seu documento"
+                      required
+                      autoComplete="name"
+                      style={inputStyle}
                       className="placeholder:text-white/25 focus:border-amber-400"
                     />
                   </Field>
-                  <Field label="CVV">
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Field label="E-mail">
+                      <EmailInput
+                        id="comecar-email"
+                        value={email}
+                        onChange={setEmail}
+                        placeholder="seu@email.com"
+                        required
+                        autoComplete="email"
+                      />
+                    </Field>
+                    <Field label="Confirmar e-mail">
+                      <input
+                        type="email"
+                        value={emailConfirm}
+                        onChange={(e) => setEmailConfirm(e.target.value)}
+                        placeholder="repita o e-mail"
+                        required
+                        autoComplete="email"
+                        onPaste={(e) => e.preventDefault()}
+                        style={{ ...inputStyle, border: `1px solid ${emailConfirm.length > 0 && !emailMatches ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}` }}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Field label="CPF">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={cpf}
+                        onChange={(e) => setCpf(maskCpf(e.target.value))}
+                        placeholder="000.000.000-00"
+                        required
+                        maxLength={14}
+                        style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+                    <Field label="Celular (com DDD)">
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(maskPhone(e.target.value))}
+                        placeholder="(00) 00000-0000"
+                        required
+                        maxLength={15}
+                        style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Senha">
                     <input
-                      type="text"
-                      inputMode="numeric"
-                      value={cardCvv}
-                      onChange={(e) => setCardCvv(maskCardCvv(e.target.value))}
-                      onFocus={() => setCardFocused('cvv')}
-                      onBlur={() => setCardFocused(null)}
-                      placeholder="000"
-                      maxLength={4}
-                      style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                      autoComplete="new-password"
+                      style={inputStyle}
                       className="placeholder:text-white/25 focus:border-amber-400"
                     />
                   </Field>
                 </div>
-              </div>
-            )}
-          </Section>
 
-          {/* Termos */}
-          <label className="flex items-start gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={acceptedPrivacy}
-              onChange={(e) => setAcceptedPrivacy(e.target.checked)}
-              style={{ width: 16, height: 16, marginTop: 2, accentColor: '#d4af37', cursor: 'pointer' }}
-            />
-            <span className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-              Li e concordo com os{' '}
-              <Link to="/termos" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
-                Termos de Uso
-              </Link>{' '}
-              e com a{' '}
-              <Link to="/privacidade" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
-                Política de Privacidade
-              </Link>.
-            </span>
-          </label>
-
-          {/* Resumo + Botão final */}
-          <div className="rounded-2xl p-5 sticky bottom-3" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-medium)', backdropFilter: 'blur(8px)' }}>
-            <div className="flex items-center justify-between mb-3 gap-3">
-              <div className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Total</div>
-              <div className="text-right">
-                <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-2xl font-semibold tabular-nums">
-                  R$ {Number(plan.price).toFixed(2).replace('.', ',')}
+                <div className="mt-3 text-xs flex items-start gap-2" style={{ color: 'var(--text-tertiary)' }}>
+                  <ShieldCheck size={12} className="mt-0.5 shrink-0 text-amber-300/70" />
+                  <span>CPF e celular ajudam você a recuperar acesso se um dia perder a senha ou o email.</span>
                 </div>
-                {method === 'CREDIT_CARD' && installments > 1 && (
-                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                    em {installments}× de R$ {installmentValue.toFixed(2).replace('.', ',')} sem juros
+              </div>
+
+              {/* Endereço */}
+              <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+                <div className="text-xs uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Endereço</div>
+                <AddressFields value={address} onChange={setAddress} />
+              </div>
+            </div>
+          )}
+
+          {/* ====================== STEP 3 — PAGAMENTO ====================== */}
+          {step === 3 && (
+            <div className="space-y-6 mb-6">
+
+              {/* Resumo do plano */}
+              <div className="rounded-2xl p-4 flex items-center justify-between gap-3"
+                style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+                <div className="min-w-0">
+                  <div className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Plano escolhido</div>
+                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{plan.name}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-xl font-semibold tabular-nums">{plan.priceLabel}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{plan.period}</div>
+                </div>
+              </div>
+
+              {/* Forma de pagamento */}
+              <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+                <div className="text-xs uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Forma de pagamento</div>
+                <div className="space-y-2">
+                  {availableMethods.map((m) => {
+                    const isSel = method === m.id
+                    const Icon = m.icon
+                    const color = m.accent || '#c9a961'
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setMethod(m.id)}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl transition relative"
+                        style={{
+                          background: isSel ? `${color}15` : 'var(--bg-elev1)',
+                          border: `2px solid ${isSel ? color : 'var(--border-soft)'}`,
+                        }}
+                      >
+                        <div className="p-2 rounded-lg shrink-0" style={{ background: `${color}25`, color }}>
+                          <Icon size={18} />
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.name}</div>
+                          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{m.description}</div>
+                        </div>
+                        {isSel && <Check size={16} style={{ color }} />}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Campos de cartão */}
+                {method === 'CREDIT_CARD' && (
+                  <div className="mt-5 space-y-4">
+                    {showInstallments && (
+                      <div>
+                        <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Parcelas</label>
+                        <select
+                          value={installments}
+                          onChange={(e) => setInstallments(Number(e.target.value))}
+                          style={{
+                            ...inputStyle,
+                            fontFamily: 'JetBrains Mono, monospace',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 12px center',
+                            paddingRight: 36,
+                          }}
+                        >
+                          {Array.from({ length: maxInstallments }, (_, i) => {
+                            const n = i + 1
+                            const v = (Number(plan.price) / n).toFixed(2).replace('.', ',')
+                            return (
+                              <option key={n} value={n} style={{ background: '#0f1525' }}>
+                                {n === 1 ? `À vista — R$ ${Number(plan.price).toFixed(2).replace('.', ',')}` : `${n}× de R$ ${v} sem juros`}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    <CardPreview number={cardNumber} holderName={cardHolderName} expiry={cardExpiry} cvv={cardCvv} focused={cardFocused} />
+
+                    <Field label="Número do cartão">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(maskCardNumber(e.target.value))}
+                        onFocus={() => setCardFocused('number')}
+                        onBlur={() => setCardFocused(null)}
+                        placeholder="0000 0000 0000 0000"
+                        maxLength={19}
+                        style={{
+                          ...inputStyle,
+                          border: `1px solid ${cardNumber && !numValid ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
+                          fontFamily: 'JetBrains Mono, monospace',
+                          letterSpacing: '0.05em',
+                        }}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+
+                    <Field label="Nome no cartão">
+                      <input
+                        type="text"
+                        value={cardHolderName}
+                        onChange={(e) => setCardHolderName(e.target.value.toUpperCase())}
+                        onFocus={() => setCardFocused('name')}
+                        onBlur={() => setCardFocused(null)}
+                        placeholder="COMO IMPRESSO NO CARTÃO"
+                        style={inputStyle}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Validade">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(maskCardExpiry(e.target.value))}
+                          onFocus={() => setCardFocused('expiry')}
+                          onBlur={() => setCardFocused(null)}
+                          placeholder="MM/AA"
+                          maxLength={5}
+                          style={{
+                            ...inputStyle,
+                            border: `1px solid ${cardExpiry && !expValid ? 'rgba(244,63,94,0.4)' : 'var(--border-medium)'}`,
+                            fontFamily: 'JetBrains Mono, monospace',
+                          }}
+                          className="placeholder:text-white/25 focus:border-amber-400"
+                        />
+                      </Field>
+                      <Field label="CVV">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(maskCardCvv(e.target.value))}
+                          onFocus={() => setCardFocused('cvv')}
+                          onBlur={() => setCardFocused(null)}
+                          placeholder="000"
+                          maxLength={4}
+                          style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+                          className="placeholder:text-white/25 focus:border-amber-400"
+                        />
+                      </Field>
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Termos */}
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  style={{ width: 16, height: 16, marginTop: 2, accentColor: '#d4af37', cursor: 'pointer' }}
+                />
+                <span className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                  Li e concordo com os{' '}
+                  <Link to="/termos" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
+                    Termos de Uso
+                  </Link>{' '}
+                  e com a{' '}
+                  <Link to="/privacidade" target="_blank" rel="noopener" className="text-amber-300/90 hover:text-amber-300 underline underline-offset-2">
+                    Política de Privacidade
+                  </Link>.
+                </span>
+              </label>
             </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={!formValid || submitting}
-              className="w-full py-3.5 rounded-xl text-base font-semibold transition flex items-center justify-center gap-2 disabled:opacity-40"
-              style={{
-                background: formValid && !submitting ? 'linear-gradient(180deg, #d4af37, #a87f1f)' : 'rgba(212,175,55,0.3)',
-                color: '#070912',
-                boxShadow: formValid && !submitting ? '0 8px 24px rgba(212,175,55,0.25)' : 'none',
-                cursor: formValid && !submitting ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {submitting ? <><Loader2 size={16} className="animate-spin" /> Processando…</> : <>🎩 Pagar e criar conta</>}
-            </button>
+          {/* Botões de navegação */}
+          <NavButtons
+            step={step}
+            canAdvance={step === 1 ? step1Valid : step === 2 ? step2Valid : step3Valid}
+            isLastStep={step === 3}
+            onBack={goBack}
+            onNext={goNext}
+            submitting={submitting}
+            buttonLabel={step === 3 ? (
+              method === 'PIX' ? '🎩 Gerar PIX' : `🎩 Pagar R$ ${Number(plan.price).toFixed(2).replace('.', ',')}`
+            ) : 'Próximo'}
+          />
 
-            <div className="flex items-center justify-center gap-1.5 text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+          {/* Resumo do parcelamento (só no step 3 com cartão) */}
+          {step === 3 && method === 'CREDIT_CARD' && installments > 1 && (
+            <div className="text-xs text-center mt-3" style={{ color: 'var(--text-tertiary)' }}>
+              {installments}× de R$ {installmentValue.toFixed(2).replace('.', ',')} sem juros
+            </div>
+          )}
+
+          {/* Trust */}
+          {step === 3 && (
+            <div className="flex items-center justify-center gap-1.5 text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
               <Lock size={11} /> Dados criptografados · Processado por Asaas
             </div>
-          </div>
+          )}
 
-          {/* Já tem conta */}
-          <p className="text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Já tem conta?{' '}
-            <Link to="/login" className="font-medium hover:underline" style={{ color: 'var(--text-primary)' }}>Entrar</Link>
-          </p>
+          {/* Já tem conta — só no step 1 */}
+          {step === 1 && (
+            <p className="text-center text-sm mt-6" style={{ color: 'var(--text-tertiary)' }}>
+              Já tem conta?{' '}
+              <Link to="/login" className="font-medium hover:underline" style={{ color: 'var(--text-primary)' }}>Entrar</Link>
+            </p>
+          )}
         </form>
       </div>
     </div>
@@ -698,18 +730,80 @@ export default function Comecar() {
 }
 
 // ---------- Sub-componentes ----------
-function Section({ number, title, children }) {
+
+function ProgressBar({ step }) {
+  const steps = [
+    { num: 1, label: 'Plano' },
+    { num: 2, label: 'Dados' },
+    { num: 3, label: 'Pagamento' },
+  ]
   return (
-    <section>
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold"
-          style={{ background: 'rgba(212,175,55,0.15)', color: '#d4af37' }}>
-          {number}
-        </div>
-        <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-xl">{title}</h2>
-      </div>
-      <div className="pl-0 sm:pl-10">{children}</div>
-    </section>
+    <div className="flex items-center justify-center gap-2 mb-7">
+      {steps.map((s, idx) => {
+        const isActive = step === s.num
+        const isDone = step > s.num
+        const color = isActive || isDone ? '#d4af37' : 'var(--text-muted)'
+        return (
+          <div key={s.num} className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition"
+                style={{
+                  background: isDone ? '#d4af37' : isActive ? 'rgba(212,175,55,0.15)' : 'var(--bg-elev2)',
+                  color: isDone ? '#070912' : color,
+                  border: isActive ? `1.5px solid ${color}` : '1.5px solid transparent',
+                }}
+              >
+                {isDone ? <Check size={13} strokeWidth={3} /> : s.num}
+              </div>
+              <span className="text-xs font-medium hidden sm:inline" style={{ color }}>{s.label}</span>
+            </div>
+            {idx < steps.length - 1 && (
+              <div className="w-6 sm:w-12 h-px transition" style={{ background: isDone ? '#d4af37' : 'var(--border-medium)' }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function NavButtons({ step, canAdvance, isLastStep, onBack, onNext, submitting, buttonLabel }) {
+  return (
+    <div className="flex items-center gap-3">
+      {step > 1 && (
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={submitting}
+          className="px-5 py-3 rounded-xl text-sm font-medium transition disabled:opacity-50"
+          style={{
+            background: 'var(--bg-elev1)',
+            border: '1px solid var(--border-medium)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <ArrowLeft size={14} className="inline mr-1" /> Voltar
+        </button>
+      )}
+      <button
+        type="submit"
+        disabled={!canAdvance || submitting}
+        className="flex-1 py-3.5 rounded-xl text-base font-semibold transition flex items-center justify-center gap-2 disabled:opacity-40"
+        style={{
+          background: canAdvance && !submitting ? 'linear-gradient(180deg, #d4af37, #a87f1f)' : 'rgba(212,175,55,0.3)',
+          color: '#070912',
+          boxShadow: canAdvance && !submitting ? '0 8px 24px rgba(212,175,55,0.25)' : 'none',
+          cursor: canAdvance && !submitting ? 'pointer' : 'not-allowed',
+        }}
+      >
+        {submitting ? (
+          <><Loader2 size={16} className="animate-spin" /> Processando…</>
+        ) : (
+          <>{buttonLabel}{!isLastStep && <ArrowRight size={14} />}</>
+        )}
+      </button>
+    </div>
   )
 }
 
