@@ -73,11 +73,25 @@ function Nav() {
 }
 
 // ============================================================
-// HERO — centralizado, focado em controle = caminho pra riqueza
+// HERO — logo grande, foco em controle = caminho pra riqueza
 // ============================================================
 function Hero() {
   return (
     <section className="text-center mb-24 sm:mb-32 pt-4 sm:pt-8">
+      {/* Logo grande e centralizada */}
+      <div className="flex justify-center mb-8 sm:mb-10">
+        <img
+          src="/domus-logo-512.png"
+          alt="Domus"
+          style={{
+            width: 'min(180px, 38vw)',
+            height: 'auto',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 12px 32px rgba(212,175,55,0.25))',
+          }}
+        />
+      </div>
+
       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-7"
         style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)' }}>
         <Crown size={11} style={{ color: 'var(--accent-gold)' }} />
@@ -104,12 +118,13 @@ function Hero() {
       </h1>
 
       <p className="text-lg sm:text-2xl max-w-3xl mx-auto leading-relaxed mb-5 px-2" style={{ color: 'var(--text-secondary)' }}>
-        Toda fortuna nasce de uma habilidade simples: <strong style={{ color: 'var(--text-primary)' }}>saber pra onde vai cada real</strong>.
-        Não é sobre ganhar mais. É sobre ter clareza, paz mental e decidir com sabedoria.
+        Ninguém prospera sem dominar o que tem em mãos.{' '}
+        <strong style={{ color: 'var(--text-primary)' }}>Você não consegue ter mais do que é capaz de controlar.</strong>
       </p>
 
       <p className="text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 px-2" style={{ color: 'var(--text-tertiary)' }}>
-        O Domus existe pra te dar exatamente isso — sem planilha, sem calculadora, sem fricção.
+        Domínio leva a clareza. Clareza leva a decisões certas. Decisões certas constroem fortuna.
+        O Domus existe pra te dar esse controle — sem planilha, sem calculadora, sem fricção.
       </p>
 
       {/* CTA */}
