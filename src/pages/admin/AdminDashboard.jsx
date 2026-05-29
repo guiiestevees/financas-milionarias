@@ -146,6 +146,13 @@ export default function AdminDashboard() {
           <BarChart data={stats.subscribersOverTime} />
         </Card>
       )}
+
+      {/* Gráfico — receita mensal (últimos 12 meses) */}
+      {stats.monthlyRevenueHistory?.length > 0 && (
+        <Card title="Receita mensal — últimos 12 meses">
+          <RevenueChart data={stats.monthlyRevenueHistory} />
+        </Card>
+      )}
     </div>
   )
 }
@@ -256,4 +263,101 @@ function growthSubtitle(growth, lastMonth) {
   if (lastMonth === 0) return 'primeiro mês'
   const isUp = growth >= 0
   return `${isUp ? '↑' : '↓'} ${Math.abs(growth).toFixed(0)}% vs mês passado`
+}
+
+// ---------- RevenueChart — receita mensal dos últimos 12 meses ----------
+// Gráfico de barras com valor em R$ acima de cada barra, dourado.
+// Destaca o mês atual com cor mais clara.
+function RevenueChart({ data }) {
+  const max = Math.max(...data.map((d) => d.revenue), 1)
+  const total = data.reduce((s, d) => s + d.revenue, 0)
+  const positive = data.filter((d) => d.revenue > 0)
+  const avg = positive.length > 0 ? total / positive.length : 0
+
+  // Calcula crescimento do último mês completo vs mês anterior
+  const lastTwo = data.slice(-2)
+  const growth = lastTwo.length === 2 && lastTwo[0].revenue > 0
+    ? ((lastTwo[1].revenue - lastTwo[0].revenue) / lastTwo[0].revenue) * 100
+    : 0
+
+  return (
+    <div>
+      {/* Header com totais agregados */}
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4 pb-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
+        <div>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Total no período
+          </div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-xl font-semibold tabular-nums">
+            {fmtBRL(total)}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Média (meses com receita)
+          </div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-sm font-medium tabular-nums">
+            {fmtBRL(avg)}
+            {Math.abs(growth) > 0 && (
+              <span className={`ml-2 text-xs ${growth >= 0 ? 'text-emerald-300/85' : 'text-rose-300/85'}`}>
+                {growth >= 0 ? '↑' : '↓'} {Math.abs(growth).toFixed(0)}%
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Gráfico de barras */}
+      <div className="flex items-end justify-between gap-1 sm:gap-2 h-40">
+        {data.map((d, i) => {
+          const h = max > 0 ? (d.revenue / max) * 100 : 0
+          const isCurrent = i === data.length - 1
+          const isZero = d.revenue === 0
+          return (
+            <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0 group relative">
+              {/* Valor em cima da barra (só desktop, pra mobile fica tooltip) */}
+              <div
+                className="text-[10px] tabular-nums font-medium whitespace-nowrap hidden sm:block"
+                style={{ color: isZero ? 'var(--text-muted)' : 'var(--text-secondary)' }}
+              >
+                {d.revenue >= 1000 ? `${(d.revenue / 1000).toFixed(1)}k` : Math.round(d.revenue)}
+              </div>
+
+              {/* Barra */}
+              <div
+                className="w-full rounded-t transition-all relative cursor-default"
+                style={{
+                  height: isZero ? '2px' : `${Math.max(4, h)}%`,
+                  background: isZero
+                    ? 'var(--border-soft)'
+                    : isCurrent
+                    ? 'linear-gradient(180deg, #f4d676, #d4af37)'
+                    : 'linear-gradient(180deg, #d4af37, #a87f1f)',
+                  boxShadow: isCurrent && !isZero ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                }}
+                title={`${d.month}: ${fmtBRL(d.revenue)}`}
+              />
+
+              {/* Label do mês */}
+              <div
+                className="text-[9px] sm:text-[10px] uppercase tracking-wider truncate w-full text-center"
+                style={{ color: isCurrent ? '#d4af37' : 'var(--text-muted)' }}
+              >
+                {d.month}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-3 text-[11px] flex items-center gap-3 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+        <span className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded" style={{ background: '#d4af37' }} /> Meses anteriores
+        </span>
+        <span className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded" style={{ background: '#f4d676' }} /> Mês atual
+        </span>
+      </div>
+    </div>
+  )
 }

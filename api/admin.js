@@ -91,17 +91,48 @@ async function handleStats(req, res) {
   const activeAtStart = active.length + cancelsThisMonth
   const churnPct = activeAtStart > 0 ? (cancelsThisMonth / activeAtStart) * 100 : 0
 
+  // Busca pagamentos confirmados dos últimos 12 meses (1 request, agrupa local).
+  // Recibos do Asaas têm paymentDate (quando foi recebido) — usamos isso.
   let monthlyRevenue = 0
+  const monthlyRevenueHistory = []  // [{ month: 'jan/26', revenue: N }, ...]
   try {
-    const dateFrom = startMonth.slice(0, 10)
+    // 12 meses atrás
+    const twelveMonthsAgo = new Date()
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
+    twelveMonthsAgo.setDate(1)
+    const dateFrom = twelveMonthsAgo.toISOString().slice(0, 10)
     const today = new Date().toISOString().slice(0, 10)
+
+    // Asaas paginação: paga até 100 por request; pegamos 500 (suficiente pra produto novo)
     const paymentsRes = await asaasFetch(
-      `/payments?status=RECEIVED&paymentDate%5Bge%5D=${dateFrom}&paymentDate%5Ble%5D=${today}&limit=100`
+      `/payments?status%5B%5D=RECEIVED&status%5B%5D=CONFIRMED&paymentDate%5Bge%5D=${dateFrom}&paymentDate%5Ble%5D=${today}&limit=500`
     ).catch(() => null)
-    if (paymentsRes?.data) {
-      monthlyRevenue = paymentsRes.data.reduce((s, p) => s + (Number(p.netValue || p.value) || 0), 0)
+
+    const allPayments = paymentsRes?.data || []
+
+    // Agrupa por YYYY-MM
+    const byMonth = {}
+    for (const p of allPayments) {
+      const pd = p.paymentDate || p.dueDate
+      if (!pd) continue
+      const ym = pd.slice(0, 7)  // YYYY-MM
+      byMonth[ym] = (byMonth[ym] || 0) + (Number(p.netValue || p.value) || 0)
     }
-  } catch (e) { console.warn('monthlyRevenue:', e.message) }
+
+    // Monta array dos últimos 12 meses, mesmo os zerados
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+      monthlyRevenueHistory.push({ month: label, ym, revenue: byMonth[ym] || 0 })
+    }
+
+    // Receita do mês atual = último da lista
+    monthlyRevenue = monthlyRevenueHistory[monthlyRevenueHistory.length - 1]?.revenue || 0
+  } catch (e) {
+    console.warn('monthlyRevenue history:', e.message)
+  }
 
   const predictedNextMonth = mrr
 
@@ -130,6 +161,7 @@ async function handleStats(req, res) {
     newThisMonth, newLastMonth, cancelsThisMonth, churnPct,
     planMix: { monthly: monthlyCount, annual: annualCount },
     subscribersOverTime,
+    monthlyRevenueHistory,  // novo: receita mensal dos últimos 12 meses
   })
 }
 
