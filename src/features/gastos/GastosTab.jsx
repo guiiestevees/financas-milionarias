@@ -5,6 +5,7 @@ import DespesaForm from './DespesaForm'
 import DespesaRow from './DespesaRow'
 import FilterBar from './FilterBar'
 import EditDespesaModal from './EditDespesaModal'
+import RecurringDeleteConfirm from '../../components/RecurringDeleteConfirm'
 import { uid, fmtBRL, isMineFor } from '../../lib/utils'
 
 export default function GastosTab({ month, setMonth, addDespesaPropagated, activeMonth, expandInstallments, cofres = [], togglePaidDespesa, setPaidBulk, removeDespesaCentral }) {
@@ -12,6 +13,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
   const [editing, setEditing] = useState(null)
   const [filters, setFilters] = useState({ paymentMethods: [], categories: [], attributedTo: [], types: [], text: '' })
   const [confirmMarkAll, setConfirmMarkAll] = useState(false)
+  const [pendingRecurringDelete, setPendingRecurringDelete] = useState(null)
   const cfg = month.config
 
   useEffect(() => {
@@ -62,7 +64,16 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
     setAdding(false)
   }
   const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
-  const removeDespesa = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
+  const removeDespesaRaw = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
+  // Wrapper: se for gasto fixo, abre modal de confirmação. Senão remove direto.
+  const removeDespesa = (id) => {
+    const target = month.despesas.find((d) => d.id === id)
+    if (target?.recurring) {
+      setPendingRecurringDelete(target)
+    } else {
+      removeDespesaRaw(id)
+    }
+  }
   const togglePaid = togglePaidDespesa || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) })))
 
   return (
@@ -176,6 +187,25 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
         }
         setEditing(null)
       }} onClose={() => setEditing(null)} />}
+
+      {pendingRecurringDelete && (
+        <RecurringDeleteConfirm
+          despesa={pendingRecurringDelete}
+          monthLabel={formatMonthLabel(activeMonth)}
+          onChoose={(scope) => {
+            removeDespesaRaw(pendingRecurringDelete.id, scope === 'this' ? 'recurring-this' : 'recurring-forever')
+            setPendingRecurringDelete(null)
+          }}
+          onClose={() => setPendingRecurringDelete(null)}
+        />
+      )}
     </div>
   )
+}
+
+const MONTH_LABELS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+function formatMonthLabel(ym) {
+  if (!ym) return ''
+  const [y, m] = ym.split('-').map(Number)
+  return `${MONTH_LABELS[m - 1]} de ${y}`
 }

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard, Btn, Field, MoneyInput, Select } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
+import RecurringDeleteConfirm from '../../components/RecurringDeleteConfirm'
 import { accents, hashAccent, attrAccentKey, cofreBalance } from '../../lib/constants'
 import { fmtBRL, todayDay, isMineFor, uid, dueDayStatus, getCurrentMonth } from '../../lib/utils'
 
@@ -1140,9 +1141,19 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   const agg = useMonthAggregates(month)
   const [editing, setEditing] = useState(null)
   const [editingPending, setEditingPending] = useState(null)  // { id, data } — editing a WhatsApp pending
+  const [pendingRecurringDelete, setPendingRecurringDelete] = useState(null)
 
   const updateDespesa = (id, patch) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, ...patch } : d) }))
-  const removeDespesa = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
+  const removeDespesaRaw = removeDespesaCentral || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.filter((d) => d.id !== id) })))
+  // Wrapper: se for gasto fixo, abre modal com escolha (só esse mês / pra sempre)
+  const removeDespesa = (id) => {
+    const target = month.despesas.find((d) => d.id === id)
+    if (target?.recurring) {
+      setPendingRecurringDelete(target)
+    } else {
+      removeDespesaRaw(id)
+    }
+  }
   const togglePaid = togglePaidDespesa || ((id) => setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => d.id === id ? { ...d, paid: !d.paid } : d) })))
 
   // Arredonda pra centavos pra evitar bug de ponto flutuante
@@ -1269,6 +1280,25 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       }}
       onClose={() => setEditingPending(null)}
     />}
+
+    {pendingRecurringDelete && (
+      <RecurringDeleteConfirm
+        despesa={pendingRecurringDelete}
+        monthLabel={formatMonthLabelPT(activeMonth)}
+        onChoose={(scope) => {
+          removeDespesaRaw(pendingRecurringDelete.id, scope === 'this' ? 'recurring-this' : 'recurring-forever')
+          setPendingRecurringDelete(null)
+        }}
+        onClose={() => setPendingRecurringDelete(null)}
+      />
+    )}
     </>
   )
+}
+
+const PT_MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+function formatMonthLabelPT(ym) {
+  if (!ym) return ''
+  const [y, m] = ym.split('-').map(Number)
+  return `${PT_MONTH_NAMES[m - 1]} de ${y}`
 }

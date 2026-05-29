@@ -174,8 +174,14 @@ export default function AppShell() {
       const prevData = prev.months?.[activeMonth] ?? createEmptyMonth()
       const sourceCfg = computeEffectiveConfig(prev)
       const recurring = (Array.isArray(prevData.despesas) ? prevData.despesas : [])
-        .filter((d) => d && d.recurring)
-        .map((d) => ({ ...d, id: uid(), paid: false }))
+        .filter((d) => d && d.recurring && !(d._killedFrom && newKey >= d._killedFrom))
+        .filter((d) => !(Array.isArray(d._skippedMonths) && d._skippedMonths.includes(newKey)))
+        .map((d) => ({
+          ...d,
+          id: uid(),
+          recurringRootId: d.recurringRootId || d.id,  // mantém referência ao "root" entre meses
+          paid: false,
+        }))
       const recurringReceitas = (Array.isArray(prevData.receitas) ? prevData.receitas : [])
         .filter((r) => r && r.recurring)
         .map((r) => ({ ...r, id: uid() }))
@@ -233,8 +239,14 @@ export default function AppShell() {
         const nextYm = shiftMonth(cursor, 1)
         const cursorData = next.months[cursor] ?? createEmptyMonth()
         const recurringDespesas = (Array.isArray(cursorData.despesas) ? cursorData.despesas : [])
-          .filter((d) => d && d.recurring)
-          .map((d) => ({ ...d, id: uid(), paid: false }))
+          .filter((d) => d && d.recurring && !(d._killedFrom && nextYm >= d._killedFrom))
+          .filter((d) => !(Array.isArray(d._skippedMonths) && d._skippedMonths.includes(nextYm)))
+          .map((d) => ({
+            ...d,
+            id: uid(),
+            recurringRootId: d.recurringRootId || d.id,
+            paid: false,
+          }))
         const recurringReceitas = (Array.isArray(cursorData.receitas) ? cursorData.receitas : [])
           .filter((r) => r && r.recurring)
           .map((r) => ({ ...r, id: uid() }))
@@ -300,8 +312,14 @@ export default function AppShell() {
           // New month — copy recurring items from the previous month + add installment
           const srcData = next.months[shiftMonth(activeMonth, i - 1)] ?? createEmptyMonth()
           const recurringDespesas = (Array.isArray(srcData.despesas) ? srcData.despesas : [])
-            .filter((d) => d && d.recurring)
-            .map((d) => ({ ...d, id: uid(), paid: false }))
+            .filter((d) => d && d.recurring && !(d._killedFrom && fm >= d._killedFrom))
+            .filter((d) => !(Array.isArray(d._skippedMonths) && d._skippedMonths.includes(fm)))
+            .map((d) => ({
+              ...d,
+              id: uid(),
+              recurringRootId: d.recurringRootId || d.id,
+              paid: false,
+            }))
           const recurringReceitas = (Array.isArray(srcData.receitas) ? srcData.receitas : [])
             .filter((r) => r && r.recurring)
             .map((r) => ({ ...r, id: uid() }))
@@ -366,8 +384,14 @@ export default function AppShell() {
           // New month — also bring along recurring items from the previous month
           const srcData = next.months[shiftMonth(activeMonth, monthsAhead - 1)] ?? createEmptyMonth()
           const recurringDespesas = (Array.isArray(srcData.despesas) ? srcData.despesas : [])
-            .filter((d) => d && d.recurring)
-            .map((d) => ({ ...d, id: uid(), paid: false }))
+            .filter((d) => d && d.recurring && !(d._killedFrom && fm >= d._killedFrom))
+            .filter((d) => !(Array.isArray(d._skippedMonths) && d._skippedMonths.includes(fm)))
+            .map((d) => ({
+              ...d,
+              id: uid(),
+              recurringRootId: d.recurringRootId || d.id,
+              paid: false,
+            }))
           const recurringReceitas = (Array.isArray(srcData.receitas) ? srcData.receitas : [])
             .filter((r) => r && r.recurring)
             .map((r) => ({ ...r, id: uid() }))
@@ -497,29 +521,90 @@ export default function AppShell() {
   }, [activeMonth])
 
   // Remove despesa AND any linked cofre movement
-  const removeDespesa = useCallback((despesaId) => {
+  // mode pode ser:
+  //   'single' (default): remove só do mês ativo
+  //   'recurring-this' : gasto fixo — remove só desse mês, mas marca skip em TODAS
+  //                      as cópias do mesmo id pra propagação futura ignorar esse mês
+  //   'recurring-forever': gasto fixo — remove a partir desse mês em diante
+  //                       (mantém histórico passado). Marca _killedFrom e remove
+  //                       de todos os meses >= activeMonth.
+  const removeDespesa = useCallback((despesaId, mode = 'single') => {
     setData((prev) => {
       const monthData = prev.months?.[activeMonth]
       if (!monthData) return prev
       const despesas = Array.isArray(monthData.despesas) ? monthData.despesas : []
       const despesa = despesas.find((d) => d?.id === despesaId)
-      let cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+      if (!despesa) return prev
 
-      if (despesa?.linkedMovementId && despesa.cofreId) {
+      let cofres = Array.isArray(prev.cofres) ? prev.cofres : []
+      if (despesa.linkedMovementId && despesa.cofreId) {
         cofres = cofres.map((c) => c.id === despesa.cofreId
           ? { ...c, movements: (c.movements || []).filter((m) => m.id !== despesa.linkedMovementId) }
           : c
         )
       }
 
-      return {
-        ...prev,
-        cofres,
-        months: {
-          ...prev.months,
-          [activeMonth]: { ...monthData, despesas: despesas.filter((d) => d.id !== despesaId) },
-        },
+      // Único / não-recorrente: remove só do mês atual
+      if (mode === 'single' || !despesa.recurring) {
+        return {
+          ...prev,
+          cofres,
+          months: {
+            ...prev.months,
+            [activeMonth]: { ...monthData, despesas: despesas.filter((d) => d.id !== despesaId) },
+          },
+        }
       }
+
+      // Recorrente — identifica todas as cópias entre meses pelo recurringRootId.
+      // Quando uma despesa fixa é propagada, ela ganha novo id mas mantém o
+      // recurringRootId apontando pro id original.
+      const rootId = despesa.recurringRootId || despesa.id
+      const isSame = (d) => d && (d.id === rootId || d.recurringRootId === rootId)
+
+      const newMonths = { ...prev.months }
+      const allMonthKeys = Object.keys(newMonths)
+
+      if (mode === 'recurring-this') {
+        // Remove desse mês + marca activeMonth em _skippedMonths das outras cópias
+        for (const ym of allMonthKeys) {
+          const md = newMonths[ym]
+          if (!md?.despesas) continue
+          if (ym === activeMonth) {
+            newMonths[ym] = { ...md, despesas: md.despesas.filter((d) => d.id !== despesaId) }
+          } else {
+            newMonths[ym] = {
+              ...md,
+              despesas: md.despesas.map((d) => {
+                if (!isSame(d)) return d
+                const skipped = Array.isArray(d._skippedMonths) ? d._skippedMonths : []
+                if (skipped.includes(activeMonth)) return d
+                return { ...d, _skippedMonths: [...skipped, activeMonth] }
+              }),
+            }
+          }
+        }
+      } else if (mode === 'recurring-forever') {
+        // Remove de todos os meses >= activeMonth + seta _killedFrom em meses passados
+        for (const ym of allMonthKeys) {
+          const md = newMonths[ym]
+          if (!md?.despesas) continue
+          if (ym >= activeMonth) {
+            newMonths[ym] = { ...md, despesas: md.despesas.filter((d) => !isSame(d)) }
+          } else {
+            // Passado: mantém o histórico mas marca _killedFrom pra propagação não trazer
+            newMonths[ym] = {
+              ...md,
+              despesas: md.despesas.map((d) => {
+                if (!isSame(d)) return d
+                return { ...d, _killedFrom: activeMonth }
+              }),
+            }
+          }
+        }
+      }
+
+      return { ...prev, cofres, months: newMonths }
     })
   }, [activeMonth])
 
