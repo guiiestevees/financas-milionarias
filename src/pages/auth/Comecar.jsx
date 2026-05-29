@@ -93,9 +93,11 @@ export default function Comecar() {
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
 
   // ---- Validações em tempo real (status: null | 'checking' | 'taken') ----
+  // NOTA: não validamos celular duplicado porque operadoras BR reciclam números —
+  // alguém pode receber um número que já estava em outra conta antiga. No submit
+  // a gente "libera" o número da conta anterior automaticamente (release_phone).
   const [emailStatus, setEmailStatus] = useState(null)
   const [cpfStatus, setCpfStatus] = useState(null)
-  const [phoneStatus, setPhoneStatus] = useState(null)
 
   // Verifica se email já tem cadastro
   const handleEmailBlur = async () => {
@@ -119,18 +121,6 @@ export default function Comecar() {
       if (error) { console.warn('cpf check:', error); setCpfStatus(null); return }
       setCpfStatus(data ? 'taken' : null)
     } catch (e) { console.warn('cpf check:', e); setCpfStatus(null) }
-  }
-
-  // Verifica se celular já tem cadastro
-  const handlePhoneBlur = async () => {
-    const d = phone.replace(/\D/g, '')
-    if (d.length < 10 || d.length > 11) { setPhoneStatus(null); return }
-    setPhoneStatus('checking')
-    try {
-      const { data, error } = await supabase.rpc('lookup_email_by_phone', { p_phone: d })
-      if (error) { console.warn('phone check:', error); setPhoneStatus(null); return }
-      setPhoneStatus(data ? 'taken' : null)
-    } catch (e) { console.warn('phone check:', e); setPhoneStatus(null) }
   }
 
   // ---- Endereço ----
@@ -174,7 +164,7 @@ export default function Comecar() {
 
   // Por step
   const step1Valid = !!planId
-  const noDuplicates = emailStatus !== 'taken' && cpfStatus !== 'taken' && phoneStatus !== 'taken'
+  const noDuplicates = emailStatus !== 'taken' && cpfStatus !== 'taken'
   const step2Valid = name.trim().length >= 3 && validEmail && validCpf && validPhone && validPassword && passwordsMatch && addressOk && noDuplicates
   const step3Valid = method && cardOk && acceptedPrivacy
 
@@ -246,6 +236,12 @@ export default function Comecar() {
         subscription_until: new Date().toISOString(),
         trial_started_at: null,
       }, { onConflict: 'user_id' })
+
+      // 2.1) Libera o número de contas anteriores (operadora reciclou).
+      // Falha silenciosa — se a RPC não existir, segue o fluxo normal.
+      try {
+        await supabase.rpc('release_phone', { p_phone: phoneFull, p_keep_user_id: user.id })
+      } catch (e) { console.warn('release_phone:', e.message) }
 
       // 3) Holder com endereço
       const holder = {
@@ -529,27 +525,13 @@ export default function Comecar() {
                         type="tel"
                         inputMode="tel"
                         value={phone}
-                        onChange={(e) => { setPhone(maskPhone(e.target.value)); if (phoneStatus === 'taken') setPhoneStatus(null) }}
-                        onBlur={handlePhoneBlur}
+                        onChange={(e) => setPhone(maskPhone(e.target.value))}
                         placeholder="(00) 00000-0000"
                         required
                         maxLength={15}
-                        style={{
-                          ...inputStyle,
-                          fontFamily: 'JetBrains Mono, monospace',
-                          border: `1px solid ${phoneStatus === 'taken' ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}`,
-                        }}
+                        style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
                         className="placeholder:text-white/25 focus:border-amber-400"
                       />
-                      {phoneStatus === 'checking' && (
-                        <div className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>verificando…</div>
-                      )}
-                      {phoneStatus === 'taken' && (
-                        <div className="text-[11px] mt-1.5 text-rose-300/85 flex items-center gap-2 flex-wrap">
-                          <span>⚠ Este celular já tem conta.</span>
-                          <Link to="/login" className="underline underline-offset-2 hover:opacity-80">Entrar</Link>
-                        </div>
-                      )}
                     </Field>
                   </div>
 
