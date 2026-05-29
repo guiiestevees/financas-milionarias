@@ -36,9 +36,10 @@ export default function AdminUsers() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const params = new URLSearchParams()
+      params.set('resource', 'users')
       if (status) params.set('status', status)
       params.set('limit', '500')
-      const res = await fetch(`/api/admin/users?${params}`, {
+      const res = await fetch(`/api/admin?${params}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` },
       })
       const data = await res.json()

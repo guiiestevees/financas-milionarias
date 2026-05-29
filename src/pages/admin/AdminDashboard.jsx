@@ -15,7 +15,7 @@ export default function AdminDashboard() {
     setError(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/stats', {
+      const res = await fetch('/api/admin?resource=stats', {
         headers: { 'Authorization': `Bearer ${session.access_token}` },
       })
       const data = await res.json()

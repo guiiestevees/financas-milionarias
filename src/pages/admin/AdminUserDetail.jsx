@@ -22,7 +22,7 @@ export default function AdminUserDetail({ userId, onClose, onChange }) {
     setError(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/admin/user?id=${userId}`, {
+      const res = await fetch(`/api/admin?resource=user&id=${userId}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` },
       })
       const j = await res.json()
@@ -43,7 +43,7 @@ export default function AdminUserDetail({ userId, onClose, onChange }) {
     setSuccessMsg('')
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/admin/user?id=${userId}&action=${action}`, {
+      const res = await fetch(`/api/admin?resource=user&id=${userId}&action=${action}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
