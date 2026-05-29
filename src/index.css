@@ -74,7 +74,7 @@
 
   /* Cores accent — LIGHT MODE (mais escuras pra contraste em fundo claro) */
   --accent-gold:    #a87f1f;  /* dourado mais escuro */
-  --accent-emerald: #047857;  /* verde escuro */
+  --accent-emerald: #059669;  /* verde vivo mas legível */
   --accent-rose:    #be123c;  /* vermelho escuro */
   --accent-amber:   #b45309;  /* laranja escuro */
   --accent-cyan:    #0e7490;
@@ -150,6 +150,58 @@ html, body {
 
 /* Backdrop modal — diminui opacidade no light pro overlay não ficar tão pesado */
 [data-theme="light"] .backdrop-blur-md { backdrop-filter: blur(8px) saturate(1.2); }
+
+/* ============================================================
+   Cores Tailwind sobrescritas no light mode pra ter contraste
+   Tailwind padrão das classes -200, -300 ficam claras demais em fundo branco
+   ============================================================ */
+
+/* Rose (vermelho) */
+[data-theme="light"] .text-rose-200 { color: #9f1239 !important; }
+[data-theme="light"] .text-rose-300 { color: #be123c !important; }
+[data-theme="light"] .text-rose-400 { color: #be123c !important; }
+[data-theme="light"] .text-rose-300\/85 { color: rgba(190,18,60,0.85) !important; }
+[data-theme="light"] .text-rose-300\/80 { color: rgba(190,18,60,0.85) !important; }
+[data-theme="light"] .text-rose-300\/75 { color: rgba(190,18,60,0.8) !important; }
+
+/* Emerald (verde) */
+[data-theme="light"] .text-emerald-200 { color: #047857 !important; }
+[data-theme="light"] .text-emerald-300 { color: #059669 !important; }
+[data-theme="light"] .text-emerald-400 { color: #059669 !important; }
+[data-theme="light"] .text-emerald-300\/85 { color: rgba(5,150,105,0.92) !important; }
+[data-theme="light"] .text-emerald-300\/80 { color: rgba(5,150,105,0.88) !important; }
+[data-theme="light"] .text-emerald-300\/75 { color: rgba(5,150,105,0.85) !important; }
+[data-theme="light"] .text-emerald-400\/60 { color: rgba(5,150,105,0.75) !important; }
+
+/* Amber (amarelo/laranja) */
+[data-theme="light"] .text-amber-100 { color: #92400e !important; }
+[data-theme="light"] .text-amber-200 { color: #92400e !important; }
+[data-theme="light"] .text-amber-300 { color: #b45309 !important; }
+[data-theme="light"] .text-amber-300\/85 { color: rgba(180,83,9,0.9) !important; }
+[data-theme="light"] .text-amber-300\/80 { color: rgba(180,83,9,0.88) !important; }
+[data-theme="light"] .text-amber-300\/75 { color: rgba(180,83,9,0.85) !important; }
+[data-theme="light"] .text-amber-300\/70 { color: rgba(180,83,9,0.82) !important; }
+
+/* Slate (cinza azulado — usado em cancelado) */
+[data-theme="light"] .text-slate-200 { color: #334155 !important; }
+[data-theme="light"] .text-slate-300 { color: #475569 !important; }
+
+/* Cyan e outros */
+[data-theme="light"] .text-cyan-300 { color: #0e7490 !important; }
+[data-theme="light"] .text-amber-400 { color: #b45309 !important; }
+[data-theme="light"] .text-fuchsia-300 { color: #a21caf !important; }
+[data-theme="light"] .text-violet-300 { color: #6d28d9 !important; }
+[data-theme="light"] .text-sky-300 { color: #0369a1 !important; }
+
+/* Backgrounds com tonalidade — alguns ficam muito claros em light */
+[data-theme="light"] .bg-rose-500\/10 { background-color: rgba(244,63,94,0.15) !important; }
+[data-theme="light"] .bg-rose-500\/15 { background-color: rgba(244,63,94,0.18) !important; }
+[data-theme="light"] .bg-rose-500\/20 { background-color: rgba(244,63,94,0.22) !important; }
+[data-theme="light"] .bg-emerald-500\/10 { background-color: rgba(16,185,129,0.18) !important; }
+[data-theme="light"] .bg-emerald-500\/15 { background-color: rgba(16,185,129,0.22) !important; }
+[data-theme="light"] .bg-emerald-500\/20 { background-color: rgba(16,185,129,0.25) !important; }
+[data-theme="light"] .bg-emerald-500\/25 { background-color: rgba(16,185,129,0.28) !important; }
+[data-theme="light"] .bg-emerald-500\/40 { background-color: rgba(16,185,129,0.4) !important; }
 
 /* Date input — inverte o filtro do ícone do calendário no light mode */
 [data-theme="light"] input[type='date']::-webkit-calendar-picker-indicator {
