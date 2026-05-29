@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Loader2, Users, TrendingUp, CreditCard, AlertTriangle, DollarSign, Calendar, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react'
+import { Loader2, Users, TrendingUp, CreditCard, AlertTriangle, DollarSign, Calendar, RefreshCw, ArrowUp, ArrowDown, UserCheck } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const fmtBRL = (n) => `R$ ${Number(n || 0).toFixed(2).replace('.', ',')}`
@@ -69,12 +69,20 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* HERO: MRR + ARR */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* HERO: Assinantes ativos + MRR + ARR */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <HeroCard
-          label="MRR · Receita recorrente mensal"
+          label="Assinantes ativos"
+          value={stats.activeSubs.toLocaleString('pt-BR')}
+          sub={`de ${stats.totalUsers} total · ${stats.newThisMonth} novo${stats.newThisMonth !== 1 ? 's' : ''} no mês`}
+          icon={UserCheck}
+          accent="#06b6d4"
+          isNumber
+        />
+        <HeroCard
+          label="MRR · Recorrente mensal"
           value={fmtBRL(stats.mrr)}
-          sub={`${stats.activeSubs} assinante${stats.activeSubs !== 1 ? 's' : ''} ativo${stats.activeSubs !== 1 ? 's' : ''}`}
+          sub={`ARPU médio: ${fmtBRL(stats.arpu)}`}
           icon={TrendingUp}
           accent="#10b981"
         />
@@ -158,7 +166,7 @@ export default function AdminDashboard() {
 }
 
 // ---------- HeroCard ----------
-function HeroCard({ label, value, sub, icon: Icon, accent }) {
+function HeroCard({ label, value, sub, icon: Icon, accent, isNumber }) {
   return (
     <div className="rounded-2xl p-5 sm:p-6 relative overflow-hidden"
       style={{
@@ -172,8 +180,11 @@ function HeroCard({ label, value, sub, icon: Icon, accent }) {
           <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>{label}</span>
           <Icon size={16} style={{ color: accent }} />
         </div>
-        <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: accent }}
-             className="text-3xl sm:text-4xl tabular-nums">
+        <div style={{
+          fontFamily: isNumber ? 'JetBrains Mono, monospace' : 'Fraunces, serif',
+          fontWeight: isNumber ? 600 : 500,
+          color: accent,
+        }} className="text-3xl sm:text-4xl tabular-nums">
           {value}
         </div>
         {sub && <div className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>{sub}</div>}

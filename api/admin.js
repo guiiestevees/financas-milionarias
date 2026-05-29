@@ -41,10 +41,11 @@ async function handleStats(req, res) {
   const startMonth = startOfMonthISO()
   const startLastMonth = startOfLastMonthISO()
 
+  // NOTA: user_profiles não tem coluna created_at — pegamos do auth.users (authById)
   const { data: profiles, error } = await a
     .from('user_profiles')
-    .select('user_id, subscription_status, subscription_until, asaas_subscription_id, created_at, updated_at, plan_id, asaas_customer_id')
-    .order('created_at', { ascending: false })
+    .select('user_id, subscription_status, subscription_until, asaas_subscription_id, updated_at, plan_id, asaas_customer_id')
+    .order('updated_at', { ascending: false })
     .limit(10000)
   if (error) throw error
   const list = profiles || []
@@ -73,13 +74,13 @@ async function handleStats(req, res) {
 
   const newThisMonth = list.filter((p) => {
     const u = authById[p.user_id]
-    const createdAt = u?.created_at || p.created_at
+    const createdAt = u?.created_at
     return createdAt && createdAt >= startMonth
   }).length
 
   const newLastMonth = list.filter((p) => {
     const u = authById[p.user_id]
-    const createdAt = u?.created_at || p.created_at
+    const createdAt = u?.created_at
     return createdAt && createdAt >= startLastMonth && createdAt < startMonth
   }).length
 
@@ -144,7 +145,7 @@ async function handleStats(req, res) {
     const monthLabel = new Date(ms).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
     const news = list.filter((p) => {
       const u = authById[p.user_id]
-      const createdAt = u?.created_at || p.created_at
+      const createdAt = u?.created_at
       return createdAt && createdAt >= ms && createdAt < me
     }).length
     subscribersOverTime.push({ month: monthLabel, news })
@@ -202,7 +203,7 @@ async function handleUsers(req, res) {
       asaasSubscriptionId: p.asaas_subscription_id || null,
       asaasCustomerId: p.asaas_customer_id || null,
       accountVerifiedAt: p.account_verified_at,
-      createdAt: u?.created_at || p.created_at,
+      createdAt: u?.created_at,
       lastSignInAt: u?.last_sign_in_at || null,
     }
   })
