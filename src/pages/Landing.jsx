@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Sparkles, MessageCircle, Mic, Wallet, Target, Users, ChevronRight,
   CheckCircle2, Check, Lock, Smartphone, Crown, Zap, ShieldCheck, AlertCircle,
-  FileSpreadsheet, ClockAlert, Inbox, BarChart3, ArrowRight, Quote,
+  FileSpreadsheet, Clock, Inbox, BarChart3, ArrowRight,
   PiggyBank, CreditCard, Calendar, Heart,
 } from 'lucide-react'
 
@@ -166,7 +166,7 @@ function ProblemSection() {
       desc: 'Comece com disciplina, depois esquece de lançar um dia. Aí dois. Em um mês está obsoleta — e desistir vira o caminho mais fácil.',
     },
     {
-      icon: ClockAlert,
+      icon: Clock,
       title: 'Apps são complicados ou consomem muito tempo',
       desc: 'Categorias, sub-categorias, etiquetas, relatórios complexos... você quer controle, não um segundo emprego.',
     },
