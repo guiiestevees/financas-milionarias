@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck } from 'lucide-react'
+import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const MONTH_LABELS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
@@ -134,6 +136,8 @@ function MonthPicker({ activeMonth, onJumpTo, onClose }) {
 }
 
 export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, onNext, onJumpTo, saving }) {
+  const navigate = useNavigate()
+  const { isAdmin } = useIsAdmin()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState(brand?.name || '')
@@ -217,6 +221,23 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
             <Loader2 size={12} className="animate-spin" style={{ color: '#d4af37' }} />
             <span>salvando</span>
           </div>
+        )}
+
+        {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/admin')}
+            title="Painel administrativo"
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition"
+            style={{
+              background: 'rgba(212,175,55,0.08)',
+              border: '1px solid rgba(212,175,55,0.28)',
+              color: '#d4af37',
+            }}
+          >
+            <ShieldCheck size={14} />
+            <span className="text-xs font-medium hidden sm:inline">Admin</span>
+          </button>
         )}
 
         {/* Seletor de mês — maior, mais óbvio. Ocupa o lugar onde antes

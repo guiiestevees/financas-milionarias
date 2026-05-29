@@ -10,6 +10,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Confirm from './pages/auth/Confirm'
 import VerifyAccount from './pages/auth/VerifyAccount'
+import AdminPage from './pages/admin/AdminPage'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
@@ -67,6 +68,7 @@ export default function App() {
         {/* App protegido (logado) */}
         <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
         <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfUse />} />
 
