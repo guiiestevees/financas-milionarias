@@ -111,7 +111,7 @@ function Hero() {
         />
         <div className="flex flex-col items-center sm:items-start gap-3">
           <Link
-            to="/signup"
+            to="/comecar"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm sm:text-base transition"
             style={{
               background: 'linear-gradient(180deg, #d4af37, #a87f1f)',
@@ -337,7 +337,7 @@ function Pricing() {
 
       <div className="text-center mt-8">
         <Link
-          to="/signup"
+          to="/comecar"
           className="inline-flex items-center gap-2 px-7 py-3 rounded-xl font-semibold text-sm transition"
           style={{
             background: 'linear-gradient(180deg, #d4af37, #a87f1f)',
@@ -453,7 +453,7 @@ function FinalCTA() {
         </p>
 
         <Link
-          to="/signup"
+          to="/comecar"
           className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-base transition"
           style={{
             background: 'linear-gradient(180deg, #d4af37, #a87f1f)',

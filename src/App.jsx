@@ -10,6 +10,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Confirm from './pages/auth/Confirm'
 import VerifyAccount from './pages/auth/VerifyAccount'
+import Comecar from './pages/auth/Comecar'
 import AdminPage from './pages/admin/AdminPage'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
@@ -25,11 +26,9 @@ function FullscreenLoader() {
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  const { verified, loading: vLoading } = useVerified()
-  if (loading || vLoading) return <FullscreenLoader />
+  if (loading) return <FullscreenLoader />
   if (!user) return <Navigate to="/login" replace />
-  // Conta não verificada → forçar verificação antes de acessar o app
-  if (verified === false) return <Navigate to="/verify" replace />
+  // Verificação não bloqueia mais — vira um banner opcional dentro do app
   return children
 }
 
@@ -71,6 +70,9 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfUse />} />
+
+        {/* Comecar — signup + checkout integrado (fluxo principal pra novos clientes) */}
+        <Route path="/comecar" element={<Comecar />} />
 
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />

@@ -15,6 +15,7 @@ import GastosTab from '../../features/gastos/GastosTab'
 import CofresTab from '../../features/cofres/CofresTab'
 import ConfigTab from '../../features/config/ConfigTab'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
+import VerificationBanner from '../../components/VerificationBanner'
 import SubscriptionBlocked from '../../components/SubscriptionBlocked'
 import WelcomeTour from '../../components/WelcomeTour'
 import { useSubscription } from '../../hooks/useSubscription'
@@ -808,6 +809,7 @@ export default function AppShell() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-app)' }}>
       {showTour && <WelcomeTour userName={user?.user_metadata?.name || ''} onClose={dismissTour} />}
+      <VerificationBanner />
       <SubscriptionBanner />
       <div className="w-full max-w-4xl mx-auto px-4 pt-8">
         <Header
