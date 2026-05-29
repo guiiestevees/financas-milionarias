@@ -237,11 +237,10 @@ export default function Comecar() {
         trial_started_at: null,
       }, { onConflict: 'user_id' })
 
-      // 2.1) Libera o número de contas anteriores (operadora reciclou).
-      // Falha silenciosa — se a RPC não existir, segue o fluxo normal.
-      try {
-        await supabase.rpc('release_phone', { p_phone: phoneFull, p_keep_user_id: user.id })
-      } catch (e) { console.warn('release_phone:', e.message) }
+      // Nota: NÃO removemos o número de contas anteriores aqui — o cadastro
+      // sozinho não prova posse do número. A "transferência" só acontece
+      // quando o cliente CONFIRMA o código no WhatsApp (em /verify), feito
+      // dentro de api/verify-check.js → chama release_phone.
 
       // 3) Holder com endereço
       const holder = {

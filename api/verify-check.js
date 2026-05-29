@@ -105,6 +105,22 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Falha ao confirmar — tente novamente' })
     }
 
+    // 7.1) "Toma posse" do número: remove de qualquer outra conta que ainda
+    // tinha esse mesmo telefone salvo. Como a pessoa acabou de provar acesso
+    // ao número (recebeu e digitou o código), ela é a dona atual.
+    try {
+      const { data: released } = await a.rpc('release_phone', {
+        p_phone: rec.phone,
+        p_keep_user_id: user.id,
+      })
+      if (released > 0) {
+        console.log(`📞 Phone ${rec.phone.slice(0,4)}*** transferido — ${released} conta(s) anterior(es) tiveram o número removido`)
+      }
+    } catch (e) {
+      // Falha silenciosa — se a RPC não existir, segue. A verificação em si já deu certo.
+      console.warn('release_phone:', e.message)
+    }
+
     // Limpa o registro de verificação (evita reuso)
     await a.from('phone_verifications').delete().eq('user_id', user.id)
 
