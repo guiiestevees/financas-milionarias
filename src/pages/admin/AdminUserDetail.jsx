@@ -204,7 +204,13 @@ export default function AdminUserDetail({ userId, onClose, onChange }) {
                 </div>
               ) : pendingAction === 'cancel' ? (
                 <ConfirmBox
-                  message={<>Cancelar assinatura no Asaas e marcar como <strong>cancelled</strong>?</>}
+                  message={data.profile?.asaas_subscription_id ? (
+                    <>Cancelar assinatura no Asaas e marcar acesso como <strong>cancelled</strong>?
+                    <br /><span className="text-xs opacity-70">Não estorna pagamentos já feitos.</span></>
+                  ) : (
+                    <>Marcar acesso como <strong>cancelled</strong>?
+                    <br /><span className="text-xs opacity-70">Esse usuário não tem subscription recorrente (provavelmente pagou via PIX/parcelado). Só vai cortar o acesso ao app.</span></>
+                  )}
                   onConfirm={() => callAction('cancel-subscription')}
                   onCancel={() => setPendingAction(null)}
                   loading={actionLoading}
@@ -226,8 +232,15 @@ export default function AdminUserDetail({ userId, onClose, onChange }) {
                 <ActionBtn onClick={() => callAction('mark-verified')} icon={ShieldCheck} color="#06b6d4" disabled={!!data.profile?.account_verified_at}>
                   {data.profile?.account_verified_at ? 'Já verificado' : 'Marcar verificado'}
                 </ActionBtn>
-                <ActionBtn onClick={() => setPendingAction('cancel')} icon={XCircle} color="#f59e0b" disabled={!data.profile?.asaas_subscription_id}>
-                  Cancelar assinatura
+                <ActionBtn
+                  onClick={() => setPendingAction('cancel')}
+                  icon={XCircle}
+                  color="#f59e0b"
+                  disabled={data.profile?.subscription_status === 'cancelled' || data.profile?.subscription_status === 'expired'}
+                >
+                  {data.profile?.subscription_status === 'cancelled' ? 'Já cancelada'
+                    : data.profile?.subscription_status === 'expired' ? 'Já expirada'
+                    : 'Cancelar acesso'}
                 </ActionBtn>
                 <ActionBtn onClick={() => setPendingAction('delete')} icon={Trash2} color="#f43f5e">Excluir usuário</ActionBtn>
               </div>
