@@ -91,32 +91,65 @@ async function handleStats(req, res) {
   const activeAtStart = active.length + cancelsThisMonth
   const churnPct = activeAtStart > 0 ? (cancelsThisMonth / activeAtStart) * 100 : 0
 
-  // Busca pagamentos confirmados dos últimos 12 meses (1 request, agrupa local).
-  // Recibos do Asaas têm paymentDate (quando foi recebido) — usamos isso.
+  // Busca pagamentos efetivamente recebidos dos últimos 12 meses.
+  // Asaas considera 2 status como "pago":
+  //   - RECEIVED  = confirmado e dinheiro caiu no saldo
+  //   - CONFIRMED = confirmado mas ainda em "antecipação" (cartão D+30)
+  // Fazemos 2 requests separadas porque o filtro status[]= em array
+  // do Asaas é instável (às vezes só aplica o último valor).
   let monthlyRevenue = 0
-  const monthlyRevenueHistory = []  // [{ month: 'jan/26', revenue: N }, ...]
+  const monthlyRevenueHistory = []
   try {
-    // 12 meses atrás
     const twelveMonthsAgo = new Date()
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
     twelveMonthsAgo.setDate(1)
     const dateFrom = twelveMonthsAgo.toISOString().slice(0, 10)
     const today = new Date().toISOString().slice(0, 10)
 
-    // Asaas paginação: paga até 100 por request; pegamos 500 (suficiente pra produto novo)
-    const paymentsRes = await asaasFetch(
-      `/payments?status%5B%5D=RECEIVED&status%5B%5D=CONFIRMED&paymentDate%5Bge%5D=${dateFrom}&paymentDate%5Ble%5D=${today}&limit=500`
-    ).catch(() => null)
+    // Paginação Asaas: limit max 100. Pra cobrir crescimento futuro,
+    // vamos buscar em loop até esgotar (max 500 por status).
+    async function fetchAllPayments(status) {
+      const all = []
+      let offset = 0
+      const pageSize = 100
+      for (let page = 0; page < 5; page++) {  // até 500 por status
+        const url = `/payments?status=${status}&paymentDate%5Bge%5D=${dateFrom}&paymentDate%5Ble%5D=${today}&limit=${pageSize}&offset=${offset}`
+        const res = await asaasFetch(url).catch((e) => {
+          console.warn(`asaas payments ${status} offset ${offset}:`, e.message)
+          return null
+        })
+        const batch = res?.data || []
+        all.push(...batch)
+        if (batch.length < pageSize) break  // última página
+        offset += pageSize
+      }
+      return all
+    }
 
-    const allPayments = paymentsRes?.data || []
+    const [received, confirmed] = await Promise.all([
+      fetchAllPayments('RECEIVED'),
+      fetchAllPayments('CONFIRMED'),
+    ])
 
-    // Agrupa por YYYY-MM
+    // Dedup por id (em caso de race condition entre requests)
+    const byId = new Map()
+    for (const p of [...received, ...confirmed]) {
+      if (p?.id) byId.set(p.id, p)
+    }
+    const allPayments = Array.from(byId.values())
+
+    console.log(`📊 Asaas: ${received.length} RECEIVED + ${confirmed.length} CONFIRMED = ${allPayments.length} únicos`)
+
+    // Agrupa por YYYY-MM usando paymentDate (data efetiva de recebimento)
+    // Fallback pra confirmedDate ou clientPaymentDate
     const byMonth = {}
     for (const p of allPayments) {
-      const pd = p.paymentDate || p.dueDate
+      const pd = p.paymentDate || p.confirmedDate || p.clientPaymentDate || p.dueDate
       if (!pd) continue
-      const ym = pd.slice(0, 7)  // YYYY-MM
-      byMonth[ym] = (byMonth[ym] || 0) + (Number(p.netValue || p.value) || 0)
+      const ym = pd.slice(0, 7)
+      // Usa value (bruto) em vez de netValue (líquido após taxas Asaas)
+      // pra mostrar receita bruta, mais intuitivo
+      byMonth[ym] = (byMonth[ym] || 0) + (Number(p.value) || 0)
     }
 
     // Monta array dos últimos 12 meses, mesmo os zerados
