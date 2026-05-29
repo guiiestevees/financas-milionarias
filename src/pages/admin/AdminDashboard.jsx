@@ -102,7 +102,7 @@ export default function AdminDashboard() {
           value={fmtBRL(stats.monthlyRevenue)}
           icon={DollarSign}
           accent="#10b981"
-          sub="pagamentos confirmados"
+          sub="líquido (já descontou Asaas)"
         />
         <MetricCard
           label="Novos no mês"
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
 
       {/* Gráfico — receita mensal (últimos 12 meses) */}
       {stats.monthlyRevenueHistory?.length > 0 && (
-        <Card title="Receita mensal — últimos 12 meses">
+        <Card title="Receita mensal líquida — últimos 12 meses">
           <RevenueChart data={stats.monthlyRevenueHistory} />
         </Card>
       )}

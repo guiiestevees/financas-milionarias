@@ -147,9 +147,9 @@ async function handleStats(req, res) {
       const pd = p.paymentDate || p.confirmedDate || p.clientPaymentDate || p.dueDate
       if (!pd) continue
       const ym = pd.slice(0, 7)
-      // Usa value (bruto) em vez de netValue (líquido após taxas Asaas)
-      // pra mostrar receita bruta, mais intuitivo
-      byMonth[ym] = (byMonth[ym] || 0) + (Number(p.value) || 0)
+      // Usa netValue (líquido após taxas Asaas) — o que efetivamente caiu na conta.
+      // Se Asaas não retornar netValue, fallback pra value (bruto).
+      byMonth[ym] = (byMonth[ym] || 0) + (Number(p.netValue ?? p.value) || 0)
     }
 
     // Monta array dos últimos 12 meses, mesmo os zerados
