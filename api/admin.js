@@ -12,6 +12,8 @@
 // Auth: Bearer <Supabase JWT> + email em ADMIN_EMAILS env var
 
 import { admin, assertAdmin, asaasFetch, startOfMonthISO, startOfLastMonthISO } from './_admin.js'
+import { sendEmail, subscriptionCancelledEmail } from './_email.js'
+import { sendWhatsApp } from './_whatsapp.js'
 
 const PRICES = { monthly: 19.00, annual: 167.00 }
 
@@ -195,6 +197,8 @@ async function handleUser(req, res) {
     case 'grant-access': return await actionGrant(req, res, userId)
     case 'mark-verified': return await actionMarkVerified(res, userId)
     case 'delete': return await actionDelete(res, userId)
+    case 'notify-email': return await actionNotifyEmail(res, userId)
+    case 'notify-whatsapp': return await actionNotifyWhatsApp(res, userId)
     default: return res.status(400).json({ error: 'Action desconhecida' })
   }
 }
@@ -299,4 +303,71 @@ async function actionDelete(res, userId) {
   const { error } = await a.auth.admin.deleteUser(userId)
   if (error) throw error
   return res.status(200).json({ ok: true })
+}
+
+// ---------- POST notify-email — manda email de cancelamento ----------
+async function actionNotifyEmail(res, userId) {
+  const a = admin()
+  const { data: profile } = await a.from('user_profiles')
+    .select('subscription_until')
+    .eq('user_id', userId)
+    .maybeSingle()
+  const { data: authData } = await a.auth.admin.getUserById(userId)
+  const u = authData?.user
+  if (!u?.email) {
+    return res.status(400).json({ error: 'Usuário sem email cadastrado' })
+  }
+  const name = u.user_metadata?.name || u.email.split('@')[0]
+  const validUntil = formatDateBR(profile?.subscription_until)
+
+  const { subject, html, text } = subscriptionCancelledEmail({ name, validUntil })
+  const ok = await sendEmail({ to: u.email, subject, html, text })
+  if (!ok) return res.status(502).json({ error: 'Falha ao enviar email — confira logs' })
+  return res.status(200).json({ ok: true, to: u.email })
+}
+
+// ---------- POST notify-whatsapp — manda mensagem de cancelamento ----------
+async function actionNotifyWhatsApp(res, userId) {
+  const a = admin()
+  const { data: profile } = await a.from('user_profiles')
+    .select('subscription_until, whatsapp_phone')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!profile?.whatsapp_phone) {
+    return res.status(400).json({ error: 'Usuário sem WhatsApp cadastrado' })
+  }
+  const { data: authData } = await a.auth.admin.getUserById(userId)
+  const u = authData?.user
+  const name = u?.user_metadata?.name || ''
+  const firstName = (name || '').split(' ')[0] || 'amigo(a)'
+  const validUntil = formatDateBR(profile.subscription_until)
+
+  const msg = [
+    `🎩 Olá, ${firstName}.`,
+    '',
+    'Confirmando: sua assinatura do Domus foi cancelada.',
+    '',
+    validUntil
+      ? `Você continua com acesso até *${validUntil}*. Depois dessa data, encerro discretamente sem cobrança adicional.`
+      : 'O acesso será encerrado em breve.',
+    '',
+    'Caso mude de ideia, basta voltar em meudomus.com — seus dados permanecem preservados.',
+    '',
+    'Sentirei sua falta. Permaneço ao seu dispor caso precise.',
+  ].join('\n')
+
+  const ok = await sendWhatsApp(profile.whatsapp_phone, msg)
+  if (!ok) {
+    return res.status(502).json({
+      error: 'Não consegui mandar pelo WhatsApp. Pode ser que o cliente não tenha aberto janela com Alfred nas últimas 24h.'
+    })
+  }
+  return res.status(200).json({ ok: true, to: profile.whatsapp_phone })
+}
+
+function formatDateBR(iso) {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  })
 }

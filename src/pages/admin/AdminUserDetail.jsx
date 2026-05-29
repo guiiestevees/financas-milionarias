@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, Check, AlertTriangle, Trash2, Gift, ShieldCheck, Edit2, XCircle, ExternalLink } from 'lucide-react'
+import { X, Loader2, Check, AlertTriangle, Trash2, Gift, ShieldCheck, Edit2, XCircle, ExternalLink, Mail, MessageCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const fmtBRL = (n) => `R$ ${Number(n || 0).toFixed(2).replace('.', ',')}`
@@ -243,6 +243,33 @@ export default function AdminUserDetail({ userId, onClose, onChange }) {
                     : 'Cancelar acesso'}
                 </ActionBtn>
                 <ActionBtn onClick={() => setPendingAction('delete')} icon={Trash2} color="#f43f5e">Excluir usuário</ActionBtn>
+              </div>
+
+              {/* Notificações ao cliente */}
+              <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+                <div className="text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Avisar cliente do cancelamento
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <ActionBtn
+                    onClick={() => callAction('notify-email')}
+                    icon={Mail}
+                    color="#d4af37"
+                  >
+                    Enviar email
+                  </ActionBtn>
+                  <ActionBtn
+                    onClick={() => callAction('notify-whatsapp')}
+                    icon={MessageCircle}
+                    color="#25D366"
+                    disabled={!data.profile?.whatsapp_phone}
+                  >
+                    {data.profile?.whatsapp_phone ? 'Enviar WhatsApp' : 'Sem WhatsApp'}
+                  </ActionBtn>
+                </div>
+                <div className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+                  💡 Mensagem padrão de confirmação de cancelamento com a data até quando o acesso continua válido.
+                </div>
               </div>
             </div>
           </div>
