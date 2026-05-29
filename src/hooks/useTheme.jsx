@@ -12,12 +12,12 @@ import { useEffect, useState, useCallback } from 'react'
 const STORAGE_KEY = 'domus:theme'
 
 function readInitial() {
-  if (typeof window === 'undefined') return 'dark'
+  if (typeof window === 'undefined') return 'light'
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark') return stored
   } catch {}
-  return 'dark'  // default
+  return 'light'  // default
 }
 
 function applyTheme(theme) {
