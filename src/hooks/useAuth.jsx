@@ -35,29 +35,43 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
-  // Login flexível: aceita email OU CPF (apenas dígitos ou formatado).
-  // Se for CPF, consulta a RPC pra descobrir o email vinculado.
+  // Login flexível: aceita email OU CPF OU celular.
+  // Se for CPF/celular, consulta RPC pra descobrir o email vinculado.
+  //
+  // Estratégia de detecção:
+  // - Tem '@' → email
+  // - 11 dígitos → tenta CPF primeiro, depois celular (cobre ambos formatos)
+  // - 10 dígitos → só pode ser celular (DDD + 8 dígitos)
+  // - Outros → erro
   const signInWithIdentifier = async (identifier, password) => {
     if (!supabase) return { error: { message: 'Sistema indisponível' } }
     const id = String(identifier || '').trim()
     let email = id
 
-    // Se NÃO parece email (sem @), trata como CPF/CNPJ
     if (!id.includes('@')) {
-      const cpfDigits = id.replace(/\D/g, '')
-      if (cpfDigits.length < 11) {
-        return { error: { message: 'Informe um email válido ou CPF completo' } }
+      const digits = id.replace(/\D/g, '')
+
+      if (digits.length < 10) {
+        return { error: { message: 'Informe email, CPF (11 dígitos) ou celular com DDD' } }
       }
-      // Consulta RPC pra resolver o email
-      const { data, error } = await supabase.rpc('lookup_email_by_cpf', { p_cpf: cpfDigits })
-      if (error) {
-        console.error('CPF lookup error:', error)
-        return { error: { message: 'Falha ao buscar cadastro. Tente com email.' } }
+
+      // Tenta CPF se tiver 11 dígitos
+      if (digits.length === 11) {
+        const { data: cpfEmail, error: cpfErr } = await supabase.rpc('lookup_email_by_cpf', { p_cpf: digits })
+        if (cpfErr) console.warn('CPF lookup error:', cpfErr)
+        if (cpfEmail) email = cpfEmail
       }
-      if (!data) {
-        return { error: { message: 'Não encontrei nenhum cadastro com esse CPF' } }
+
+      // Se ainda não achou, tenta como celular (10 ou 11 dígitos)
+      if (email === id) {
+        const { data: phoneEmail, error: phoneErr } = await supabase.rpc('lookup_email_by_phone', { p_phone: digits })
+        if (phoneErr) console.warn('Phone lookup error:', phoneErr)
+        if (phoneEmail) email = phoneEmail
       }
-      email = data
+
+      if (email === id) {
+        return { error: { message: 'Não encontrei nenhum cadastro com esses dados. Confira CPF ou número.' } }
+      }
     }
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })

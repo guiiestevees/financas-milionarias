@@ -15,17 +15,39 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
-// Aplica máscara de CPF se for puro número (e tiver começado a digitar CPF)
-function maskCpfIfNumeric(input) {
+// Aplica máscara conforme o tipo digitado.
+// - Tem @ ou letras → email (sem máscara)
+// - 10 dígitos → celular fixo (XX) XXXX-XXXX
+// - 11 dígitos sem padrão de celular → CPF 000.000.000-00
+// - 11 dígitos começando com DDD comum → celular (XX) X XXXX-XXXX
+//
+// Como não dá pra diferenciar 100% CPF de celular com 11 dígitos,
+// usamos heurística: se o 3º dígito é 9 (padrão de celular novo BR),
+// assume celular. Senão assume CPF. Usuário pode digitar com pontuação
+// pra forçar (CPF com pontos, celular com parênteses).
+function maskIdentifier(input) {
   const trimmed = String(input || '')
-  // Se tem @ ou letras, é email — não aplica máscara
   if (/[a-zA-Z@]/.test(trimmed)) return trimmed
-  // É puro número → aplica máscara de CPF (000.000.000-00)
   const d = trimmed.replace(/\D/g, '').slice(0, 11)
+  if (d.length === 0) return ''
+
+  // 10 dígitos = celular fixo OU celular sem o 9 → trata como celular
+  if (d.length === 10) {
+    return d.replace(/(\d{2})(\d{4})(\d{1,4})$/, '($1) $2-$3')
+  }
+  // 11 dígitos + 3º dígito é 9 → celular moderno
+  if (d.length === 11 && d[2] === '9') {
+    return d.replace(/(\d{2})(\d{5})(\d{1,4})$/, '($1) $2-$3')
+  }
+  // 11 dígitos sem padrão de celular → CPF
+  if (d.length === 11) {
+    return d
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  // Menos de 10 dígitos → mostra cru
   return d
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
 }
 
 export default function Login() {
@@ -36,9 +58,10 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Detecta visualmente se tá digitando CPF (pra ícone + máscara)
-  const looksLikeCpf = !identifier.includes('@') && identifier.replace(/\D/g, '').length > 0 && !/[a-zA-Z]/.test(identifier)
-  const Icon = looksLikeCpf ? User : AtSign
+  // Detecta visualmente o tipo digitado pra trocar o ícone
+  const onlyDigits = identifier.replace(/\D/g, '')
+  const isNumeric = !identifier.includes('@') && onlyDigits.length > 0 && !/[a-zA-Z]/.test(identifier)
+  const Icon = isNumeric ? User : AtSign
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -59,7 +82,7 @@ export default function Login() {
         >
           Entrar
         </h2>
-        <p className="text-sm text-white/45">Acesse com email ou CPF</p>
+        <p className="text-sm text-white/45">Acesse com email, CPF ou celular</p>
       </div>
 
       {error && (
@@ -74,7 +97,7 @@ export default function Login() {
       <div className="space-y-3">
         <div>
           <label className="block text-xs text-white/45 mb-1.5 uppercase tracking-widest">
-            Email ou CPF
+            Email, CPF ou celular
           </label>
           <div className="relative">
             <Icon
@@ -88,8 +111,8 @@ export default function Login() {
             <input
               type="text"
               value={identifier}
-              onChange={(e) => setIdentifier(maskCpfIfNumeric(e.target.value))}
-              placeholder="seu@email.com  ou  000.000.000-00"
+              onChange={(e) => setIdentifier(maskIdentifier(e.target.value))}
+              placeholder="seu@email.com · CPF · (11) 9XXXX-XXXX"
               required
               autoComplete="username"
               maxLength={50}

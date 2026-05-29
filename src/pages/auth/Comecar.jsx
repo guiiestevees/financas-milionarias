@@ -86,10 +86,10 @@ export default function Comecar() {
   // ---- Dados pessoais ----
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [emailConfirm, setEmailConfirm] = useState('')
   const [cpf, setCpf] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
 
   // ---- Endereço ----
@@ -119,8 +119,8 @@ export default function Comecar() {
   const validCpf = /^\d{11}$/.test(cpfDigits)
   const validPhone = phoneDigits.length >= 10 && phoneDigits.length <= 11
   const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
-  const emailMatches = email.trim().toLowerCase() === emailConfirm.trim().toLowerCase()
   const validPassword = password.length >= 6
+  const passwordsMatch = password === passwordConfirm
   const addressOk = isAddressValid(address)
 
   const numDigits = cardNumber.replace(/\D/g, '')
@@ -133,7 +133,7 @@ export default function Comecar() {
 
   // Por step
   const step1Valid = !!planId
-  const step2Valid = name.trim().length >= 3 && validEmail && emailMatches && validCpf && validPhone && validPassword && addressOk
+  const step2Valid = name.trim().length >= 3 && validEmail && validCpf && validPhone && validPassword && passwordsMatch && addressOk
   const step3Valid = method && cardOk && acceptedPrivacy
 
   const availableMethods = METHODS_BY_PLAN[planId] || []
@@ -142,10 +142,12 @@ export default function Comecar() {
   const installmentValue = method === 'CREDIT_CARD' && installments > 0
     ? Number(plan.price) / installments : Number(plan.price)
 
-  // Reset método quando troca plano (porque planos têm métodos diferentes)
+  // Quando troca de plano, ajusta método:
+  // - Mensal: pré-seleciona cartão (única opção)
+  // - Anual: reseta pra usuário escolher entre PIX e cartão
   const onPlanChange = (id) => {
     setPlanId(id)
-    setMethod(null)
+    setMethod(id === 'monthly' ? 'CREDIT_CARD' : null)
   }
 
   const goNext = () => {
@@ -429,31 +431,16 @@ export default function Comecar() {
                     />
                   </Field>
 
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <Field label="E-mail">
-                      <EmailInput
-                        id="comecar-email"
-                        value={email}
-                        onChange={setEmail}
-                        placeholder="seu@email.com"
-                        required
-                        autoComplete="email"
-                      />
-                    </Field>
-                    <Field label="Confirmar e-mail">
-                      <input
-                        type="email"
-                        value={emailConfirm}
-                        onChange={(e) => setEmailConfirm(e.target.value)}
-                        placeholder="repita o e-mail"
-                        required
-                        autoComplete="email"
-                        onPaste={(e) => e.preventDefault()}
-                        style={{ ...inputStyle, border: `1px solid ${emailConfirm.length > 0 && !emailMatches ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}` }}
-                        className="placeholder:text-white/25 focus:border-amber-400"
-                      />
-                    </Field>
-                  </div>
+                  <Field label="E-mail">
+                    <EmailInput
+                      id="comecar-email"
+                      value={email}
+                      onChange={setEmail}
+                      placeholder="seu@email.com"
+                      required
+                      autoComplete="email"
+                    />
+                  </Field>
 
                   <div className="grid sm:grid-cols-2 gap-3">
                     <Field label="CPF">
@@ -484,18 +471,36 @@ export default function Comecar() {
                     </Field>
                   </div>
 
-                  <Field label="Senha">
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
-                      required
-                      autoComplete="new-password"
-                      style={inputStyle}
-                      className="placeholder:text-white/25 focus:border-amber-400"
-                    />
-                  </Field>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Field label="Senha">
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Mínimo 6 caracteres"
+                        required
+                        autoComplete="new-password"
+                        style={inputStyle}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+                    <Field label="Confirmar senha">
+                      <input
+                        type="password"
+                        value={passwordConfirm}
+                        onChange={(e) => setPasswordConfirm(e.target.value)}
+                        placeholder="repita a senha"
+                        required
+                        autoComplete="new-password"
+                        onPaste={(e) => e.preventDefault()}
+                        style={{ ...inputStyle, border: `1px solid ${passwordConfirm.length > 0 && !passwordsMatch ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}` }}
+                        className="placeholder:text-white/25 focus:border-amber-400"
+                      />
+                    </Field>
+                  </div>
+                  {passwordConfirm.length > 0 && !passwordsMatch && (
+                    <div className="text-xs text-rose-300/85 px-1">⚠ As senhas não coincidem</div>
+                  )}
                 </div>
 
                 <div className="mt-3 text-xs flex items-start gap-2" style={{ color: 'var(--text-tertiary)' }}>
@@ -532,6 +537,18 @@ export default function Comecar() {
               {/* Forma de pagamento */}
               <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
                 <div className="text-xs uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Forma de pagamento</div>
+
+                {/* Aviso do Alfred — só pra plano mensal */}
+                {planId === 'monthly' && (
+                  <div className="mb-4 rounded-lg p-3 text-xs leading-relaxed flex items-start gap-2"
+                    style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', color: 'var(--text-secondary)' }}>
+                    <span className="shrink-0 mt-0.5">🎩</span>
+                    <span>
+                      <em>Permita-me apenas uma observação: a recorrência mensal acompanha o cartão para que eu cuide das renovações em seu lugar. Caso prefira PIX, o plano anual o aceita de bom grado — basta voltar ao primeiro passo.</em>
+                    </span>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   {availableMethods.map((m) => {
                     const isSel = method === m.id
