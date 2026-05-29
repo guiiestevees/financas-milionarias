@@ -77,14 +77,14 @@ function Nav() {
 // ============================================================
 function Hero() {
   return (
-    <section className="text-center mb-24 sm:mb-32 pt-4 sm:pt-8">
-      {/* Logo grande e centralizada */}
-      <div className="flex justify-center mb-8 sm:mb-10">
+    <section className="text-center mb-24 sm:mb-32">
+      {/* Logo grande e centralizada — compacto, sem muito espaço em branco */}
+      <div className="flex justify-center mb-4 sm:mb-5 -mt-2">
         <img
           src="/domus-logo-512.png"
           alt="Domus"
           style={{
-            width: 'min(180px, 38vw)',
+            width: 'min(220px, 48vw)',
             height: 'auto',
             objectFit: 'contain',
             filter: 'drop-shadow(0 12px 32px rgba(212,175,55,0.25))',
