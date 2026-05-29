@@ -73,24 +73,24 @@ function Nav() {
 }
 
 // ============================================================
-// HERO
+// HERO — centralizado, focado em controle = caminho pra riqueza
 // ============================================================
 function Hero() {
   return (
-    <section className="text-center mb-20 sm:mb-28">
-      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-5"
+    <section className="text-center mb-24 sm:mb-32 pt-4 sm:pt-8">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-7"
         style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)' }}>
         <Crown size={11} style={{ color: 'var(--accent-gold)' }} />
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent-gold)' }}>
-          Garantia de 7 dias · Reembolso integral
+          Controle financeiro · Sem complicação
         </span>
       </div>
 
       <h1
-        style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.05 }}
-        className="text-4xl sm:text-6xl mb-5"
+        style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.025em', lineHeight: 1.0 }}
+        className="text-5xl sm:text-7xl lg:text-8xl mb-7 max-w-4xl mx-auto"
       >
-        Cuide das suas finanças{' '}
+        Quem controla o dinheiro,{' '}
         <em
           style={{
             fontStyle: 'italic',
@@ -99,50 +99,42 @@ function Hero() {
             color: 'transparent',
           }}
         >
-          conversando.
+          constrói riqueza.
         </em>
       </h1>
 
-      <p className="text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-8 px-2" style={{ color: 'var(--text-secondary)' }}>
-        Mande mensagem ou áudio pelo WhatsApp pro <strong style={{ color: 'var(--text-primary)' }}>Alfred</strong>, seu mordomo financeiro.
-        Ele entende, classifica e organiza pra você. Sem planilha, sem calculadora, sem fricção.
+      <p className="text-lg sm:text-2xl max-w-3xl mx-auto leading-relaxed mb-5 px-2" style={{ color: 'var(--text-secondary)' }}>
+        Toda fortuna nasce de uma habilidade simples: <strong style={{ color: 'var(--text-primary)' }}>saber pra onde vai cada real</strong>.
+        Não é sobre ganhar mais. É sobre ter clareza, paz mental e decidir com sabedoria.
       </p>
 
-      {/* Foto do Alfred + CTA */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 mb-10">
-        <img
-          src="/alfred.png"
-          alt="Alfred"
-          onError={(e) => { e.currentTarget.style.display = 'none' }}
+      <p className="text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 px-2" style={{ color: 'var(--text-tertiary)' }}>
+        O Domus existe pra te dar exatamente isso — sem planilha, sem calculadora, sem fricção.
+      </p>
+
+      {/* CTA */}
+      <div className="flex flex-col items-center gap-3 mb-10">
+        <Link
+          to="/comecar"
+          className="inline-flex items-center gap-2 px-10 py-4 rounded-xl font-semibold text-base sm:text-lg transition"
           style={{
-            width: 96, height: 96, borderRadius: '50%', objectFit: 'cover',
-            border: '3px solid rgba(212,175,55,0.4)',
-            boxShadow: '0 8px 32px rgba(212,175,55,0.2)',
+            background: 'linear-gradient(180deg, #d4af37, #a87f1f)',
+            color: '#070912',
+            boxShadow: '0 16px 36px rgba(212,175,55,0.3)',
           }}
-        />
-        <div className="flex flex-col items-center sm:items-start gap-3">
-          <Link
-            to="/comecar"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm sm:text-base transition"
-            style={{
-              background: 'linear-gradient(180deg, #d4af37, #a87f1f)',
-              color: '#070912',
-              boxShadow: '0 12px 28px rgba(212,175,55,0.3)',
-            }}
-          >
-            🎩 Quero começar agora
-            <ChevronRight size={16} />
-          </Link>
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-            <ShieldCheck size={11} /> 7 dias de garantia · Sem letras miúdas
-          </div>
+        >
+          🎩 Quero ter controle agora
+          <ChevronRight size={18} />
+        </Link>
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Comece em 3 minutos · Cancele quando quiser
         </div>
       </div>
 
       {/* Trust line */}
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-        <span className="flex items-center gap-1.5"><Mic size={11} /> Aceita áudio</span>
         <span className="flex items-center gap-1.5"><MessageCircle size={11} /> WhatsApp</span>
+        <span className="flex items-center gap-1.5"><Mic size={11} /> Aceita áudio</span>
         <span className="flex items-center gap-1.5"><Smartphone size={11} /> Funciona em qualquer celular</span>
         <span className="flex items-center gap-1.5"><Lock size={11} /> Dados criptografados (LGPD)</span>
       </div>
@@ -218,7 +210,7 @@ function ProblemSection() {
 }
 
 // ============================================================
-// SOLUÇÃO — apresenta o Alfred como caminho
+// SOLUÇÃO — apresenta o Alfred como o mordomo financeiro
 // ============================================================
 function SolutionSection() {
   return (
@@ -228,20 +220,32 @@ function SolutionSection() {
           background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(16,185,129,0.04))',
           border: '1px solid rgba(212,175,55,0.2)',
         }}>
+        {/* Foto do Alfred — apresentação visual */}
+        <img
+          src="/alfred.png"
+          alt="Alfred"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+          style={{
+            width: 100, height: 100, borderRadius: '50%', objectFit: 'cover',
+            border: '3px solid rgba(212,175,55,0.4)',
+            boxShadow: '0 12px 36px rgba(212,175,55,0.2)',
+            margin: '0 auto 24px',
+          }}
+        />
+
         <div className="text-[11px] uppercase tracking-widest font-semibold mb-3" style={{ color: 'var(--accent-emerald)' }}>
-          A solução
+          Apresentamos
         </div>
         <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-5xl mb-5">
-          Tem um <em style={{ fontStyle: 'italic', color: 'var(--accent-gold)' }}>mordomo</em> pra cuidar disso.
+          O <em style={{ fontStyle: 'italic', color: 'var(--accent-gold)' }}>Alfred</em>, seu mordomo financeiro.
         </h2>
-        <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          O <strong style={{ color: 'var(--text-primary)' }}>Alfred</strong> mora no seu WhatsApp.
-          Conversa com você como qualquer outro contato — só que ao invés de "oi, tudo bem?", você diz{' '}
-          <em style={{ color: 'var(--accent-gold)', fontStyle: 'italic' }}>"gastei 80 no mercado"</em>{' '}
-          e ele anota, organiza e mostra no seu painel.
+        <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
+          Pessoas ricas sempre tiveram alguém pra cuidar dos números — contador, secretária, mordomo.
+          O Alfred é a sua versão moderna disso. Ele mora no seu WhatsApp e cuida de registrar seus gastos,
+          organizar suas finanças e te lembrar do que importa.
         </p>
-        <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mt-4" style={{ color: 'var(--text-secondary)' }}>
-          Sem planilha. Sem calculadora. Sem categoria pra escolher. Sem esforço.
+        <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          Você fala, ele faz. Sem planilha. Sem calculadora. Sem categoria pra escolher.
         </p>
       </div>
     </section>
@@ -268,34 +272,66 @@ function Demo() {
 
       <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
         <ChatExample
-          title="Despesa rápida"
+          title="Compra simples"
           messages={[
-            { from: 'user', text: 'calça 200 nubank parcelado 4x' },
-            { from: 'alfred', text: '🎩 Compreendido. Registrei R$ 200 em 4× no Nubank — "Calça". Confirme no aplicativo quando puder.' },
+            { from: 'user', text: 'Alfred, comprei uma camiseta de 100 reais no nubank' },
+            { from: 'alfred', text: '🎩 Anotado. R$ 100 no Nubank — categoria "Roupas". Confirme no aplicativo quando puder, senhor.' },
+          ]}
+        />
+
+        <ChatExample
+          title="Parcelado, sem complicar"
+          messages={[
+            { from: 'user', text: 'Comprei um tênis Nike em 5 parcelas de 105 no Safra' },
+            { from: 'alfred', text: '🎩 Compreendido. Lancei R$ 525 em 5× de R$ 105 no Safra — categoria "Roupas". As parcelas seguintes já estão programadas.' },
+          ]}
+        />
+
+        <ChatExample
+          title="Compras do dia a dia"
+          messages={[
+            { from: 'user', text: 'Acabei de comprar um guaraná no pix por 8 reais' },
+            { from: 'alfred', text: '🎩 Registrado. R$ 8 no Pix — categoria "Lazer". Que aproveite, senhor.' },
           ]}
         />
 
         <ChatExample
           title="Mande por áudio"
           messages={[
-            { from: 'user', audio: '🎤 0:12 ▶' },
-            { from: 'alfred', text: '🎩 Transcrevi: "gastei 80 no mercado pix e recebi 200 do consultório". Lancei as 2 transações.' },
+            { from: 'user', audio: '🎤 0:08 ▶' },
+            { from: 'alfred', text: '🎩 Transcrevi: "paguei 320 de luz no boleto". Lancei como despesa fixa, categoria "Casa".' },
           ]}
         />
 
         <ChatExample
-          title="Consulte na hora"
+          title="Consultas rápidas"
           messages={[
-            { from: 'user', text: 'quanto sobra do mês?' },
-            { from: 'alfred', text: 'Sobram *R$ 1.840,00* depois das despesas fixas. Excelente disciplina, se me permite o comentário.' },
+            { from: 'user', text: 'Quanto gastei de mercado esse mês?' },
+            { from: 'alfred', text: 'Até agora, *R$ 1.180,00* em Mercado. Você definiu R$ 1.500 de limite — sobram R$ 320 pra fechar o mês.' },
+          ]}
+        />
+
+        <ChatExample
+          title="Veja onde está o dinheiro"
+          messages={[
+            { from: 'user', text: 'Quanto gastei de assinaturas?' },
+            { from: 'alfred', text: 'Suas assinaturas somam *R$ 187/mês* — Netflix, Spotify, Domus, academia e mais 2. Posso listar todas se desejar.' },
+          ]}
+        />
+
+        <ChatExample
+          title="Saiba quanto pode gastar"
+          messages={[
+            { from: 'user', text: 'Quanto tenho livre pra gastar esse mês?' },
+            { from: 'alfred', text: 'Depois das contas e dos limites reservados, restam *R$ 1.840,00* livres. Excelente disciplina, se me permite o comentário.' },
           ]}
         />
 
         <ChatExample
           title="Acompanhe metas"
           messages={[
-            { from: 'user', text: 'como tá meu cofre do casamento?' },
-            { from: 'alfred', text: 'Cofre Casamento com *R$ 8.400,00* — 28% da meta de R$ 30.000. Cada vez mais perto. Admirável.' },
+            { from: 'user', text: 'Como tá meu cofre de viagem?' },
+            { from: 'alfred', text: 'Cofre Viagem com *R$ 4.200,00* — 42% da meta de R$ 10.000. Cada vez mais perto. Admirável.' },
           ]}
         />
       </div>
