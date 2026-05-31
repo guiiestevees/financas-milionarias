@@ -56,6 +56,11 @@ async function asaasFetch(path, options = {}) {
 
   if (!res.ok) {
     const errMsg = data?.errors?.[0]?.description || data?.message || `HTTP ${res.status}`
+    // Log detalhado pra debug de problemas de cartão recusado, antifraude, etc.
+    console.error(`🔴 Asaas HTTP ${res.status} em ${path}:`)
+    console.error('   message:', errMsg)
+    console.error('   full response:', JSON.stringify(data).slice(0, 1500))
+    console.error('   env:', ENV, 'base:', BASE_URL)
     const err = new Error(`Asaas API error: ${errMsg}`)
     err.status = res.status
     err.data = data
@@ -322,6 +327,19 @@ export async function createInstallmentPaymentWithCard({
   return asaasFetch('/payments', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+// Detecta bandeira pelo prefixo do número (pra log de debug)
+function detectBrand(num) {
+  const n = String(num || '').replace(/\D/g, '')
+  if (/^4/.test(n)) return 'visa'
+  if (/^5[1-5]/.test(n)) return 'mastercard'
+  if (/^3[47]/.test(n)) return 'amex'
+  if (/^6(?:011|5)/.test(n)) return 'discover'
+  if (/^3(?:0[0-5]|[68])/.test(n)) return 'diners'
+  if (/^35/.test(n)) return 'jcb'
+  if (/^(606282|3841|636368)/.test(n)) return 'hipercard/elo'
+  return 'unknown'
+}
+
 // Helper interno: monta o creditCardHolderInfo que vai no Asaas pra antifraude.
 // Aceita o holder em dois formatos:
 //   (a) flat:    { postalCode, addressNumber }  ← formato legado
@@ -407,15 +425,41 @@ export async function createSubscriptionWithCard({ customerId, planId, cardData,
     creditCardHolderInfo: holderInfoPayload,
     remoteIp,
   }
+  console.log('🟡 Tentando cobrar cartão. Payload (sem dados sensíveis):', JSON.stringify({
+    customer: firstPaymentPayload.customer,
+    value: firstPaymentPayload.value,
+    dueDate: firstPaymentPayload.dueDate,
+    cardLast4: cardData.number?.slice(-4),
+    cardBrand: detectBrand(cardData.number),
+    holderName: cardData.holderName,
+    holderInfo: { ...holderInfoPayload, cpfCnpj: holderInfoPayload.cpfCnpj?.slice(0, 3) + '***' },
+    remoteIp,
+  }))
+
   const firstPayment = await asaasFetch('/payments', {
     method: 'POST',
     body: JSON.stringify(firstPaymentPayload),
   })
 
+  console.log('🟢 Asaas retornou:', JSON.stringify({
+    id: firstPayment.id,
+    status: firstPayment.status,
+    statusReason: firstPayment.statusReason,
+    refundReason: firstPayment.refundReason,
+    creditCard: firstPayment.creditCard,
+    creditCardOwnerName: firstPayment.creditCard?.creditCardHolderName,
+    fullObject: firstPayment,
+  }).slice(0, 2000))
+
   // Se a primeira cobrança não autorizou, NÃO criamos a subscription.
   // Cliente vai ver o erro e tentar de novo com outro cartão.
   if (!['CONFIRMED', 'RECEIVED'].includes(firstPayment.status)) {
-    const err = new Error(`Cartão não autorizado (status: ${firstPayment.status})`)
+    // Erro descritivo com motivo do Asaas se houver
+    const reason = firstPayment.statusReason
+      || firstPayment.refundReason
+      || (firstPayment.status === 'AWAITING_RISK_ANALYSIS' ? 'em análise antifraude do Asaas — pode levar até 24h' : null)
+      || `status devolvido: ${firstPayment.status}`
+    const err = new Error(`Cartão não autorizado — ${reason}`)
     err.status = 400
     err.data = { firstPayment }
     throw err

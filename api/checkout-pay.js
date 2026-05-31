@@ -295,11 +295,19 @@ export default async function handler(req, res) {
       status: firstPayment.status,
     })
   } catch (err) {
-    console.error('checkout-pay error:', err)
+    console.error('🔴 checkout-pay error:', err.message)
+    console.error('   status:', err.status)
+    console.error('   data:', JSON.stringify(err.data).slice(0, 1500))
     const msg = err?.data?.errors?.[0]?.description || err.message || 'Erro interno'
+    // Pega o status real do firstPayment se houver — pra UI poder mostrar
+    // mensagem específica (PENDING / AWAITING_RISK_ANALYSIS / REFUSED etc)
+    const firstPaymentStatus = err?.data?.firstPayment?.status
+    const firstPaymentId = err?.data?.firstPayment?.id
     return res.status(err.status || 500).json({
       error: msg,
       detail: err.data,
+      firstPaymentStatus,  // pra UI saber qual foi o status real
+      firstPaymentId,
     })
   }
 }
