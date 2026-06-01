@@ -9,6 +9,7 @@ import {
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
 import { useAgendaProjects } from '../../hooks/useAgendaProjects'
+import { useAgendaCompletions } from '../../hooks/useAgendaCompletions'
 import { useTheme } from '../../hooks/useTheme'
 import EventForm from './EventForm'
 import {
@@ -48,6 +49,7 @@ export default function AgendaShell() {
 
   const tasksHook = useAgendaTasks()
   const projectsHook = useAgendaProjects()
+  const completionsHook = useAgendaCompletions()
 
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
@@ -175,6 +177,7 @@ export default function AgendaShell() {
                 onClickEvent={(occ) => setEditing(occ)}
                 onCreate={(date, time) => setCreating({ initialDate: date, initialTime: time })}
                 date={refDate}
+                completionsHook={completionsHook}
               />
             )}
             {tab === 'week' && (
@@ -354,13 +357,25 @@ function DateNav({ view, refDate, setRefDate, onCreate }) {
 // ============================================================
 // DAY VIEW — Timeline vertical com horários e blocos posicionados
 // ============================================================
-function DayView({ events, onClickEvent, onCreate, date }) {
+function DayView({ events, onClickEvent, onCreate, date, completionsHook }) {
   const allDay = events.filter((e) => !e.time)
   const timed = events.filter((e) => !!e.time)
   const todayFlag = isToday(date)
 
+  // Stats de progresso pra dopamina
+  const totalCount = events.length
+  const doneCount = events.filter((ev) =>
+    completionsHook?.isCompleted(ev.id, ev.occurrenceDate)
+  ).length
+  const allDone = totalCount > 0 && doneCount === totalCount
+
   return (
     <div className="space-y-3">
+      {/* Barra de progresso (só aparece quando tem eventos) */}
+      {totalCount > 0 && (
+        <ProgressStrip done={doneCount} total={totalCount} allDone={allDone} />
+      )}
+
       {/* CTA sólido ciano — botão de ação principal */}
       <button
         onClick={() => onCreate(date)}
@@ -383,7 +398,13 @@ function DayView({ events, onClickEvent, onCreate, date }) {
           </div>
           <div className="space-y-1.5">
             {allDay.map((ev) => (
-              <EventCard key={`${ev.id}:${ev.occurrenceDate}`} event={ev} onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })} />
+              <EventCard
+                key={`${ev.id}:${ev.occurrenceDate}`}
+                event={ev}
+                onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
+                completed={completionsHook?.isCompleted(ev.id, ev.occurrenceDate)}
+                onToggleComplete={() => completionsHook?.toggleCompletion(ev.id, ev.occurrenceDate)}
+              />
             ))}
           </div>
         </div>
@@ -396,13 +417,14 @@ function DayView({ events, onClickEvent, onCreate, date }) {
         isToday={todayFlag}
         onClickEvent={onClickEvent}
         onClickEmpty={(hour) => onCreate(date, hour)}
+        completionsHook={completionsHook}
       />
     </div>
   )
 }
 
 // Timeline do dia: coluna esquerda com horas + coluna direita com slots
-function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty }) {
+function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty, completionsHook }) {
   // Default: 07h-23h. Expande automático se evento sai fora. User pode forçar madrugada/madrugada-noite.
   const [showEarly, setShowEarly] = useState(false)   // 00h-06h
   const [showLate, setShowLate] = useState(false)     // 23h-24h
@@ -571,6 +593,8 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
               left={left}
               width={width}
               onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
+              completed={completionsHook?.isCompleted(ev.id, ev.occurrenceDate)}
+              onToggleComplete={() => completionsHook?.toggleCompletion(ev.id, ev.occurrenceDate)}
             />
           )
         })}
@@ -625,40 +649,182 @@ function layoutOverlappingEvents(positioned) {
   return result
 }
 
-function TimelineEvent({ event, top, height, left, width, onClick }) {
+function TimelineEvent({ event, top, height, left, width, onClick, completed, onToggleComplete }) {
   const colorKey = event.color || 'cyan'
   const colorVar = `var(--accent-${colorKey})`
   const tintBg = getColorTint(colorKey, 'bg')
   const tintBorder = getColorTint(colorKey, 'border')
   const compact = height < 50
+  const [burst, setBurst] = useState(false)
+
+  const handleCheck = (e) => {
+    e.stopPropagation()
+    const wasCompleted = completed
+    onToggleComplete?.()
+    if (!wasCompleted) {
+      // Marcou como concluído → festa!
+      setBurst(true)
+      setTimeout(() => setBurst(false), 900)
+      if (navigator.vibrate) navigator.vibrate([15, 30, 15])
+    }
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className="absolute rounded-lg text-left overflow-hidden transition hover:opacity-90 active:scale-[0.99] flex"
+    <div
+      className="absolute"
+      style={{ top, height, left, width, transition: 'opacity 0.3s' }}
+    >
+      <button
+        onClick={onClick}
+        className="absolute inset-0 rounded-lg text-left overflow-hidden flex group/event"
+        style={{
+          background: tintBg,
+          border: `1px solid ${tintBorder}`,
+          opacity: completed ? 0.55 : 1,
+          transition: 'opacity 0.4s ease, transform 0.15s',
+        }}
+      >
+        <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
+        <div className="flex-1 min-w-0 px-2 py-1 pr-7">
+          <div
+            className={`font-medium ${compact ? 'text-[11px] truncate' : 'text-xs'}`}
+            style={{
+              color: 'var(--text-primary)',
+              lineHeight: 1.2,
+              textDecoration: completed ? 'line-through' : 'none',
+              textDecorationColor: colorVar,
+              textDecorationThickness: '1.5px',
+            }}
+          >
+            {event.title}
+          </div>
+          {!compact && (
+            <div className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace' }}>
+              <span>{formatTime(event.time)}{event.end_time ? `–${formatTime(event.end_time)}` : ''}</span>
+              {event.location && height > 70 && (
+                <span className="truncate"> · 📍 {event.location}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </button>
+
+      {/* Check redondo no canto top-right — sempre clicável */}
+      <button
+        onClick={handleCheck}
+        className="absolute top-1 right-1 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 z-10"
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          border: `1.5px solid ${completed ? colorVar : tintBorder}`,
+          background: completed ? colorVar : 'var(--bg-elev1)',
+          boxShadow: completed ? `0 2px 8px ${colorVar}55` : 'none',
+          animation: burst ? 'checkPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+        }}
+        title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
+      >
+        {completed && <Check size={14} color="#fff" strokeWidth={3.5} />}
+      </button>
+
+      {/* Confete em volta do check */}
+      {burst && (
+        <div className="absolute top-1 right-1 pointer-events-none" style={{ width: 22, height: 22 }}>
+          <CompletionBurst colorVar={colorVar} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// CompletionBurst — confete sutil de dopamina (sem posicionamento próprio)
+// ============================================================
+function CompletionBurst({ colorVar }) {
+  const particles = [
+    { x: -18, y: -10, c: '#fbbf24', delay: 0 },
+    { x: 14, y: -16, c: colorVar, delay: 30 },
+    { x: 20, y: 8, c: '#10b981', delay: 60 },
+    { x: -8, y: 18, c: '#f43f5e', delay: 90 },
+    { x: -22, y: 4, c: colorVar, delay: 50 },
+    { x: 6, y: -22, c: '#8b5cf6', delay: 110 },
+  ]
+  return (
+    <>
+      {particles.map((p, i) => (
+        <span
+          key={i}
+          className="absolute pointer-events-none"
+          style={{
+            top: '50%',
+            left: '50%',
+            width: 5,
+            height: 5,
+            borderRadius: '50%',
+            background: p.c,
+            transform: 'translate(-50%, -50%)',
+            animation: `burstParticle 0.9s ease-out forwards`,
+            animationDelay: `${p.delay}ms`,
+            ['--burst-x']: `${p.x}px`,
+            ['--burst-y']: `${p.y}px`,
+          }}
+        />
+      ))}
+    </>
+  )
+}
+
+// ============================================================
+// ProgressStrip — barra de progresso satisfatória no topo do Dia
+// ============================================================
+function ProgressStrip({ done, total, allDone }) {
+  const pct = total > 0 ? (done / total) * 100 : 0
+  return (
+    <div
+      className="rounded-2xl px-4 py-3 transition-all"
       style={{
-        top, height, left, width,
-        background: tintBg,
-        border: `1px solid ${tintBorder}`,
+        background: allDone
+          ? 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.25))'
+          : 'var(--bg-elev2)',
+        border: `1px solid ${allDone ? 'rgba(16,185,129,0.40)' : 'var(--border-soft)'}`,
       }}
     >
-      <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
-      <div className="flex-1 min-w-0 px-2 py-1">
-        <div
-          className={`font-medium ${compact ? 'text-[11px] truncate' : 'text-xs'}`}
-          style={{ color: 'var(--text-primary)', lineHeight: 1.2 }}
-        >
-          {event.title}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {allDone ? (
+            <>
+              <span className="text-base">🎉</span>
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent-emerald)' }}>
+                Você completou o dia. Excelente.
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-base">🎯</span>
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {done} de {total} {total === 1 ? 'compromisso' : 'compromissos'} concluído{done === 1 ? '' : 's'}
+              </span>
+            </>
+          )}
         </div>
-        {!compact && (
-          <div className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace' }}>
-            <span>{formatTime(event.time)}{event.end_time ? `–${formatTime(event.end_time)}` : ''}</span>
-            {event.location && height > 70 && (
-              <span className="truncate"> · 📍 {event.location}</span>
-            )}
-          </div>
-        )}
+        <span className="text-xs font-bold tabular-nums" style={{ color: allDone ? 'var(--accent-emerald)' : AGENDA_ACCENT, fontFamily: 'JetBrains Mono, monospace' }}>
+          {Math.round(pct)}%
+        </span>
       </div>
-    </button>
+      <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-elev1)' }}>
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: allDone
+              ? 'linear-gradient(90deg, #34d399, #10b981)'
+              : `linear-gradient(90deg, #67e8f9, ${AGENDA_ACCENT})`,
+            transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: `0 0 8px ${allDone ? 'rgba(16,185,129,0.5)' : 'rgba(6,182,212,0.5)'}`,
+          }}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -1834,9 +2000,10 @@ function ThemeOption({ current, value, icon: Icon, label, onSelect }) {
 // EventCard — card de evento com TAMANHO PROPORCIONAL à duração
 // e COR PRESENTE em todo o fundo (tint).
 // ============================================================
-function EventCard({ event, onClick, compact = false }) {
+function EventCard({ event, onClick, compact = false, completed, onToggleComplete }) {
   const colorKey = event.color || 'cyan'
   const colorVar = `var(--accent-${colorKey})`
+  const [burst, setBurst] = useState(false)
 
   // Calcula duração em minutos pra escalar altura/padding
   const duration = computeDurationMinutes(event.time, event.end_time)
@@ -1852,21 +2019,44 @@ function EventCard({ event, onClick, compact = false }) {
   const tintBg = getColorTint(colorKey, 'bg')
   const tintBorder = getColorTint(colorKey, 'border')
 
+  const handleCheck = (e) => {
+    e.stopPropagation()
+    const wasCompleted = completed
+    onToggleComplete?.()
+    if (!wasCompleted) {
+      setBurst(true)
+      setTimeout(() => setBurst(false), 900)
+      if (navigator.vibrate) navigator.vibrate([15, 30, 15])
+    }
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left rounded-xl transition hover:opacity-95 flex items-stretch overflow-hidden"
+    <div
+      className="w-full relative rounded-xl flex items-stretch overflow-hidden transition-opacity"
       style={{
         background: tintBg,
         border: `1px solid ${tintBorder}`,
+        opacity: completed ? 0.6 : 1,
       }}
     >
       {/* Barra lateral mais espessa pra reforçar a cor */}
       <div style={{ width: 5, background: colorVar, flexShrink: 0 }} />
 
-      <div className="flex-1 min-w-0" style={{ padding: `${verticalPad}px 12px` }}>
+      <button
+        onClick={onClick}
+        className="flex-1 min-w-0 text-left transition hover:opacity-95"
+        style={{ padding: `${verticalPad}px 12px`, paddingRight: onToggleComplete ? 40 : 12 }}
+      >
         <div className="flex items-start justify-between gap-2 mb-0.5">
-          <div className="font-medium text-sm sm:text-base truncate" style={{ color: 'var(--text-primary)' }}>
+          <div
+            className="font-medium text-sm sm:text-base truncate"
+            style={{
+              color: 'var(--text-primary)',
+              textDecoration: completed ? 'line-through' : 'none',
+              textDecorationColor: colorVar,
+              textDecorationThickness: '2px',
+            }}
+          >
             {event.title}
           </div>
           {event.isOccurrence && (
@@ -1894,8 +2084,35 @@ function EventCard({ event, onClick, compact = false }) {
             {event.notes}
           </div>
         )}
-      </div>
-    </button>
+      </button>
+
+      {/* Check redondo no canto top-right */}
+      {onToggleComplete && (
+        <>
+          <button
+            onClick={handleCheck}
+            className="absolute top-2 right-2 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 z-10"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              border: `1.5px solid ${completed ? colorVar : tintBorder}`,
+              background: completed ? colorVar : 'var(--bg-elev1)',
+              boxShadow: completed ? `0 2px 8px ${colorVar}55` : 'none',
+              animation: burst ? 'checkPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+            }}
+            title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
+          >
+            {completed && <Check size={15} color="#fff" strokeWidth={3.5} />}
+          </button>
+          {burst && (
+            <div className="absolute top-2 right-2 pointer-events-none" style={{ width: 24, height: 24 }}>
+              <CompletionBurst colorVar={colorVar} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 
