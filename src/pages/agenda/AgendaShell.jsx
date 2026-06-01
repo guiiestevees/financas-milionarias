@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
+  ListChecks, Settings, Sun, Moon,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
+import { useTheme } from '../../hooks/useTheme'
 import EventForm from './EventForm'
 import {
   AGENDA_COLORS, todayISO, parseISODate, toISODate, formatDateLong,
@@ -14,29 +16,34 @@ import {
 
 // ===========================================================================
 // Agenda — compromissos, recorrência, visualização dia/semana/mês.
-// Visual harmônico com Finanças (dourado, mesma tipografia).
+// Visual ciano (azul-esverdeado) — destaca como "outra área" do Domus.
 // ===========================================================================
 
-const VIEWS = [
-  { id: 'day',   label: 'Dia',    icon: CalendarDays },
-  { id: 'week',  label: 'Semana', icon: CalendarRange },
-  { id: 'month', label: 'Mês',    icon: CalendarIcon },
+const AGENDA_ACCENT = '#06b6d4'  // ciano
+const AGENDA_ACCENT_GRADIENT = 'linear-gradient(90deg,#67e8f9,#06b6d4,#0e7490)'
+
+const TABS = [
+  { id: 'day',           label: 'Dia',          icon: CalendarDays },
+  { id: 'week',          label: 'Semana',       icon: CalendarRange },
+  { id: 'month',         label: 'Mês',          icon: CalendarIcon },
+  { id: 'list',          label: 'Compromissos', icon: ListChecks },
+  { id: 'settings',      label: 'Ajustes',      icon: Settings },
 ]
 
 export default function AgendaShell() {
   const navigate = useNavigate()
-  const [view, setView] = useState('day')
-  const [refDate, setRefDate] = useState(todayISO())  // data de referência (depende da view)
+  const [tab, setTab] = useState('day')
+  const [refDate, setRefDate] = useState(todayISO())
   const [editing, setEditing] = useState(null)        // { event, occurrenceDate } | null
   const [creating, setCreating] = useState(null)      // { initialDate } | null
 
   const {
-    events, loading, error, refresh,
+    events, loading, error,
     createEvent, updateEvent, deleteEvent,
     deleteOccurrence, deleteForever,
   } = useAgenda()
 
-  // Eventos do dia/semana/mês atual (memoized)
+  // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
   const weekDates = useMemo(() => getWeekDates(refDate), [refDate])
   const weekEvents = useMemo(() => {
@@ -44,9 +51,6 @@ export default function AgendaShell() {
     for (const d of weekDates) map[d] = getEventsForDate(events, d)
     return map
   }, [events, weekDates])
-
-  // Stats do dia
-  const total = dayEvents.length
 
   const handleSave = async (payload) => {
     if (editing) {
@@ -62,14 +66,9 @@ export default function AgendaShell() {
     if (!editing) return
     const { event, occurrenceDate } = editing
     if (event.recurring === 'none' || mode === 'forever') {
-      // Único OU "pra sempre" — chama deleteForever que decide
-      if (event.recurring === 'none') {
-        await deleteEvent(event.id)
-      } else {
-        await deleteForever(event.id, occurrenceDate || event.date)
-      }
+      if (event.recurring === 'none') await deleteEvent(event.id)
+      else await deleteForever(event.id, occurrenceDate || event.date)
     } else {
-      // 'single' em recorrente
       await deleteOccurrence(event.id, occurrenceDate)
     }
     setEditing(null)
@@ -77,72 +76,65 @@ export default function AgendaShell() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-app)' }}>
-      <div className="w-full max-w-4xl mx-auto px-4 pt-6 sm:pt-8" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0))' }}>
 
-        {/* Header — mesma estética das Finanças */}
-        <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 sm:mb-8">
-          <div className="min-w-0">
-            <button
-              onClick={() => navigate('/launcher')}
-              className="flex items-center gap-1.5 text-xs uppercase mb-2 transition hover:opacity-80"
-              style={{ letterSpacing: '0.25em', color: 'var(--accent-gold)' }}
+      {/* Header próprio da Agenda — ciano */}
+      <div className="w-full max-w-4xl mx-auto px-4 pt-6 sm:pt-8 pb-4">
+        <div className="flex items-center justify-between gap-3 mb-5">
+          {/* Brand ciano */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
+              style={{ background: 'rgba(6,182,212,0.15)', color: AGENDA_ACCENT }}
             >
-              <ArrowLeft size={11} /> Voltar ao menu
-            </button>
-            <h1
-              style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-              className="text-4xl sm:text-5xl"
-            >
-              Sua{' '}
-              <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
-                agenda.
-              </em>
-            </h1>
+              <CalendarDays size={20} />
+            </div>
+            <div className="min-w-0">
+              <div style={{ letterSpacing: '0.2em', fontSize: '10px', fontWeight: 600, color: AGENDA_ACCENT }} className="uppercase">
+                Domus · Agenda
+              </div>
+              <div className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
+                {TABS.find((t) => t.id === tab)?.label}
+                {tab !== 'settings' && tab !== 'list' && events.length > 0 && (
+                  <span> · {events.length} {events.length === 1 ? 'compromisso' : 'compromissos'} cadastrado{events.length === 1 ? '' : 's'}</span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Botão novo */}
-            <button
-              onClick={() => setCreating({ initialDate: refDate })}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition"
-              style={{
-                background: 'linear-gradient(180deg, #d4af37, #a87f1f)',
-                color: '#070912',
-                boxShadow: '0 8px 24px rgba(212,175,55,0.25)',
-              }}
-            >
-              <Plus size={15} />
-              Novo
-            </button>
-          </div>
-        </header>
-
-        {/* Seletor de visualização */}
-        <div className="flex items-center gap-1 mb-5 rounded-xl p-1 w-fit"
-          style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-          {VIEWS.map((v) => {
-            const Icon = v.icon
-            const active = view === v.id
-            return (
-              <button
-                key={v.id}
-                onClick={() => setView(v.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                style={{
-                  background: active ? 'rgba(212,175,55,0.15)' : 'transparent',
-                  color: active ? 'var(--accent-gold)' : 'var(--text-tertiary)',
-                }}
-              >
-                <Icon size={13} />
-                {v.label}
-              </button>
-            )
-          })}
+          {/* Botão "trocar app" (volta pro launcher) */}
+          <button
+            onClick={() => navigate('/launcher')}
+            title="Trocar app"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:opacity-80 shrink-0"
+            style={{
+              background: 'var(--bg-elev1)',
+              border: '1px solid var(--border-medium)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <LayoutGrid size={14} />
+            <span className="text-xs font-medium hidden sm:inline">Trocar app</span>
+          </button>
         </div>
 
-        {/* Navegação de data */}
-        <DateNav view={view} refDate={refDate} setRefDate={setRefDate} />
+        {/* Título grande estilo Finanças, mas em ciano */}
+        <h1
+          style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
+          className="text-4xl sm:text-5xl"
+        >
+          {tab === 'day' && (<>O dia <em style={titleEm}>de hoje.</em></>)}
+          {tab === 'week' && (<>Sua <em style={titleEm}>semana.</em></>)}
+          {tab === 'month' && (<>Seu <em style={titleEm}>mês.</em></>)}
+          {tab === 'list' && (<>Todos os <em style={titleEm}>compromissos.</em></>)}
+          {tab === 'settings' && (<>Ajustes da <em style={titleEm}>Agenda.</em></>)}
+        </h1>
+      </div>
 
+      {/* Conteúdo */}
+      <main
+        className="flex-1 w-full max-w-4xl mx-auto px-4 pt-2"
+        style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0))' }}
+      >
         {/* Erro */}
         {error && (
           <div className="mb-4 rounded-lg p-3 text-sm flex items-start gap-2"
@@ -155,17 +147,53 @@ export default function AgendaShell() {
         {/* Loading inicial */}
         {loading && events.length === 0 ? (
           <div className="text-center py-12">
-            <Loader2 size={28} className="animate-spin mx-auto mb-2" style={{ color: 'var(--accent-gold)' }} />
+            <Loader2 size={28} className="animate-spin mx-auto mb-2" style={{ color: AGENDA_ACCENT }} />
             <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Carregando agenda…</p>
           </div>
         ) : (
           <>
-            {view === 'day' && <DayView events={dayEvents} onClickEvent={(occurrence) => setEditing(occurrence)} onCreate={(date) => setCreating({ initialDate: date })} date={refDate} />}
-            {view === 'week' && <WeekView weekDates={weekDates} weekEvents={weekEvents} onClickEvent={(occurrence) => setEditing(occurrence)} onCreate={(date) => setCreating({ initialDate: date })} />}
-            {view === 'month' && <MonthView events={events} refDate={refDate} setRefDate={setRefDate} setView={setView} />}
+            {(tab === 'day' || tab === 'week' || tab === 'month') && (
+              <DateNav view={tab} refDate={refDate} setRefDate={setRefDate} onCreate={() => setCreating({ initialDate: refDate })} />
+            )}
+
+            {tab === 'day' && (
+              <DayView
+                events={dayEvents}
+                onClickEvent={(occ) => setEditing(occ)}
+                onCreate={(date) => setCreating({ initialDate: date })}
+                date={refDate}
+              />
+            )}
+            {tab === 'week' && (
+              <WeekView
+                weekDates={weekDates}
+                weekEvents={weekEvents}
+                onClickEvent={(occ) => setEditing(occ)}
+                onCreate={(date) => setCreating({ initialDate: date })}
+              />
+            )}
+            {tab === 'month' && (
+              <MonthView
+                events={events}
+                refDate={refDate}
+                setRefDate={setRefDate}
+                setView={setTab}
+              />
+            )}
+            {tab === 'list' && (
+              <ListView
+                events={events}
+                onClickEvent={(occ) => setEditing(occ)}
+                onCreate={() => setCreating({ initialDate: todayISO() })}
+              />
+            )}
+            {tab === 'settings' && <SettingsView />}
           </>
         )}
-      </div>
+      </main>
+
+      {/* Bottom nav própria */}
+      <AgendaBottomNav tab={tab} setTab={setTab} />
 
       {/* Modal — criar/editar */}
       {(creating || editing) && (
@@ -182,23 +210,76 @@ export default function AgendaShell() {
   )
 }
 
+const titleEm = {
+  fontStyle: 'italic',
+  background: AGENDA_ACCENT_GRADIENT,
+  WebkitBackgroundClip: 'text',
+  color: 'transparent',
+}
+
 // ============================================================
-// DATE NAV — < hoje > / setas de avançar/voltar
+// BOTTOM NAV
 // ============================================================
-function DateNav({ view, refDate, setRefDate }) {
+function AgendaBottomNav({ tab, setTab }) {
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40"
+      style={{
+        background: 'var(--bg-app-soft)',
+        borderTop: '1px solid var(--border-soft)',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+        backdropFilter: 'blur(12px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0)',
+      }}
+    >
+      <div className="max-w-4xl mx-auto flex items-stretch">
+        {TABS.map((it) => {
+          const Icon = it.icon
+          const active = tab === it.id
+          return (
+            <button
+              key={it.id}
+              onClick={() => setTab(it.id)}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-3.5 sm:py-4 transition relative"
+              style={{
+                color: active ? AGENDA_ACCENT : 'var(--text-muted)',
+                minHeight: 64,
+              }}
+            >
+              {active && (
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-10 rounded-full transition-all"
+                  style={{ background: AGENDA_ACCENT }}
+                />
+              )}
+              <Icon size={24} strokeWidth={active ? 2.2 : 1.8} />
+              <span className="text-[10px] sm:text-[11px] font-medium" style={{ letterSpacing: '0.01em' }}>
+                {it.label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
+
+// ============================================================
+// DATE NAV — botões de navegação + criar
+// ============================================================
+function DateNav({ view, refDate, setRefDate, onCreate }) {
   const shift = view === 'day' ? 1 : view === 'week' ? 7 : 30
   const goPrev = () => setRefDate(shiftDays(refDate, -shift))
   const goNext = () => setRefDate(shiftDays(refDate, shift))
   const goToday = () => setRefDate(todayISO())
 
-  // Label central
   let label = ''
   if (view === 'day') {
     label = formatDateLong(refDate)
   } else if (view === 'week') {
     const start = parseISODate(getStartOfWeek(refDate))
     const end = new Date(start); end.setDate(end.getDate() + 6)
-    label = `${start.getDate().toString().padStart(2,'0')}/${(start.getMonth()+1).toString().padStart(2,'0')} – ${end.getDate().toString().padStart(2,'0')}/${(end.getMonth()+1).toString().padStart(2,'0')}`
+    label = `${String(start.getDate()).padStart(2,'0')}/${String(start.getMonth()+1).padStart(2,'0')} – ${String(end.getDate()).padStart(2,'0')}/${String(end.getMonth()+1).padStart(2,'0')}`
   } else {
     const d = parseISODate(refDate)
     const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -206,10 +287,10 @@ function DateNav({ view, refDate, setRefDate }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 mb-5">
+    <div className="flex items-center gap-2 mb-4">
       <button
         onClick={goPrev}
-        className="p-2 rounded-xl transition hover:opacity-80"
+        className="p-2 rounded-xl transition hover:opacity-80 shrink-0"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)', color: 'var(--text-secondary)' }}
       >
         <ChevronLeft size={16} />
@@ -220,7 +301,7 @@ function DateNav({ view, refDate, setRefDate }) {
           {label}
         </div>
         {!isToday(refDate) && view === 'day' && (
-          <button onClick={goToday} className="text-xs underline transition" style={{ color: 'var(--accent-gold)' }}>
+          <button onClick={goToday} className="text-xs underline transition" style={{ color: AGENDA_ACCENT }}>
             Voltar pra hoje
           </button>
         )}
@@ -228,32 +309,47 @@ function DateNav({ view, refDate, setRefDate }) {
 
       <button
         onClick={goNext}
-        className="p-2 rounded-xl transition hover:opacity-80"
+        className="p-2 rounded-xl transition hover:opacity-80 shrink-0"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)', color: 'var(--text-secondary)' }}
       >
         <ChevronRight size={16} />
+      </button>
+
+      <button
+        onClick={onCreate}
+        className="ml-1 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition shrink-0"
+        style={{
+          background: AGENDA_ACCENT,
+          color: '#fff',
+          boxShadow: '0 6px 16px rgba(6,182,212,0.25)',
+        }}
+      >
+        <Plus size={14} />
+        <span className="hidden sm:inline">Novo</span>
       </button>
     </div>
   )
 }
 
 // ============================================================
-// DAY VIEW — lista de eventos do dia, ordenada por hora
+// DAY VIEW
 // ============================================================
 function DayView({ events, onClickEvent, onCreate, date }) {
   if (events.length === 0) {
-    return (
-      <EmptyDay date={date} onCreate={() => onCreate(date)} />
-    )
+    return <EmptyState
+      icon="📅"
+      title={`Nada marcado pra ${isToday(date) ? 'hoje' : 'este dia'}`}
+      text="🎩 Aproveite o tempo livre — ou marque algo importante."
+      ctaLabel="Adicionar compromisso"
+      onCta={() => onCreate(date)}
+    />
   }
 
-  // Separa eventos com hora e dia inteiro
   const allDay = events.filter((e) => !e.time)
   const timed = events.filter((e) => !!e.time)
 
   return (
     <div className="space-y-3">
-      {/* Eventos sem hora — em cima */}
       {allDay.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
@@ -267,7 +363,6 @@ function DayView({ events, onClickEvent, onCreate, date }) {
         </div>
       )}
 
-      {/* Eventos com hora */}
       {timed.length > 0 && (
         <div className="space-y-1.5">
           {timed.map((ev) => (
@@ -279,77 +374,8 @@ function DayView({ events, onClickEvent, onCreate, date }) {
   )
 }
 
-function EmptyDay({ date, onCreate }) {
-  return (
-    <div className="text-center py-16 px-4 rounded-2xl"
-      style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-      <div className="text-4xl mb-3">📅</div>
-      <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-xl mb-1.5">
-        Nada marcado pra {isToday(date) ? 'hoje' : 'este dia'}
-      </h3>
-      <p className="text-sm max-w-xs mx-auto mb-5" style={{ color: 'var(--text-tertiary)' }}>
-        🎩 Aproveite o tempo livre — ou marque algo importante.
-      </p>
-      <button
-        onClick={onCreate}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition"
-        style={{
-          background: 'linear-gradient(180deg, #d4af37, #a87f1f)',
-          color: '#070912',
-          boxShadow: '0 8px 20px rgba(212,175,55,0.2)',
-        }}
-      >
-        <Plus size={14} /> Adicionar compromisso
-      </button>
-    </div>
-  )
-}
-
 // ============================================================
-// EventCard — card individual de evento
-// ============================================================
-function EventCard({ event, onClick, compact = false }) {
-  const colorVar = `var(--accent-${event.color || 'gold'})`
-  return (
-    <button
-      onClick={onClick}
-      className="w-full text-left rounded-xl transition hover:opacity-95 flex items-stretch overflow-hidden"
-      style={{
-        background: 'var(--card-bg)',
-        border: '1px solid var(--card-border)',
-      }}
-    >
-      {/* Barra colorida lateral */}
-      <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
-
-      <div className={`flex-1 min-w-0 ${compact ? 'p-2' : 'p-3'}`}>
-        <div className="flex items-start justify-between gap-2 mb-0.5">
-          <div className="font-medium text-sm sm:text-base truncate" style={{ color: 'var(--text-primary)' }}>
-            {event.title}
-          </div>
-          {event.isOccurrence && (
-            <Repeat size={11} className="shrink-0 mt-1" style={{ color: 'var(--text-muted)' }} title="Recorrente" />
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
-          <span className="inline-flex items-center gap-1 tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-            <Clock size={11} />
-            {formatTimeRange(event.time, event.end_time)}
-          </span>
-          {event.location && (
-            <span className="inline-flex items-center gap-1 truncate">
-              <MapPin size={11} /> {event.location}
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
-  )
-}
-
-// ============================================================
-// WEEK VIEW — 7 colunas com eventos
+// WEEK VIEW
 // ============================================================
 function WeekView({ weekDates, weekEvents, onClickEvent, onCreate }) {
   return (
@@ -379,8 +405,8 @@ function DayRow({ date, events, onClickEvent, onCreate }) {
     <div
       className="rounded-2xl overflow-hidden"
       style={{
-        background: todayFlag ? 'rgba(212,175,55,0.06)' : 'var(--bg-elev2)',
-        border: `1px solid ${todayFlag ? 'rgba(212,175,55,0.3)' : 'var(--border-soft)'}`,
+        background: todayFlag ? 'rgba(6,182,212,0.06)' : 'var(--bg-elev2)',
+        border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.3)' : 'var(--border-soft)'}`,
       }}
     >
       <div className="flex items-center justify-between gap-2 px-3 py-2"
@@ -389,8 +415,8 @@ function DayRow({ date, events, onClickEvent, onCreate }) {
           <div
             className="flex flex-col items-center justify-center w-10 h-10 rounded-lg"
             style={{
-              background: todayFlag ? 'rgba(212,175,55,0.15)' : 'var(--bg-elev1)',
-              color: todayFlag ? 'var(--accent-gold)' : 'var(--text-primary)',
+              background: todayFlag ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
+              color: todayFlag ? AGENDA_ACCENT : 'var(--text-primary)',
             }}
           >
             <div className="text-[9px] uppercase tracking-wider leading-none">
@@ -402,10 +428,9 @@ function DayRow({ date, events, onClickEvent, onCreate }) {
           </div>
           <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             {events.length === 0 ? 'Livre' : `${events.length} ${events.length === 1 ? 'compromisso' : 'compromissos'}`}
-            {todayFlag && <span className="ml-2" style={{ color: 'var(--accent-gold)' }}>· Hoje</span>}
+            {todayFlag && <span className="ml-2 font-medium" style={{ color: AGENDA_ACCENT }}>· Hoje</span>}
           </div>
         </div>
-
         <button
           onClick={onCreate}
           className="p-1.5 rounded-lg transition hover:bg-white/5"
@@ -433,26 +458,19 @@ function DayRow({ date, events, onClickEvent, onCreate }) {
 }
 
 // ============================================================
-// MONTH VIEW — calendário tradicional com dots
+// MONTH VIEW
 // ============================================================
 function MonthView({ events, refDate, setRefDate, setView }) {
   const d = parseISODate(refDate)
   const year = d.getFullYear()
   const month = d.getMonth()
 
-  // Primeiro dia do mês + dia da semana (0=dom)
   const firstDay = new Date(year, month, 1)
-  const startWeekDay = firstDay.getDay()  // 0 = dom
-
-  // Dias do mês
+  const startWeekDay = firstDay.getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-  // Renderiza grid 7 colunas, começando no domingo
   const cells = []
-  // Dias do mês anterior pra preencher
-  for (let i = 0; i < startWeekDay; i++) {
-    cells.push(null)
-  }
+  for (let i = 0; i < startWeekDay; i++) cells.push(null)
   for (let day = 1; day <= daysInMonth; day++) {
     const dateIso = toISODate(new Date(year, month, day))
     const evs = getEventsForDate(events, dateIso)
@@ -462,7 +480,6 @@ function MonthView({ events, refDate, setRefDate, setView }) {
   return (
     <div className="rounded-2xl p-3 sm:p-4"
       style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-      {/* Cabeçalho dos dias da semana */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d) => (
           <div key={d} className="text-center text-[10px] uppercase font-semibold tracking-wider py-1.5"
@@ -472,7 +489,6 @@ function MonthView({ events, refDate, setRefDate, setView }) {
         ))}
       </div>
 
-      {/* Grid */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((cell, i) => {
           if (!cell) return <div key={`e-${i}`} className="aspect-square" />
@@ -484,9 +500,9 @@ function MonthView({ events, refDate, setRefDate, setView }) {
               onClick={() => { setRefDate(cell.dateIso); setView('day') }}
               className="aspect-square rounded-lg flex flex-col items-center justify-start pt-1.5 transition hover:opacity-80"
               style={{
-                background: todayFlag ? 'rgba(212,175,55,0.15)' : (hasEvents ? 'var(--bg-elev1)' : 'transparent'),
-                border: `1px solid ${todayFlag ? 'rgba(212,175,55,0.4)' : 'transparent'}`,
-                color: todayFlag ? 'var(--accent-gold)' : 'var(--text-primary)',
+                background: todayFlag ? 'rgba(6,182,212,0.15)' : (hasEvents ? 'var(--bg-elev1)' : 'transparent'),
+                border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.4)' : 'transparent'}`,
+                color: todayFlag ? AGENDA_ACCENT : 'var(--text-primary)',
               }}
             >
               <div className="text-xs sm:text-sm font-semibold tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
@@ -496,7 +512,7 @@ function MonthView({ events, refDate, setRefDate, setView }) {
                 <div className="flex gap-0.5 mt-1 flex-wrap justify-center max-w-full px-0.5">
                   {cell.events.slice(0, 3).map((ev, j) => (
                     <div key={j} className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: `var(--accent-${ev.color || 'gold'})` }} />
+                      style={{ background: `var(--accent-${ev.color || 'cyan'})` }} />
                   ))}
                   {cell.events.length > 3 && (
                     <div className="text-[8px] leading-none" style={{ color: 'var(--text-muted)' }}>
@@ -513,6 +529,251 @@ function MonthView({ events, refDate, setRefDate, setView }) {
       <div className="mt-3 text-[11px] text-center" style={{ color: 'var(--text-muted)' }}>
         Toque num dia pra ver os compromissos
       </div>
+    </div>
+  )
+}
+
+// ============================================================
+// LIST VIEW — todos os compromissos agrupados por mês
+// ============================================================
+function ListView({ events, onClickEvent, onCreate }) {
+  // Expande TODAS as ocorrências dos próximos 90 dias
+  const expanded = useMemo(() => {
+    const range = []
+    const today = todayISO()
+    for (let i = 0; i < 90; i++) {
+      const date = shiftDays(today, i)
+      const evs = getEventsForDate(events, date)
+      evs.forEach((ev) => range.push(ev))
+    }
+    return range
+  }, [events])
+
+  if (expanded.length === 0) {
+    return <EmptyState
+      icon="📋"
+      title="Nenhum compromisso agendado"
+      text="🎩 Que tal começar criando o primeiro?"
+      ctaLabel="Adicionar compromisso"
+      onCta={onCreate}
+    />
+  }
+
+  // Agrupa por mês YYYY-MM
+  const byMonth = {}
+  for (const ev of expanded) {
+    const ym = ev.occurrenceDate.slice(0, 7)
+    if (!byMonth[ym]) byMonth[ym] = []
+    byMonth[ym].push(ev)
+  }
+  const months = Object.keys(byMonth).sort()
+
+  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+  const formatMonthLabel = (ym) => {
+    const [y, m] = ym.split('-').map(Number)
+    return `${monthNames[m - 1]} ${y}`
+  }
+
+  return (
+    <div className="space-y-6">
+      {months.map((ym) => (
+        <div key={ym}>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-base">
+              {formatMonthLabel(ym)}
+            </h3>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              · {byMonth[ym].length} {byMonth[ym].length === 1 ? 'compromisso' : 'compromissos'}
+            </span>
+          </div>
+
+          {/* Agrupa por dia dentro do mês */}
+          {Object.entries(groupByDate(byMonth[ym])).map(([date, evs]) => (
+            <div key={date} className="mb-2">
+              <div className="flex items-center gap-2 mb-1.5 px-1">
+                <div className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                  {formatFriendlyDate(date)}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {evs.map((ev) => (
+                  <EventCard key={`${ev.id}:${ev.occurrenceDate}`} event={ev} onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })} compact />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function groupByDate(events) {
+  const out = {}
+  for (const ev of events) {
+    if (!out[ev.occurrenceDate]) out[ev.occurrenceDate] = []
+    out[ev.occurrenceDate].push(ev)
+  }
+  return out
+}
+
+// ============================================================
+// SETTINGS VIEW
+// ============================================================
+function SettingsView() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <div className="space-y-4">
+      {/* Tema */}
+      <div className="rounded-2xl p-4 sm:p-5"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+          Aparência
+        </div>
+        <div className="flex gap-3">
+          <ThemeOption
+            current={theme}
+            value="light"
+            icon={Sun}
+            label="Claro"
+            onSelect={() => setTheme('light')}
+          />
+          <ThemeOption
+            current={theme}
+            value="dark"
+            icon={Moon}
+            label="Escuro"
+            onSelect={() => setTheme('dark')}
+          />
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="rounded-2xl p-4 sm:p-5"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+          Em breve
+        </div>
+        <ul className="space-y-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <li className="flex items-start gap-2">
+            <span style={{ color: AGENDA_ACCENT }}>•</span>
+            Lembrete via WhatsApp pelo Alfred no dia/hora do compromisso
+          </li>
+          <li className="flex items-start gap-2">
+            <span style={{ color: AGENDA_ACCENT }}>•</span>
+            Sincronização com Google Calendar
+          </li>
+          <li className="flex items-start gap-2">
+            <span style={{ color: AGENDA_ACCENT }}>•</span>
+            Editar uma ocorrência específica de evento recorrente
+          </li>
+          <li className="flex items-start gap-2">
+            <span style={{ color: AGENDA_ACCENT }}>•</span>
+            Convidar outras pessoas pra um compromisso
+          </li>
+        </ul>
+      </div>
+
+      <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
+        Tem sugestão? Mande pra <strong>alquimiadigital08@gmail.com</strong>
+      </div>
+    </div>
+  )
+}
+
+function ThemeOption({ current, value, icon: Icon, label, onSelect }) {
+  const isSel = current === value
+  return (
+    <button
+      onClick={onSelect}
+      className="flex-1 flex flex-col items-center gap-2 p-4 rounded-xl transition"
+      style={{
+        background: isSel ? 'rgba(6,182,212,0.1)' : 'var(--bg-elev1)',
+        border: `1.5px solid ${isSel ? AGENDA_ACCENT : 'var(--border-soft)'}`,
+      }}
+    >
+      <Icon size={20} style={{ color: isSel ? AGENDA_ACCENT : 'var(--text-tertiary)' }} />
+      <span className="text-xs font-medium" style={{ color: isSel ? AGENDA_ACCENT : 'var(--text-secondary)' }}>
+        {label}
+      </span>
+    </button>
+  )
+}
+
+// ============================================================
+// EventCard — card de evento
+// ============================================================
+function EventCard({ event, onClick, compact = false }) {
+  const colorVar = `var(--accent-${event.color || 'cyan'})`
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-xl transition hover:opacity-95 flex items-stretch overflow-hidden"
+      style={{
+        background: 'var(--card-bg)',
+        border: '1px solid var(--card-border)',
+      }}
+    >
+      <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
+
+      <div className={`flex-1 min-w-0 ${compact ? 'p-2.5' : 'p-3'}`}>
+        <div className="flex items-start justify-between gap-2 mb-0.5">
+          <div className="font-medium text-sm sm:text-base truncate" style={{ color: 'var(--text-primary)' }}>
+            {event.title}
+          </div>
+          {event.isOccurrence && (
+            <Repeat size={11} className="shrink-0 mt-1" style={{ color: 'var(--text-muted)' }} title="Recorrente" />
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+          <span className="inline-flex items-center gap-1 tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+            <Clock size={11} />
+            {formatTimeRange(event.time, event.end_time)}
+          </span>
+          {event.location && (
+            <span className="inline-flex items-center gap-1 truncate">
+              <MapPin size={11} /> {event.location}
+            </span>
+          )}
+        </div>
+
+        {event.notes && !compact && (
+          <div className="text-xs mt-1.5 line-clamp-2" style={{ color: 'var(--text-muted)' }}>
+            {event.notes}
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ============================================================
+// EmptyState
+// ============================================================
+function EmptyState({ icon, title, text, ctaLabel, onCta }) {
+  return (
+    <div className="text-center py-12 px-4 rounded-2xl"
+      style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+      <div className="text-4xl mb-3">{icon}</div>
+      <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-xl mb-1.5">
+        {title}
+      </h3>
+      <p className="text-sm max-w-xs mx-auto mb-5" style={{ color: 'var(--text-tertiary)' }}>
+        {text}
+      </p>
+      <button
+        onClick={onCta}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition"
+        style={{
+          background: AGENDA_ACCENT,
+          color: '#fff',
+          boxShadow: '0 6px 16px rgba(6,182,212,0.25)',
+        }}
+      >
+        <Plus size={14} /> {ctaLabel}
+      </button>
     </div>
   )
 }
