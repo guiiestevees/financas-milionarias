@@ -1487,15 +1487,19 @@ function SlotCard({ slot, onCreate, highlighted }) {
 }
 
 // ============================================================
-// Grade Panorâmica — 7 colunas verticais com timeline
+// Grade Panorâmica — 7 colunas verticais com timeline GRANDE
+// Mobile: scroll horizontal pra ver toda semana (coluna fixa de horas)
 // ============================================================
 function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJumpToDay, onCreate }) {
-  const PX_PER_HOUR = 22
+  const PX_PER_HOUR = 56  // ↑ era 22; agora cabe texto dentro dos blocos
   const totalHours = WEEK_DAY_END_H - WEEK_DAY_START_H  // 17h
-  const gridHeight = totalHours * PX_PER_HOUR  // 374px
+  const gridHeight = totalHours * PX_PER_HOUR  // 952px
+  const COL_WIDTH = 110  // largura mínima por coluna pra texto caber
+  const HOURS_COL_WIDTH = 44
 
-  // Linhas de referência: a cada 4h (6, 10, 14, 18, 22)
-  const refHours = [6, 10, 14, 18, 22]
+  // Linhas de hora a cada 1h
+  const allHours = []
+  for (let h = WEEK_DAY_START_H; h <= WEEK_DAY_END_H; h++) allHours.push(h)
 
   return (
     <div className="space-y-2">
@@ -1505,108 +1509,161 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
           Panorama 06h–23h
         </div>
         <div className="flex-1 h-px" style={{ background: 'var(--border-soft)' }} />
-        <div className="flex items-center gap-2 text-[9px]" style={{ color: 'var(--text-muted)' }}>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm" style={{ background: 'var(--accent-emerald)', opacity: 0.4 }} />
-            livre
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm" style={{ background: AGENDA_ACCENT }} />
-            ocupado
-          </span>
+        <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+          arraste pro lado →
         </div>
       </div>
 
       <div
-        className="rounded-2xl p-3"
+        className="rounded-2xl overflow-hidden"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
       >
-        {/* Headers dos dias */}
-        <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: '32px repeat(7, minmax(0, 1fr))' }}>
-          <div /> {/* placeholder pra coluna de horas */}
-          {weekDates.map((date) => {
-            const d = parseISODate(date)
-            const todayFlag = isToday(date)
-            const dayName = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][d.getDay()]
-            const dayStats = analysis.days.find((dd) => dd.date === date)
-            const freeHours = Math.floor((dayStats?.freeMin || 0) / 60)
-            const freeMinsRem = (dayStats?.freeMin || 0) % 60
-            return (
-              <button
-                key={date}
-                onClick={() => onJumpToDay?.(date)}
-                className="flex flex-col items-center justify-center rounded-lg py-1.5 transition hover:opacity-90"
+        {/* Scroll horizontal container */}
+        <div
+          className="overflow-x-auto overflow-y-hidden"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div style={{ minWidth: HOURS_COL_WIDTH + (COL_WIDTH * 7) + 8 }}>
+            {/* Headers dos dias — sticky no topo durante scroll vertical interno */}
+            <div
+              className="flex gap-1 px-2 pt-2 pb-2 sticky top-0 z-30"
+              style={{ background: 'var(--bg-elev2)', borderBottom: '1px solid var(--border-soft)' }}
+            >
+              <div style={{ width: HOURS_COL_WIDTH }} />
+              {weekDates.map((date) => {
+                const d = parseISODate(date)
+                const todayFlag = isToday(date)
+                const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()]
+                const dayStats = analysis.days.find((dd) => dd.date === date)
+                const freeHours = Math.floor((dayStats?.freeMin || 0) / 60)
+                const freeMinsRem = (dayStats?.freeMin || 0) % 60
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                return (
+                  <button
+                    key={date}
+                    onClick={() => onJumpToDay?.(date)}
+                    className="flex flex-col items-center justify-center rounded-xl py-2 px-1 transition hover:opacity-90 shrink-0"
+                    style={{
+                      width: COL_WIDTH,
+                      background: todayFlag ? AGENDA_ACCENT : 'var(--bg-elev1)',
+                      color: todayFlag ? '#fff' : 'var(--text-primary)',
+                      border: todayFlag ? 'none' : '1px solid var(--border-soft)',
+                    }}
+                  >
+                    <div
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                      style={{ opacity: todayFlag ? 0.9 : (isWeekend ? 0.5 : 0.7) }}
+                    >
+                      {dayName}
+                    </div>
+                    <div className="text-lg font-bold tabular-nums leading-none mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                      {d.getDate()}
+                    </div>
+                    <div
+                      className="text-[10px] mt-1 font-semibold"
+                      style={{
+                        color: todayFlag ? 'rgba(255,255,255,0.9)' : 'var(--accent-emerald)',
+                      }}
+                    >
+                      {freeMinsRem === 0 ? `${freeHours}h` : `${freeHours}h${String(freeMinsRem).padStart(2, '0')}`} livre
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Grid timeline */}
+            <div className="relative px-2 pb-2 pt-1" style={{ height: gridHeight + 8 }}>
+              {/* Coluna de horas (esquerda) — sticky horizontal */}
+              <div
+                className="absolute left-2 top-1 sticky-left"
                 style={{
-                  background: todayFlag ? AGENDA_ACCENT : 'transparent',
-                  color: todayFlag ? '#fff' : 'var(--text-primary)',
+                  width: HOURS_COL_WIDTH,
+                  height: gridHeight,
+                  position: 'absolute',
+                  zIndex: 5,
                 }}
               >
-                <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">{dayName}</div>
-                <div className="text-sm font-bold tabular-nums leading-none mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  {d.getDate()}
-                </div>
+                {allHours.map((h) => {
+                  const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
+                  return (
+                    <div
+                      key={h}
+                      className="absolute right-2 text-[10px] tabular-nums font-semibold"
+                      style={{
+                        top: top - 6,
+                        color: 'var(--text-muted)',
+                        fontFamily: 'JetBrains Mono, monospace',
+                      }}
+                    >
+                      {String(h).padStart(2, '0')}:00
+                    </div>
+                  )
+                })}
+                {/* Linha divisória vertical */}
                 <div
-                  className="text-[8px] mt-0.5 tabular-nums"
-                  style={{
-                    fontFamily: 'JetBrains Mono, monospace',
-                    opacity: todayFlag ? 0.9 : 0.6,
-                    color: todayFlag ? '#fff' : 'var(--accent-emerald)',
-                  }}
-                >
-                  {freeMinsRem === 0 ? `${freeHours}h` : `${freeHours}h${String(freeMinsRem).padStart(2, '0')}`}
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                  className="absolute top-0 bottom-0 right-0"
+                  style={{ width: 1, background: 'var(--border-soft)' }}
+                />
+              </div>
 
-        {/* Grid timeline */}
-        <div className="grid gap-1 relative" style={{ gridTemplateColumns: '32px repeat(7, minmax(0, 1fr))', height: gridHeight }}>
-          {/* Coluna de horas (esquerda) */}
-          <div className="relative" style={{ height: gridHeight }}>
-            {refHours.map((h) => {
-              const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
-              return (
-                <div
-                  key={h}
-                  className="absolute right-1 text-[8px] tabular-nums"
-                  style={{
-                    top: top - 5,
-                    color: 'var(--text-muted)',
-                    fontFamily: 'JetBrains Mono, monospace',
-                  }}
-                >
-                  {String(h).padStart(2, '0')}
+              {/* Container dos eventos + linhas */}
+              <div
+                className="absolute top-1"
+                style={{
+                  left: HOURS_COL_WIDTH + 8,
+                  right: 8,
+                  height: gridHeight,
+                }}
+              >
+                {/* Linhas de referência horizontais a cada 1h */}
+                {allHours.map((h, idx) => {
+                  if (idx === 0) return null
+                  const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
+                  const isMajor = h % 4 === 2  // 06, 10, 14, 18, 22
+                  return (
+                    <div
+                      key={h}
+                      className="absolute left-0 right-0 pointer-events-none"
+                      style={{
+                        top,
+                        height: 1,
+                        background: isMajor ? 'var(--border-soft)' : 'rgba(0,0,0,0.04)',
+                      }}
+                    />
+                  )
+                })}
+
+                {/* Colunas dos 7 dias */}
+                <div className="flex gap-1 h-full">
+                  {weekDates.map((date) => {
+                    const dayStats = analysis.days.find((dd) => dd.date === date)
+                    const todayFlag = isToday(date)
+                    return (
+                      <DayColumn
+                        key={date}
+                        date={date}
+                        dayStats={dayStats}
+                        todayFlag={todayFlag}
+                        gridHeight={gridHeight}
+                        pxPerHour={PX_PER_HOUR}
+                        colWidth={COL_WIDTH}
+                        onClickEvent={onClickEvent}
+                        onClickEmpty={(time) => onCreate?.(date, time)}
+                      />
+                    )
+                  })}
                 </div>
-              )
-            })}
+              </div>
+            </div>
           </div>
-
-          {/* 7 colunas de dias */}
-          {weekDates.map((date) => {
-            const dayStats = analysis.days.find((dd) => dd.date === date)
-            const todayFlag = isToday(date)
-            return (
-              <DayColumn
-                key={date}
-                date={date}
-                dayStats={dayStats}
-                todayFlag={todayFlag}
-                gridHeight={gridHeight}
-                pxPerHour={PX_PER_HOUR}
-                refHours={refHours}
-                onClickEvent={onClickEvent}
-                onClickEmpty={(time) => onCreate?.(date, time)}
-              />
-            )
-          })}
         </div>
       </div>
     </div>
   )
 }
 
-function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, refHours, onClickEvent, onClickEmpty }) {
+function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth, onClickEvent, onClickEmpty }) {
   const events = dayStats?.events || []
 
   // Linha "agora" se é hoje
@@ -1621,40 +1678,30 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, refHours,
 
   return (
     <div
-      className="relative rounded-lg overflow-hidden"
+      className="relative rounded-lg shrink-0"
       style={{
-        background: todayFlag ? 'rgba(6,182,212,0.04)' : 'rgba(16,185,129,0.04)',
-        border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.25)' : 'rgba(0,0,0,0.04)'}`,
+        width: colWidth,
         height: gridHeight,
+        background: todayFlag ? 'rgba(6,182,212,0.05)' : 'rgba(16,185,129,0.03)',
+        border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.25)' : 'transparent'}`,
       }}
     >
-      {/* Linhas de referência horizontais (a cada 4h) */}
-      {refHours.slice(1).map((h) => {
-        const top = (h - WEEK_DAY_START_H) * pxPerHour
-        return (
-          <div
-            key={h}
-            className="absolute left-0 right-0 pointer-events-none"
-            style={{
-              top,
-              height: 1,
-              background: 'rgba(0,0,0,0.04)',
-            }}
-          />
-        )
-      })}
-
       {/* Eventos posicionados */}
       {events.map(({ ev, startMin, endMin }, i) => {
         const startH = startMin / 60
         const endH = endMin / 60
-        // Clipa pro range visível
         const visStart = Math.max(startH, WEEK_DAY_START_H)
         const visEnd = Math.min(endH, WEEK_DAY_END_H)
         if (visEnd <= visStart) return null
         const top = (visStart - WEEK_DAY_START_H) * pxPerHour
-        const height = Math.max(3, (visEnd - visStart) * pxPerHour)
-        const colorVar = `var(--accent-${ev.color || 'cyan'})`
+        const height = Math.max(20, (visEnd - visStart) * pxPerHour)
+        const colorKey = ev.color || 'cyan'
+        const colorVar = `var(--accent-${colorKey})`
+        const tintBg = getColorTint(colorKey, 'bg')
+        const tintBorder = getColorTint(colorKey, 'border')
+        // Determina quanto texto cabe baseado na altura
+        const showFull = height >= 50
+        const showTitle = height >= 26
         return (
           <button
             key={`${ev.id}:${i}`}
@@ -1662,15 +1709,58 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, refHours,
               e.stopPropagation()
               onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })
             }}
-            className="absolute left-0.5 right-0.5 rounded transition hover:opacity-80 hover:scale-105 origin-center"
+            className="absolute rounded-lg transition hover:scale-[1.02] active:scale-[0.99] overflow-hidden text-left flex"
             style={{
-              top,
-              height,
-              background: colorVar,
-              boxShadow: `0 1px 3px ${colorVar}aa`,
+              top: top + 1,
+              left: 2,
+              right: 2,
+              height: height - 2,
+              background: tintBg,
+              border: `1px solid ${tintBorder}`,
+              boxShadow: `0 1px 4px rgba(0,0,0,0.05)`,
             }}
             title={`${ev.title} · ${ev.time?.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}`}
-          />
+          >
+            {/* Barra colorida lateral */}
+            <div style={{ width: 3, background: colorVar, flexShrink: 0 }} />
+            <div className="flex-1 min-w-0" style={{ padding: showFull ? '4px 6px' : '2px 5px' }}>
+              <div
+                className="text-[10px] font-bold tabular-nums leading-none"
+                style={{
+                  color: colorVar,
+                  fontFamily: 'JetBrains Mono, monospace',
+                }}
+              >
+                {ev.time?.slice(0, 5)}
+                {showFull && ev.end_time && (
+                  <span className="opacity-70 font-normal"> –{ev.end_time.slice(0, 5)}</span>
+                )}
+              </div>
+              {showTitle && (
+                <div
+                  className="text-[11px] mt-0.5 leading-tight"
+                  style={{
+                    color: 'var(--text-primary)',
+                    fontWeight: 500,
+                    display: '-webkit-box',
+                    WebkitLineClamp: showFull ? 3 : 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {ev.title}
+                </div>
+              )}
+              {showFull && ev.location && (
+                <div
+                  className="text-[9px] mt-1 truncate flex items-center gap-0.5"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
+                  <MapPin size={8} /> {ev.location}
+                </div>
+              )}
+            </div>
+          </button>
         )
       })}
 
