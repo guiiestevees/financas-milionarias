@@ -779,11 +779,20 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
         <SectionTitle icon={Settings} title="Configurações" subtitle="Personalize seu app, cartões, categorias, atribuídos e orçamentos." accent="gold" />
         <div className="text-sm text-white/55 leading-relaxed">Estas configurações são globais — valem para todos os meses.</div>
       </Card>
-      <SubscriptionCard />
+
+      {/* Personalização — nome do usuário */}
       <BrandConfig brand={brand} updateBrand={updateBrand} />
+
+      {/* 1º — Tutoriais (mais útil pra quem tá começando) */}
       <HelpSection />
-      <AppearanceSection />
+
+      {/* 2º — Alfred no WhatsApp */}
       <WhatsAppConfig whatsappPhone={whatsappPhone} updateWhatsappPhone={updateWhatsappPhone} />
+
+      {/* 3º — Aparência (tema light/dark) */}
+      <AppearanceSection />
+
+      {/* Configurações financeiras (cartões, categorias, etc) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CardsConfig config={month.config} setConfig={setConfig} />
         <PaymentMethodsConfig config={month.config} setConfig={setConfig} />
@@ -792,8 +801,11 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
         <IncomeSourcesConfig config={month.config} setConfig={setConfig} />
       </div>
 
+      {/* Conta + Assinatura juntas (lógica de gestão pessoal) */}
       <AccountSection />
+      <SubscriptionCard />
 
+      {/* Zona de perigo no fim de tudo */}
       <div className="pt-4 border-t border-white/5">
         <DangerZone />
         <div className="mt-3 text-xs text-white/35 text-center">

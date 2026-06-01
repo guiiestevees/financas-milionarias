@@ -1308,49 +1308,102 @@ function formatMonthLabelPT(ym) {
 }
 
 // ---------- TutorialBanner ----------
-// Aviso compacto no topo do painel que leva pra /tutorial.
-// Pode ser dispensado (X) — fica oculto pra sempre nesse navegador.
-// Pessoa sempre pode acessar via Configurações > Ajuda & tutoriais.
+// Banner dourado no topo do painel com chamada pra /tutorial.
+// Quando clica no X, pergunta se quer mesmo dispensar — avisa que sempre
+// pode acessar em Configurações > Ajuda & tutoriais. Confirmando, fica
+// oculto pra sempre nesse navegador.
 const TUTORIAL_BANNER_KEY = 'domus:tutorial-banner-dismissed'
 
 function TutorialBanner() {
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(TUTORIAL_BANNER_KEY) === '1' } catch { return false }
   })
+  const [confirming, setConfirming] = useState(false)
 
   if (dismissed) return null
 
-  const dismiss = (e) => {
+  const askDismiss = (e) => {
     e.preventDefault()
     e.stopPropagation()
+    setConfirming(true)
+  }
+
+  const confirmDismiss = () => {
     try { localStorage.setItem(TUTORIAL_BANNER_KEY, '1') } catch {}
     setDismissed(true)
   }
 
+  // --- Tela de confirmação ---
+  if (confirming) {
+    return (
+      <div
+        className="rounded-2xl p-4 sm:p-5"
+        style={{
+          background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
+          border: '1px solid rgba(212,175,55,0.3)',
+        }}
+      >
+        <div className="text-sm sm:text-base mb-3 leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+          🎩 Tudo bem. Você sempre pode rever os tutoriais em{' '}
+          <strong style={{ color: 'var(--accent-gold)' }}>Ajustes → Ajuda & tutoriais</strong>.
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => setConfirming(false)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={confirmDismiss}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-90"
+            style={{ background: 'var(--accent-gold)', color: '#070912' }}
+          >
+            Entendi, pode dispensar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // --- Banner padrão ---
   return (
-    <div
-      className="rounded-xl px-3 py-2 flex items-center gap-2.5"
+    <Link
+      to="/tutorial"
+      className="block rounded-2xl p-4 sm:p-5 transition hover:opacity-95 relative group"
       style={{
-        background: 'rgba(212,175,55,0.08)',
-        border: '1px solid rgba(212,175,55,0.25)',
+        background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
+        border: '1px solid rgba(212,175,55,0.3)',
       }}
     >
-      <PlayCircle size={15} className="shrink-0" style={{ color: 'var(--accent-gold)' }} />
-      <Link
-        to="/tutorial"
-        className="text-xs sm:text-sm min-w-0 flex-1 hover:underline transition truncate"
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        🎩 Novo por aqui? <strong style={{ color: 'var(--accent-gold)' }}>Veja os tutoriais →</strong>
-      </Link>
+      <div className="flex items-center gap-3.5 pr-7 sm:pr-8">
+        <div
+          className="p-2.5 rounded-xl shrink-0"
+          style={{ background: 'rgba(212,175,55,0.18)', color: 'var(--accent-gold)' }}
+        >
+          <PlayCircle size={22} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
+            🎩 Como usar o Domus
+          </div>
+          <div className="text-xs sm:text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            Aprenda a usar o app e tirar o melhor proveito dele.
+          </div>
+        </div>
+        <ArrowRight size={18} className="shrink-0" style={{ color: 'var(--accent-gold)' }} />
+      </div>
+
+      {/* Botão X no canto, separado do clique principal */}
       <button
-        onClick={dismiss}
-        title="Dispensar (você pode acessar em Ajustes depois)"
-        className="p-1 rounded transition shrink-0 hover:bg-white/5"
+        onClick={askDismiss}
+        title="Dispensar"
+        className="absolute top-2 right-2 p-1.5 rounded-lg transition hover:bg-white/10"
         style={{ color: 'var(--text-muted)' }}
       >
         <X size={14} />
       </button>
-    </div>
+    </Link>
   )
 }
