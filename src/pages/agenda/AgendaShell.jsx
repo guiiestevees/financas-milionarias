@@ -173,7 +173,7 @@ export default function AgendaShell() {
               <DayView
                 events={dayEvents}
                 onClickEvent={(occ) => setEditing(occ)}
-                onCreate={(date) => setCreating({ initialDate: date })}
+                onCreate={(date, time) => setCreating({ initialDate: date, initialTime: time })}
                 date={refDate}
               />
             )}
@@ -183,6 +183,7 @@ export default function AgendaShell() {
                 weekEvents={weekEvents}
                 onClickEvent={(occ) => setEditing(occ)}
                 onCreate={(date) => setCreating({ initialDate: date })}
+                onJumpToDay={(date) => { setRefDate(date); setTab('day') }}
               />
             )}
             {tab === 'month' && (
@@ -219,6 +220,7 @@ export default function AgendaShell() {
           occurrenceDate={editing?.occurrenceDate}
           initialDate={creating?.initialDate}
           initialTitle={creating?.initialTitle}
+          initialTime={creating?.initialTime}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => { setCreating(null); setEditing(null) }}
@@ -350,25 +352,16 @@ function DateNav({ view, refDate, setRefDate, onCreate }) {
 }
 
 // ============================================================
-// DAY VIEW
+// DAY VIEW — Timeline vertical com horários e blocos posicionados
 // ============================================================
 function DayView({ events, onClickEvent, onCreate, date }) {
-  if (events.length === 0) {
-    return <EmptyState
-      icon="📅"
-      title={`Nada marcado pra ${isToday(date) ? 'hoje' : 'este dia'}`}
-      text="🎩 Aproveite o tempo livre — ou marque algo importante."
-      ctaLabel="Adicionar compromisso"
-      onCta={() => onCreate(date)}
-    />
-  }
-
   const allDay = events.filter((e) => !e.time)
   const timed = events.filter((e) => !!e.time)
+  const todayFlag = isToday(date)
 
   return (
     <div className="space-y-3">
-      {/* CTA didático no topo — botão grande pra adicionar mais um compromisso */}
+      {/* CTA didático no topo */}
       <button
         onClick={() => onCreate(date)}
         className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition hover:opacity-90 active:scale-[0.99]"
@@ -386,7 +379,7 @@ function DayView({ events, onClickEvent, onCreate, date }) {
         </div>
         <div className="text-left min-w-0 flex-1">
           <div className="text-sm font-semibold" style={{ color: AGENDA_ACCENT }}>
-            Adicionar compromisso {isToday(date) ? 'pra hoje' : 'neste dia'}
+            Adicionar compromisso {todayFlag ? 'pra hoje' : 'neste dia'}
           </div>
           <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
             Reunião, consulta, lembrete… toque pra criar
@@ -395,6 +388,7 @@ function DayView({ events, onClickEvent, onCreate, date }) {
         <Sparkles size={14} style={{ color: AGENDA_ACCENT, opacity: 0.7 }} />
       </button>
 
+      {/* Dia inteiro */}
       {allDay.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
@@ -408,43 +402,302 @@ function DayView({ events, onClickEvent, onCreate, date }) {
         </div>
       )}
 
-      {timed.length > 0 && (
-        <div className="space-y-1.5">
-          {timed.map((ev) => (
-            <EventCard key={`${ev.id}:${ev.occurrenceDate}`} event={ev} onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })} />
-          ))}
-        </div>
-      )}
+      {/* TIMELINE */}
+      <DayTimeline
+        events={timed}
+        date={date}
+        isToday={todayFlag}
+        onClickEvent={onClickEvent}
+        onClickEmpty={(hour) => onCreate(date, hour)}
+      />
     </div>
   )
 }
 
-// ============================================================
-// WEEK VIEW
-// ============================================================
-function WeekView({ weekDates, weekEvents, onClickEvent, onCreate }) {
+// Timeline do dia: coluna esquerda com horas + coluna direita com slots
+function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty }) {
+  // Determina range: mín 07:00, máx 23:00, mas expande se evento sair fora
+  const PX_PER_HOUR = 60  // 60px por hora — confortável no mobile
+  let startHour = 7
+  let endHour = 23
+  for (const e of events) {
+    const sh = Number(e.time?.slice(0, 2) || 0)
+    const eh = e.end_time ? Number(e.end_time.slice(0, 2)) : sh + 1
+    if (sh < startHour) startHour = Math.max(0, sh)
+    if (eh > endHour) endHour = Math.min(24, eh + 1)
+  }
+  const totalHours = endHour - startHour
+  const totalHeight = totalHours * PX_PER_HOUR
+
+  // Linha "agora" — só se é hoje
+  let nowOffset = null
+  if (todayFlag) {
+    const now = new Date()
+    const nowH = now.getHours() + now.getMinutes() / 60
+    if (nowH >= startHour && nowH <= endHour) {
+      nowOffset = (nowH - startHour) * PX_PER_HOUR
+    }
+  }
+
+  // Calcula posição/altura de cada evento
+  const positioned = events.map((ev) => {
+    const [sh, sm] = ev.time.split(':').map(Number)
+    const startMin = (sh - startHour) * 60 + (sm || 0)
+    let endMin
+    if (ev.end_time) {
+      const [eh, em] = ev.end_time.split(':').map(Number)
+      endMin = (eh - startHour) * 60 + (em || 0)
+      if (endMin < startMin) endMin = startMin + 30  // virou dia: minimal
+    } else {
+      endMin = startMin + 30  // sem fim: 30min visual
+    }
+    const top = (startMin / 60) * PX_PER_HOUR
+    const height = Math.max(28, ((endMin - startMin) / 60) * PX_PER_HOUR)
+    return { ev, top, height, startMin, endMin }
+  }).sort((a, b) => a.startMin - b.startMin)
+
+  // Detecta sobreposições e divide em colunas
+  const eventsWithColumns = layoutOverlappingEvents(positioned)
+
   return (
-    <div className="space-y-2">
-      {weekDates.map((date) => {
-        const evs = weekEvents[date] || []
-        return (
-          <DayRow
-            key={date}
-            date={date}
-            events={evs}
-            onClickEvent={onClickEvent}
-            onCreate={() => onCreate(date)}
-          />
-        )
-      })}
+    <div
+      className="relative rounded-2xl overflow-hidden"
+      style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
+    >
+      {/* Header da timeline */}
+      <div
+        className="px-3 py-2 flex items-center gap-2"
+        style={{ borderBottom: '1px solid var(--border-soft)' }}
+      >
+        <Clock size={12} style={{ color: AGENDA_ACCENT }} />
+        <div className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+          Horários do dia
+        </div>
+        {events.length === 0 && (
+          <div className="text-[11px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>
+            Tudo livre 🌿
+          </div>
+        )}
+      </div>
+
+      {/* Timeline em si */}
+      <div className="relative" style={{ height: totalHeight }}>
+        {/* Linhas de hora + label */}
+        {Array.from({ length: totalHours + 1 }).map((_, i) => {
+          const hour = startHour + i
+          const y = i * PX_PER_HOUR
+          return (
+            <div
+              key={hour}
+              className="absolute left-0 right-0 flex"
+              style={{ top: y, height: PX_PER_HOUR }}
+            >
+              {/* Coluna de horas */}
+              <div
+                className="shrink-0 flex items-start justify-end pt-1 pr-2"
+                style={{
+                  width: 48,
+                  borderRight: '1px solid var(--border-soft)',
+                }}
+              >
+                <span
+                  className="text-[10px] tabular-nums"
+                  style={{
+                    color: 'var(--text-muted)',
+                    fontFamily: 'JetBrains Mono, monospace',
+                  }}
+                >
+                  {String(hour).padStart(2, '0')}:00
+                </span>
+              </div>
+              {/* Slot clicável vazio */}
+              <button
+                onClick={() => onClickEmpty?.(`${String(hour).padStart(2, '0')}:00`)}
+                className="flex-1 transition hover:bg-white/5 group"
+                style={{
+                  borderBottom: i < totalHours ? '1px solid var(--border-soft)' : 'none',
+                }}
+                title={`Adicionar às ${String(hour).padStart(2, '0')}:00`}
+              >
+                <span
+                  className="text-[10px] opacity-0 group-hover:opacity-100 transition"
+                  style={{ color: AGENDA_ACCENT }}
+                >
+                  + livre
+                </span>
+              </button>
+            </div>
+          )
+        })}
+
+        {/* Linha "agora" */}
+        {nowOffset !== null && (
+          <div
+            className="absolute left-12 right-0 z-20 pointer-events-none"
+            style={{ top: nowOffset, height: 0 }}
+          >
+            <div
+              className="absolute -left-1 -top-1.5 w-3 h-3 rounded-full"
+              style={{ background: '#ef4444', boxShadow: '0 0 0 3px rgba(239,68,68,0.25)' }}
+            />
+            <div
+              className="absolute left-0 right-2 top-0"
+              style={{ height: 2, background: '#ef4444' }}
+            />
+          </div>
+        )}
+
+        {/* Eventos posicionados */}
+        {eventsWithColumns.map(({ ev, top, height, colStart, colSpan, totalCols }) => {
+          const colWidth = `calc((100% - 48px) / ${totalCols})`
+          const left = `calc(48px + ${colStart} * ${colWidth} + 4px)`
+          const width = `calc(${colSpan} * ${colWidth} - 8px)`
+          return (
+            <TimelineEvent
+              key={`${ev.id}:${ev.occurrenceDate}`}
+              event={ev}
+              top={top}
+              height={height}
+              left={left}
+              width={width}
+              onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }
 
-function DayRow({ date, events, onClickEvent, onCreate }) {
+// Resolve sobreposição: cada evento ganha (colStart, colSpan, totalCols)
+function layoutOverlappingEvents(positioned) {
+  const result = []
+  // Agrupa eventos que se sobrepõem (transitivamente)
+  let i = 0
+  while (i < positioned.length) {
+    let groupEnd = positioned[i].endMin
+    let j = i
+    while (j + 1 < positioned.length && positioned[j + 1].startMin < groupEnd) {
+      j++
+      if (positioned[j].endMin > groupEnd) groupEnd = positioned[j].endMin
+    }
+    const group = positioned.slice(i, j + 1)
+    // Coloca cada um na primeira coluna livre
+    const columns = []  // cada col = [endMin do último evento]
+    const placed = group.map((p) => {
+      let col = 0
+      while (col < columns.length && columns[col] > p.startMin) col++
+      columns[col] = p.endMin
+      return { ...p, colStart: col }
+    })
+    const totalCols = columns.length
+    for (const p of placed) {
+      result.push({ ...p, colSpan: 1, totalCols })
+    }
+    i = j + 1
+  }
+  return result
+}
+
+function TimelineEvent({ event, top, height, left, width, onClick }) {
+  const colorKey = event.color || 'cyan'
+  const colorVar = `var(--accent-${colorKey})`
+  const tintBg = getColorTint(colorKey, 'bg')
+  const tintBorder = getColorTint(colorKey, 'border')
+  const compact = height < 50
+  return (
+    <button
+      onClick={onClick}
+      className="absolute rounded-lg text-left overflow-hidden transition hover:opacity-90 active:scale-[0.99] flex"
+      style={{
+        top, height, left, width,
+        background: tintBg,
+        border: `1px solid ${tintBorder}`,
+      }}
+    >
+      <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
+      <div className="flex-1 min-w-0 px-2 py-1">
+        <div
+          className={`font-medium ${compact ? 'text-[11px] truncate' : 'text-xs'}`}
+          style={{ color: 'var(--text-primary)', lineHeight: 1.2 }}
+        >
+          {event.title}
+        </div>
+        {!compact && (
+          <div className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace' }}>
+            <span>{formatTime(event.time)}{event.end_time ? `–${formatTime(event.end_time)}` : ''}</span>
+            {event.location && height > 70 && (
+              <span className="truncate"> · 📍 {event.location}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ============================================================
+// WEEK VIEW — Visão semanal com barra horária por dia
+// ============================================================
+function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }) {
+  // Stats da semana
+  const totalEvents = weekDates.reduce((sum, d) => sum + (weekEvents[d]?.length || 0), 0)
+  const busyDays = weekDates.filter((d) => (weekEvents[d]?.length || 0) > 0).length
+
+  return (
+    <div className="space-y-3">
+      {/* Header com resumo da semana */}
+      <div
+        className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+        style={{
+          background: 'rgba(6,182,212,0.06)',
+          border: '1px solid rgba(6,182,212,0.20)',
+        }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <CalendarRange size={16} style={{ color: AGENDA_ACCENT }} />
+          <div className="min-w-0">
+            <div className="text-xs font-semibold" style={{ color: AGENDA_ACCENT }}>
+              {totalEvents === 0
+                ? 'Semana inteira livre 🌿'
+                : `${totalEvents} ${totalEvents === 1 ? 'compromisso' : 'compromissos'} esta semana`}
+            </div>
+            <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+              {busyDays} de 7 dias com atividade
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de dias com mini-timeline */}
+      <div className="space-y-2">
+        {weekDates.map((date) => {
+          const evs = weekEvents[date] || []
+          return (
+            <WeekDayRow
+              key={date}
+              date={date}
+              events={evs}
+              onClickEvent={onClickEvent}
+              onCreate={() => onCreate(date)}
+              onJumpToDay={() => onJumpToDay?.(date)}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function WeekDayRow({ date, events, onClickEvent, onCreate, onJumpToDay }) {
   const d = parseISODate(date)
   const dayNum = d.getDate()
   const todayFlag = isToday(date)
+  const monthNum = d.getMonth() + 1
+  const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()]
+
+  const timed = events.filter((e) => !!e.time).sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+  const allDay = events.filter((e) => !e.time)
 
   return (
     <div
@@ -454,51 +707,164 @@ function DayRow({ date, events, onClickEvent, onCreate }) {
         border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.3)' : 'var(--border-soft)'}`,
       }}
     >
-      <div className="flex items-center justify-between gap-2 px-3 py-2"
-        style={{ borderBottom: events.length > 0 ? '1px solid var(--border-soft)' : 'none' }}>
-        <div className="flex items-center gap-2">
+      {/* Cabeçalho do dia */}
+      <button
+        onClick={onJumpToDay}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:opacity-90"
+        style={{ borderBottom: events.length > 0 ? '1px solid var(--border-soft)' : 'none' }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
-            className="flex flex-col items-center justify-center w-10 h-10 rounded-lg"
+            className="flex flex-col items-center justify-center rounded-xl shrink-0"
             style={{
-              background: todayFlag ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
-              color: todayFlag ? AGENDA_ACCENT : 'var(--text-primary)',
+              width: 44, height: 44,
+              background: todayFlag ? AGENDA_ACCENT : 'var(--bg-elev1)',
+              color: todayFlag ? '#fff' : 'var(--text-primary)',
             }}
           >
-            <div className="text-[9px] uppercase tracking-wider leading-none">
-              {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()]}
+            <div className="text-[9px] uppercase tracking-wider leading-none mt-1" style={{ opacity: todayFlag ? 0.9 : 0.7 }}>
+              {dayName}
             </div>
-            <div className="text-sm font-semibold tabular-nums leading-tight" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+            <div className="text-base font-bold tabular-nums leading-none mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
               {dayNum}
             </div>
+            <div className="text-[8px] tabular-nums leading-none mt-0.5 mb-1" style={{ opacity: 0.6 }}>
+              /{String(monthNum).padStart(2, '0')}
+            </div>
           </div>
-          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            {events.length === 0 ? 'Livre' : `${events.length} ${events.length === 1 ? 'compromisso' : 'compromissos'}`}
-            {todayFlag && <span className="ml-2 font-medium" style={{ color: AGENDA_ACCENT }}>· Hoje</span>}
+          <div className="min-w-0">
+            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              {todayFlag && <span style={{ color: AGENDA_ACCENT }}>Hoje · </span>}
+              {events.length === 0
+                ? <span style={{ color: 'var(--text-tertiary)' }}>Dia livre</span>
+                : `${events.length} ${events.length === 1 ? 'compromisso' : 'compromissos'}`}
+            </div>
+            {timed.length > 0 && (
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                {timed[0].time?.slice(0, 5)}{timed.length > 1 ? ` … ${timed[timed.length - 1].time?.slice(0, 5)}` : ''}
+              </div>
+            )}
           </div>
         </div>
-        <button
-          onClick={onCreate}
-          className="p-1.5 rounded-lg transition hover:bg-white/5"
-          title="Adicionar nesse dia"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <Plus size={14} />
-        </button>
-      </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onCreate() }}
+            className="p-1.5 rounded-lg transition hover:bg-white/5"
+            title="Adicionar nesse dia"
+            style={{ color: AGENDA_ACCENT }}
+          >
+            <Plus size={15} />
+          </button>
+          <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+        </div>
+      </button>
 
+      {/* Mini-timeline horizontal (barra de ocupação 6h-23h) */}
+      {timed.length > 0 && (
+        <div className="px-3 pt-2 pb-1">
+          <MiniTimelineBar events={timed} onClickEvent={onClickEvent} />
+        </div>
+      )}
+
+      {/* Lista de eventos (compacta) */}
       {events.length > 0 && (
-        <div className="p-2 space-y-1.5">
-          {events.map((ev) => (
-            <EventCard
+        <div className="px-3 pb-3 pt-1 space-y-1">
+          {allDay.map((ev) => (
+            <CompactEventRow
               key={`${ev.id}:${ev.occurrenceDate}`}
               event={ev}
               onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
-              compact
+              allDay
+            />
+          ))}
+          {timed.map((ev) => (
+            <CompactEventRow
+              key={`${ev.id}:${ev.occurrenceDate}`}
+              event={ev}
+              onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
             />
           ))}
         </div>
       )}
     </div>
+  )
+}
+
+// Mini-barra horizontal mostrando ocupação visual do dia (6h-23h)
+function MiniTimelineBar({ events, onClickEvent }) {
+  const START_H = 6
+  const END_H = 23
+  const range = END_H - START_H
+  const positions = events.map((ev) => {
+    const [sh, sm] = (ev.time || '00:00').split(':').map(Number)
+    let startFrac = ((sh - START_H) + (sm || 0) / 60) / range
+    let endFrac
+    if (ev.end_time) {
+      const [eh, em] = ev.end_time.split(':').map(Number)
+      endFrac = ((eh - START_H) + (em || 0) / 60) / range
+    } else {
+      endFrac = startFrac + (30 / 60) / range  // 30 min default
+    }
+    return {
+      ev,
+      startFrac: Math.max(0, Math.min(1, startFrac)),
+      endFrac: Math.max(0, Math.min(1, endFrac)),
+    }
+  })
+
+  return (
+    <div className="space-y-1">
+      <div
+        className="relative rounded-full"
+        style={{ height: 10, background: 'var(--bg-elev1)' }}
+      >
+        {positions.map(({ ev, startFrac, endFrac }, i) => {
+          const colorVar = `var(--accent-${ev.color || 'cyan'})`
+          const left = `${startFrac * 100}%`
+          const width = `${Math.max(2, (endFrac - startFrac) * 100)}%`
+          return (
+            <button
+              key={`${ev.id}:${i}`}
+              onClick={(e) => { e.stopPropagation(); onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate }) }}
+              className="absolute top-0 bottom-0 rounded-full transition hover:scale-y-150 origin-center"
+              style={{ left, width, background: colorVar }}
+              title={`${ev.title} · ${ev.time?.slice(0, 5)}`}
+            />
+          )
+        })}
+      </div>
+      <div className="flex justify-between text-[8px] tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+        <span>6h</span>
+        <span>12h</span>
+        <span>18h</span>
+        <span>23h</span>
+      </div>
+    </div>
+  )
+}
+
+// Linha compacta de evento na semana
+function CompactEventRow({ event, onClick, allDay }) {
+  const colorKey = event.color || 'cyan'
+  const colorVar = `var(--accent-${colorKey})`
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition hover:bg-white/5 text-left"
+    >
+      <div style={{ width: 3, height: 18, background: colorVar, borderRadius: 2, flexShrink: 0 }} />
+      <div className="text-[10px] tabular-nums shrink-0" style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace', minWidth: 38 }}>
+        {allDay ? 'dia' : event.time?.slice(0, 5)}
+      </div>
+      <div className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
+        {event.title}
+      </div>
+      {event.location && (
+        <span className="text-[10px] truncate shrink-0 max-w-[80px]" style={{ color: 'var(--text-muted)' }}>
+          📍 {event.location}
+        </span>
+      )}
+    </button>
   )
 }
 

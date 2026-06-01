@@ -8,17 +8,18 @@ import { AGENDA_COLORS, RECURRENCE_OPTIONS, WEEKDAY_LABELS, WEEKDAY_PRESETS, tod
 //   event?    — se passado, é edição
 //   initialDate? — pré-preenche a data
 //   initialTitle? — pré-preenche o título (usado quando converte tarefa em compromisso)
+//   initialTime? — pré-preenche a hora (usado quando clica num slot do timeline)
 //   onSave    — async (payload) => void
 //   onDelete  — async (mode: 'single' | 'forever') => void
 //   onClose   — () => void
-export default function EventForm({ event, initialDate, initialTitle, occurrenceDate, onSave, onDelete, onClose }) {
+export default function EventForm({ event, initialDate, initialTitle, initialTime, occurrenceDate, onSave, onDelete, onClose }) {
   const isEditing = !!event
   const isRecurringEdit = isEditing && event.recurring !== 'none'
 
   // Campo único — substitui título + descrição
   const [text, setText] = useState(event?.title || initialTitle || '')
   const [date, setDate] = useState(event?.date || occurrenceDate || initialDate || todayISO())
-  const [time, setTime] = useState(event?.time?.slice(0, 5) || nextRoundHour())
+  const [time, setTime] = useState(event?.time?.slice(0, 5) || initialTime || nextRoundHour())
   const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) || '')
   const [notes, setNotes] = useState(event?.notes || '')  // mantém no banco caso queira
   const [color, setColor] = useState(event?.color || 'cyan')
