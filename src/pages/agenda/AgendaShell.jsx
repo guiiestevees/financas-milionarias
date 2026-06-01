@@ -371,6 +371,9 @@ function DayView({ events, onClickEvent, onCreate, date, completionsHook }) {
 
   return (
     <div className="space-y-3">
+      {/* Reflexão do dia — sempre visível, ajuda a tomar direção */}
+      <DailyReflection date={date} />
+
       {/* Barra de progresso (só aparece quando tem eventos) */}
       {totalCount > 0 && (
         <ProgressStrip done={doneCount} total={totalCount} allDone={allDone} />
@@ -775,6 +778,139 @@ function CompletionBurst({ colorVar }) {
 }
 
 // ============================================================
+// DailyReflection — perguntas pra direcionar o dia
+// 15 perguntas, ordem semi-aleatória (seedada pela data — mesma sequência
+// se reabrir o mesmo dia, sequência diferente em dias diferentes)
+// ============================================================
+const REFLECTIONS = [
+  'Qual a tarefa de hoje que mais me aproxima da realidade que eu quero viver?',
+  'Se eu fosse uma pessoa com permissão alta e sem bloqueios pra enriquecer, qual seria a principal atividade do meu dia?',
+  'Qual atividade estou adiando hoje que vai me levar pro próximo nível?',
+  'Se eu pudesse fazer apenas UMA coisa hoje que me orgulharia amanhã, qual seria?',
+  'O que estou evitando fazer hoje porque tenho medo de errar?',
+  'Qual ação de hoje me aproxima do meu objetivo financeiro de longo prazo?',
+  'Se a versão de mim daqui a 5 anos me visse agora, o que ela me pediria pra priorizar hoje?',
+  'Qual o menor passo que posso dar hoje em direção ao que mais importa pra mim?',
+  'O que pode esperar — e o que NÃO pode esperar mais um dia?',
+  'Se eu tivesse 1 hora de foco total hoje, em que eu aplicaria essa hora?',
+  'Qual relacionamento (pessoal ou profissional) merece um investimento meu hoje?',
+  'Que hábito eu fortaleço se completar essa tarefa que tô adiando?',
+  'Qual a tarefa que parece pequena, mas tem um impacto desproporcional?',
+  'O que estou fazendo hoje que o meu eu de 30 dias atrás não fazia?',
+  'Se eu encerrasse o dia agora, eu olharia pra trás com orgulho ou com vergonha?',
+]
+
+// Hash determinístico simples — mesma date sempre gera mesma sequência
+function seedShuffle(arr, seed) {
+  const out = [...arr]
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+  for (let i = out.length - 1; i > 0; i--) {
+    h = (h * 1103515245 + 12345) & 0x7fffffff
+    const j = h % (i + 1)
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+function DailyReflection({ date }) {
+  const ordered = useMemo(() => seedShuffle(REFLECTIONS, date), [date])
+  const [idx, setIdx] = useState(0)
+  const [transitioning, setTransitioning] = useState(false)
+
+  const next = () => {
+    setTransitioning(true)
+    setTimeout(() => {
+      setIdx((i) => (i + 1) % ordered.length)
+      setTransitioning(false)
+    }, 180)
+  }
+
+  return (
+    <div
+      className="relative rounded-3xl p-5 overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(6,182,212,0.08) 60%, rgba(139,92,246,0.10))',
+        border: '1px solid rgba(212,175,55,0.25)',
+      }}
+    >
+      {/* Glow decorativo */}
+      <div
+        className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-30 blur-3xl pointer-events-none"
+        style={{ background: 'var(--accent-gold)' }}
+      />
+      <div
+        className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full opacity-20 blur-3xl pointer-events-none"
+        style={{ background: AGENDA_ACCENT }}
+      />
+
+      <div className="relative">
+        {/* Selo */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center justify-center w-7 h-7 rounded-lg"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent-gold), #b8860b)',
+                color: '#fff',
+                boxShadow: '0 4px 8px rgba(212,175,55,0.30)',
+              }}
+            >
+              <Sparkles size={14} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: 'var(--accent-gold)' }}>
+                Reflexão do dia
+              </div>
+              <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                pergunta {idx + 1} de {ordered.length} · pra direcionar suas escolhas
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={next}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-full transition hover:scale-105 active:scale-95"
+            style={{
+              background: 'rgba(212,175,55,0.15)',
+              color: 'var(--accent-gold)',
+              border: '1px solid rgba(212,175,55,0.30)',
+            }}
+            title="Próxima reflexão"
+          >
+            outra <ChevronRight size={11} />
+          </button>
+        </div>
+
+        {/* A pergunta — destaque tipográfico */}
+        <p
+          style={{
+            fontFamily: 'Fraunces, serif',
+            fontWeight: 400,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.35,
+            fontStyle: 'italic',
+            opacity: transitioning ? 0 : 1,
+            transform: transitioning ? 'translateY(6px)' : 'translateY(0)',
+            transition: 'opacity 0.18s ease, transform 0.18s ease',
+          }}
+          className="text-lg sm:text-xl"
+        >
+          {ordered[idx]}
+        </p>
+
+        {/* Dica sutil */}
+        <div className="flex items-center justify-between gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(212,175,55,0.15)' }}>
+          <div className="text-[10px] italic" style={{ color: 'var(--text-tertiary)' }}>
+            🎩 Use isso pra decidir o que fazer primeiro hoje.
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
 // ProgressStrip — barra de progresso satisfatória no topo do Dia
 // ============================================================
 function ProgressStrip({ done, total, allDone }) {
@@ -829,47 +965,108 @@ function ProgressStrip({ done, total, allDone }) {
 }
 
 // ============================================================
-// WEEK VIEW — Visão semanal com barra horária por dia
+// WEEK VIEW — Chips no topo + lista cronológica por dia
+// Arquitetura: navegação rápida (chips horizontais) + leitura vertical fluida
 // ============================================================
 function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }) {
-  // Stats da semana
+  const [focusedDate, setFocusedDate] = useState(() => {
+    // Começa no hoje se está na semana, senão no primeiro dia
+    const today = todayISO()
+    return weekDates.includes(today) ? today : weekDates[0]
+  })
+
+  // Stats globais da semana
   const totalEvents = weekDates.reduce((sum, d) => sum + (weekEvents[d]?.length || 0), 0)
   const busyDays = weekDates.filter((d) => (weekEvents[d]?.length || 0) > 0).length
 
+  // Stats agregadas
+  let totalMinutes = 0
+  for (const d of weekDates) {
+    for (const ev of (weekEvents[d] || [])) {
+      const dur = computeDurationMinutes(ev.time, ev.end_time)
+      if (dur) totalMinutes += dur
+    }
+  }
+  const hoursOccupied = (totalMinutes / 60).toFixed(1).replace('.', ',')
+
   return (
-    <div className="space-y-3">
-      {/* Header com resumo da semana */}
+    <div className="space-y-4">
+      {/* Hero da semana — sintético e elegante */}
       <div
-        className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+        className="rounded-3xl p-5 relative overflow-hidden"
         style={{
-          background: 'rgba(6,182,212,0.06)',
-          border: '1px solid rgba(6,182,212,0.20)',
+          background: `linear-gradient(135deg, rgba(6,182,212,0.10), rgba(6,182,212,0.18))`,
+          border: '1px solid rgba(6,182,212,0.30)',
         }}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <CalendarRange size={16} style={{ color: AGENDA_ACCENT }} />
-          <div className="min-w-0">
-            <div className="text-xs font-semibold" style={{ color: AGENDA_ACCENT }}>
-              {totalEvents === 0
-                ? 'Semana inteira livre 🌿'
-                : `${totalEvents} ${totalEvents === 1 ? 'compromisso' : 'compromissos'} esta semana`}
-            </div>
-            <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-              {busyDays} de 7 dias com atividade
-            </div>
+        {/* Glow decorativo */}
+        <div
+          className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-20 blur-3xl pointer-events-none"
+          style={{ background: AGENDA_ACCENT }}
+        />
+        <div className="relative">
+          <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-1.5" style={{ color: AGENDA_ACCENT }}>
+            Sua semana
           </div>
+          {totalEvents === 0 ? (
+            <>
+              <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }} className="text-2xl leading-tight">
+                7 dias <em style={{ color: AGENDA_ACCENT, fontStyle: 'italic' }}>completamente livres</em>
+              </h2>
+              <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                🌿 Aproveite — ou preencha com o que importa.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }} className="text-3xl leading-none">
+                  {totalEvents}
+                </span>
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  {totalEvents === 1 ? 'compromisso' : 'compromissos'}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: AGENDA_ACCENT }} />
+                  {busyDays} {busyDays === 1 ? 'dia' : 'dias'} com atividade
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock size={10} style={{ color: AGENDA_ACCENT }} />
+                  {hoursOccupied}h ocupadas
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Lista de dias com mini-timeline */}
-      <div className="space-y-2">
-        {weekDates.map((date) => {
+      {/* Strip horizontal de chips — navegação rápida + visão geral */}
+      <WeekDayChips
+        weekDates={weekDates}
+        weekEvents={weekEvents}
+        focusedDate={focusedDate}
+        onSelect={(date) => {
+          setFocusedDate(date)
+          // Scroll suave pra seção do dia
+          setTimeout(() => {
+            const el = document.getElementById(`week-day-${date}`)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }, 50)
+        }}
+      />
+
+      {/* Lista cronológica fluida — separadores grandes por dia */}
+      <div className="space-y-3">
+        {weekDates.map((date, idx) => {
           const evs = weekEvents[date] || []
           return (
-            <WeekDayRow
+            <WeekDaySection
               key={date}
               date={date}
               events={evs}
+              isFocused={date === focusedDate}
               onClickEvent={onClickEvent}
               onCreate={() => onCreate(date)}
               onJumpToDay={() => onJumpToDay?.(date)}
@@ -881,88 +1078,170 @@ function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }
   )
 }
 
-function WeekDayRow({ date, events, onClickEvent, onCreate, onJumpToDay }) {
+// Strip horizontal de 7 chips clicáveis — visão geral da semana
+function WeekDayChips({ weekDates, weekEvents, focusedDate, onSelect }) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+      {weekDates.map((date) => {
+        const d = parseISODate(date)
+        const evs = weekEvents[date] || []
+        const todayFlag = isToday(date)
+        const isFocused = date === focusedDate
+        const dayName = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'][d.getDay()]
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6
+
+        // Cores únicas presentes nos eventos
+        const colors = [...new Set(evs.map((e) => e.color || 'cyan'))]
+        const isFree = evs.length === 0
+
+        return (
+          <button
+            key={date}
+            onClick={() => onSelect(date)}
+            className="flex-1 min-w-[44px] flex flex-col items-center justify-between rounded-2xl py-2.5 px-1 transition-all"
+            style={{
+              background: isFocused
+                ? AGENDA_ACCENT
+                : todayFlag
+                  ? 'rgba(6,182,212,0.12)'
+                  : 'var(--bg-elev2)',
+              border: `1.5px solid ${isFocused
+                ? AGENDA_ACCENT
+                : todayFlag
+                  ? 'rgba(6,182,212,0.40)'
+                  : 'var(--border-soft)'}`,
+              color: isFocused ? '#fff' : 'var(--text-primary)',
+              transform: isFocused ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: isFocused ? '0 8px 20px rgba(6,182,212,0.25)' : 'none',
+            }}
+          >
+            <div
+              className="text-[9px] uppercase tracking-wider leading-none mb-1"
+              style={{
+                opacity: isFocused ? 0.9 : (isWeekend ? 0.5 : 0.7),
+                fontWeight: todayFlag ? 700 : 500,
+              }}
+            >
+              {dayName}
+            </div>
+            <div
+              className="text-lg font-bold tabular-nums leading-none"
+              style={{ fontFamily: 'JetBrains Mono, monospace' }}
+            >
+              {d.getDate()}
+            </div>
+            {/* Dots de eventos OU "vazio" */}
+            <div className="flex gap-0.5 mt-1.5 h-2 items-center justify-center" style={{ minHeight: 8 }}>
+              {isFree ? (
+                <span className="text-[7px] opacity-50" style={{ color: isFocused ? '#fff' : 'var(--text-muted)' }}>○</span>
+              ) : (
+                colors.slice(0, 3).map((c, i) => (
+                  <span
+                    key={i}
+                    className="rounded-full"
+                    style={{
+                      width: 5,
+                      height: 5,
+                      background: isFocused ? '#fff' : `var(--accent-${c})`,
+                    }}
+                  />
+                ))
+              )}
+              {colors.length > 3 && (
+                <span className="text-[7px] font-bold ml-0.5" style={{ color: isFocused ? '#fff' : 'var(--text-muted)' }}>
+                  +
+                </span>
+              )}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// Seção de um dia na lista cronológica
+function WeekDaySection({ date, events, isFocused, onClickEvent, onCreate, onJumpToDay }) {
   const d = parseISODate(date)
-  const dayNum = d.getDate()
   const todayFlag = isToday(date)
+  const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][d.getDay()]
+  const dayNum = d.getDate()
   const monthNum = d.getMonth() + 1
-  const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()]
 
   const timed = events.filter((e) => !!e.time).sort((a, b) => (a.time || '').localeCompare(b.time || ''))
   const allDay = events.filter((e) => !e.time)
 
+  const totalMins = events.reduce((s, ev) => s + (computeDurationMinutes(ev.time, ev.end_time) || 0), 0)
+
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        background: todayFlag ? 'rgba(6,182,212,0.06)' : 'var(--bg-elev2)',
-        border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.3)' : 'var(--border-soft)'}`,
-      }}
-    >
-      {/* Cabeçalho do dia */}
-      <button
-        onClick={onJumpToDay}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:opacity-90"
-        style={{ borderBottom: events.length > 0 ? '1px solid var(--border-soft)' : 'none' }}
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div
-            className="flex flex-col items-center justify-center rounded-xl shrink-0"
+    <div id={`week-day-${date}`} className="scroll-mt-4">
+      {/* Separador elegante */}
+      <div className="flex items-center gap-3 mb-2.5 px-1">
+        <div className="flex items-baseline gap-2">
+          {todayFlag && (
+            <span
+              className="text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full"
+              style={{
+                background: AGENDA_ACCENT,
+                color: '#fff',
+                boxShadow: '0 4px 8px rgba(6,182,212,0.3)',
+              }}
+            >
+              Hoje
+            </span>
+          )}
+          <span
             style={{
-              width: 44, height: 44,
-              background: todayFlag ? AGENDA_ACCENT : 'var(--bg-elev1)',
-              color: todayFlag ? '#fff' : 'var(--text-primary)',
+              fontFamily: 'Fraunces, serif',
+              fontWeight: 500,
+              color: todayFlag ? AGENDA_ACCENT : 'var(--text-primary)',
+              fontStyle: 'italic',
             }}
+            className="text-lg leading-none"
           >
-            <div className="text-[9px] uppercase tracking-wider leading-none mt-1" style={{ opacity: todayFlag ? 0.9 : 0.7 }}>
-              {dayName}
-            </div>
-            <div className="text-base font-bold tabular-nums leading-none mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-              {dayNum}
-            </div>
-            <div className="text-[8px] tabular-nums leading-none mt-0.5 mb-1" style={{ opacity: 0.6 }}>
-              /{String(monthNum).padStart(2, '0')}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              {todayFlag && <span style={{ color: AGENDA_ACCENT }}>Hoje · </span>}
-              {events.length === 0
-                ? <span style={{ color: 'var(--text-tertiary)' }}>Dia livre</span>
-                : `${events.length} ${events.length === 1 ? 'compromisso' : 'compromissos'}`}
-            </div>
-            {timed.length > 0 && (
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-                {timed[0].time?.slice(0, 5)}{timed.length > 1 ? ` … ${timed[timed.length - 1].time?.slice(0, 5)}` : ''}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); onCreate() }}
-            className="p-1.5 rounded-lg transition hover:bg-white/5"
-            title="Adicionar nesse dia"
-            style={{ color: AGENDA_ACCENT }}
+            {dayName}
+          </span>
+          <span
+            className="text-xs tabular-nums"
+            style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace' }}
           >
-            <Plus size={15} />
-          </button>
-          <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+            {String(dayNum).padStart(2, '0')}/{String(monthNum).padStart(2, '0')}
+          </span>
         </div>
-      </button>
 
-      {/* Mini-timeline horizontal (barra de ocupação 6h-23h) */}
-      {timed.length > 0 && (
-        <div className="px-3 pt-2 pb-1">
-          <MiniTimelineBar events={timed} onClickEvent={onClickEvent} />
-        </div>
-      )}
+        <div className="flex-1 h-px" style={{ background: todayFlag ? 'rgba(6,182,212,0.30)' : 'var(--border-soft)' }} />
 
-      {/* Lista de eventos (compacta) */}
-      {events.length > 0 && (
-        <div className="px-3 pb-3 pt-1 space-y-1">
+        {events.length > 0 ? (
+          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            {events.length} · {formatDurationShort(totalMins) || '—'}
+          </span>
+        ) : (
+          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            livre
+          </span>
+        )}
+      </div>
+
+      {/* Conteúdo do dia */}
+      {events.length === 0 ? (
+        <button
+          onClick={onCreate}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl transition hover:opacity-80 group"
+          style={{
+            background: 'transparent',
+            border: '1.5px dashed var(--border-soft)',
+            color: 'var(--text-muted)',
+          }}
+        >
+          <span className="text-[11px]">🌿 Dia livre</span>
+          <span className="text-[10px] opacity-0 group-hover:opacity-100 transition" style={{ color: AGENDA_ACCENT }}>
+            · toque pra adicionar
+          </span>
+        </button>
+      ) : (
+        <div className="space-y-1.5">
           {allDay.map((ev) => (
-            <CompactEventRow
+            <WeekEventCard
               key={`${ev.id}:${ev.occurrenceDate}`}
               event={ev}
               onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
@@ -970,92 +1249,100 @@ function WeekDayRow({ date, events, onClickEvent, onCreate, onJumpToDay }) {
             />
           ))}
           {timed.map((ev) => (
-            <CompactEventRow
+            <WeekEventCard
               key={`${ev.id}:${ev.occurrenceDate}`}
               event={ev}
               onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
             />
           ))}
+          {/* Botão adicionar pequeno no fim */}
+          <button
+            onClick={onCreate}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium transition hover:opacity-90"
+            style={{
+              background: 'rgba(6,182,212,0.06)',
+              border: '1px solid rgba(6,182,212,0.20)',
+              color: AGENDA_ACCENT,
+            }}
+          >
+            <Plus size={12} strokeWidth={2.5} /> adicionar nesse dia
+          </button>
         </div>
       )}
     </div>
   )
 }
 
-// Mini-barra horizontal mostrando ocupação visual do dia (6h-23h)
-function MiniTimelineBar({ events, onClickEvent }) {
-  const START_H = 6
-  const END_H = 23
-  const range = END_H - START_H
-  const positions = events.map((ev) => {
-    const [sh, sm] = (ev.time || '00:00').split(':').map(Number)
-    let startFrac = ((sh - START_H) + (sm || 0) / 60) / range
-    let endFrac
-    if (ev.end_time) {
-      const [eh, em] = ev.end_time.split(':').map(Number)
-      endFrac = ((eh - START_H) + (em || 0) / 60) / range
-    } else {
-      endFrac = startFrac + (30 / 60) / range  // 30 min default
-    }
-    return {
-      ev,
-      startFrac: Math.max(0, Math.min(1, startFrac)),
-      endFrac: Math.max(0, Math.min(1, endFrac)),
-    }
-  })
-
-  return (
-    <div className="space-y-1">
-      <div
-        className="relative rounded-full"
-        style={{ height: 10, background: 'var(--bg-elev1)' }}
-      >
-        {positions.map(({ ev, startFrac, endFrac }, i) => {
-          const colorVar = `var(--accent-${ev.color || 'cyan'})`
-          const left = `${startFrac * 100}%`
-          const width = `${Math.max(2, (endFrac - startFrac) * 100)}%`
-          return (
-            <button
-              key={`${ev.id}:${i}`}
-              onClick={(e) => { e.stopPropagation(); onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate }) }}
-              className="absolute top-0 bottom-0 rounded-full transition hover:scale-y-150 origin-center"
-              style={{ left, width, background: colorVar }}
-              title={`${ev.title} · ${ev.time?.slice(0, 5)}`}
-            />
-          )
-        })}
-      </div>
-      <div className="flex justify-between text-[8px] tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-        <span>6h</span>
-        <span>12h</span>
-        <span>18h</span>
-        <span>23h</span>
-      </div>
-    </div>
-  )
-}
-
-// Linha compacta de evento na semana
-function CompactEventRow({ event, onClick, allDay }) {
+// Card de evento na semana — visual elegante com hora destacada
+function WeekEventCard({ event, onClick, allDay }) {
   const colorKey = event.color || 'cyan'
   const colorVar = `var(--accent-${colorKey})`
+  const tintBg = getColorTint(colorKey, 'bg')
+  const tintBorder = getColorTint(colorKey, 'border')
+  const dur = computeDurationMinutes(event.time, event.end_time)
+
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition hover:bg-white/5 text-left"
+      className="w-full flex items-stretch gap-0 rounded-2xl text-left transition hover:scale-[1.01] active:scale-[0.99] overflow-hidden"
+      style={{
+        background: tintBg,
+        border: `1px solid ${tintBorder}`,
+      }}
     >
-      <div style={{ width: 3, height: 18, background: colorVar, borderRadius: 2, flexShrink: 0 }} />
-      <div className="text-[10px] tabular-nums shrink-0" style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace', minWidth: 38 }}>
-        {allDay ? 'dia' : event.time?.slice(0, 5)}
+      {/* Coluna de hora destacada */}
+      <div
+        className="flex flex-col items-center justify-center px-3 py-2.5 shrink-0"
+        style={{
+          background: colorVar,
+          color: '#fff',
+          minWidth: 60,
+        }}
+      >
+        {allDay ? (
+          <div className="text-[10px] uppercase font-bold tracking-wider">Dia<br/>todo</div>
+        ) : (
+          <>
+            <div className="text-sm font-bold tabular-nums leading-none" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+              {event.time?.slice(0, 5)}
+            </div>
+            {event.end_time && (
+              <div className="text-[9px] tabular-nums leading-none mt-1 opacity-80" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                –{event.end_time.slice(0, 5)}
+              </div>
+            )}
+            {dur && dur >= 60 && (
+              <div className="text-[8px] mt-1 opacity-70 uppercase tracking-wider">
+                {formatDurationShort(dur)}
+              </div>
+            )}
+          </>
+        )}
       </div>
-      <div className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
-        {event.title}
+
+      {/* Conteúdo */}
+      <div className="flex-1 min-w-0 px-3 py-2.5">
+        <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+          {event.title}
+        </div>
+        {(event.location || event.notes) && (
+          <div className="text-[10px] mt-1 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+            {event.location && (
+              <span className="inline-flex items-center gap-1 truncate">
+                <MapPin size={9} /> {event.location}
+              </span>
+            )}
+            {event.notes && (
+              <span className="truncate max-w-[140px]">— {event.notes}</span>
+            )}
+          </div>
+        )}
+        {event.isOccurrence && (
+          <div className="text-[9px] mt-1 inline-flex items-center gap-1" style={{ color: colorVar }}>
+            <Repeat size={9} /> recorrente
+          </div>
+        )}
       </div>
-      {event.location && (
-        <span className="text-[10px] truncate shrink-0 max-w-[80px]" style={{ color: 'var(--text-muted)' }}>
-          📍 {event.location}
-        </span>
-      )}
     </button>
   )
 }
