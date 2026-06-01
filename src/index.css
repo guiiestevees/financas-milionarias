@@ -338,3 +338,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.02); }
 }
+
+/* Indicador flutuante do drag entra de cima */
+@keyframes dragIndicatorIn {
+  0% { transform: translate(-50%, -20px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}

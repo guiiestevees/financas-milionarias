@@ -1512,10 +1512,13 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
 
   // Drag state
   const [dragging, setDragging] = useState(null)
-  // dragging = { event, originalDate, durationMin, pointerY, pointerX, targetDate, targetStartMin }
+  // dragging = { event, originalDate, durationMin, pointerY, pointerX, targetDate, targetStartMin, targetColIdx }
 
   const gridRef = useRef(null)
   const columnsContainerRef = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const lastSnapRef = useRef(null)  // pra detectar mudança de slot e vibrar
+  const autoScrollRef = useRef(null)
 
   // Linhas de hora a cada 1h
   const allHours = []
@@ -1528,7 +1531,6 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
     const xInGrid = clientX - rect.left
     const yInGrid = clientY - rect.top
     // Detecta coluna pelo X
-    const totalColsWidth = (COL_WIDTH + COL_GAP) * 7 - COL_GAP
     const colIdx = Math.max(0, Math.min(6, Math.floor((xInGrid + COL_GAP / 2) / (COL_WIDTH + COL_GAP))))
     // Detecta hora pelo Y (snap em SNAP_MIN)
     const minutesInGrid = Math.max(0, Math.min(totalHours * 60 - SNAP_MIN, (yInGrid / PX_PER_HOUR) * 60))
@@ -1541,6 +1543,22 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
     }
   }
 
+  // Auto-scroll horizontal quando drag chega nas bordas
+  const handleAutoScroll = (clientX) => {
+    if (!scrollContainerRef.current) return
+    const rect = scrollContainerRef.current.getBoundingClientRect()
+    const margin = 60  // zona de auto-scroll
+    let dx = 0
+    if (clientX < rect.left + margin) {
+      dx = -((rect.left + margin - clientX) / margin) * 8  // até 8px/frame
+    } else if (clientX > rect.right - margin) {
+      dx = ((clientX - (rect.right - margin)) / margin) * 8
+    }
+    if (dx !== 0) {
+      scrollContainerRef.current.scrollLeft += dx
+    }
+  }
+
   // Handlers de drag
   const handleDragStart = (ev, durationMin, originalDate) => {
     setDragging({
@@ -1550,8 +1568,10 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
       targetDate: originalDate,
       targetStartMin: null,
     })
+    lastSnapRef.current = null
     // Bloqueia scroll do body durante drag
     document.body.style.userSelect = 'none'
+    document.body.style.overflow = 'hidden'
   }
 
   const handlePointerMove = (e) => {
@@ -1559,12 +1579,23 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
     e.preventDefault()
     const target = computeTarget(e.clientX, e.clientY)
     if (!target) return
+
+    // Vibração sutil quando muda de slot (15min ou de dia)
+    const snapKey = `${target.targetDate}:${target.targetStartMin}`
+    if (lastSnapRef.current && lastSnapRef.current !== snapKey && navigator.vibrate) {
+      navigator.vibrate(8)
+    }
+    lastSnapRef.current = snapKey
+
     setDragging((prev) => prev && { ...prev, ...target, pointerX: e.clientX, pointerY: e.clientY })
+    handleAutoScroll(e.clientX)
   }
 
   const handlePointerUp = async (e) => {
     if (!dragging) return
     document.body.style.userSelect = ''
+    document.body.style.overflow = ''
+    lastSnapRef.current = null
     const finalTarget = computeTarget(e.clientX, e.clientY)
     setDragging(null)
     if (!finalTarget || !onMoveEvent) return
@@ -1615,12 +1646,18 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
         </div>
       </div>
 
+      {/* Overlay GIGANTE flutuante no topo da tela durante drag */}
+      {dragging && dragging.targetStartMin != null && (
+        <DragFloatingIndicator dragging={dragging} />
+      )}
+
       <div
         className="rounded-2xl overflow-hidden"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
       >
         {/* Scroll horizontal container */}
         <div
+          ref={scrollContainerRef}
           className="overflow-x-auto overflow-y-hidden"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
@@ -1761,13 +1798,20 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
 
                 {/* GHOST do evento sendo arrastado */}
                 {dragging && dragging.targetStartMin != null && (
-                  <DragGhost
-                    dragging={dragging}
-                    pxPerHour={PX_PER_HOUR}
-                    colWidth={COL_WIDTH}
-                    colGap={COL_GAP}
-                    weekDates={weekDates}
-                  />
+                  <>
+                    <DragGhost
+                      dragging={dragging}
+                      pxPerHour={PX_PER_HOUR}
+                      colWidth={COL_WIDTH}
+                      colGap={COL_GAP}
+                      weekDates={weekDates}
+                    />
+                    {/* Linha guia horizontal atravessando toda a grade no horário alvo */}
+                    <DragGuideLine
+                      dragging={dragging}
+                      pxPerHour={PX_PER_HOUR}
+                    />
+                  </>
                 )}
               </div>
             </div>
@@ -1971,7 +2015,7 @@ function DraggableEventBlock({ ev, top, height, durationMin, isDragging, origina
 }
 
 // ============================================================
-// DragGhost — preview do evento sendo arrastado, posicionado no slot alvo
+// DragGhost — preview do evento no slot alvo (sem tooltip, indicador é externo)
 // ============================================================
 function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
   const { event, durationMin, targetDate, targetStartMin } = dragging
@@ -1985,7 +2029,6 @@ function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
   const height = Math.max(24, (durationMin / 60) * pxPerHour)
   const left = colIdx * (colWidth + colGap)
 
-  // Formata horário alvo
   const startH = Math.floor(targetStartMin / 60)
   const startM = targetStartMin % 60
   const endTotalMin = targetStartMin + durationMin
@@ -1993,66 +2036,157 @@ function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
   const endM = endTotalMin % 60
   const newTimeStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}–${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
 
-  const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][parseISODate(targetDate).getDay()]
+  return (
+    <div
+      className="absolute pointer-events-none rounded-lg z-40"
+      style={{
+        top: top + 1,
+        left: left + 2,
+        width: colWidth - 4,
+        height: height - 2,
+        background: getColorTint(colorKey, 'bg'),
+        border: `2px solid ${colorVar}`,
+        boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+        animation: 'dragGhostPulse 1.2s ease-in-out infinite',
+      }}
+    >
+      <div className="flex h-full">
+        <div style={{ width: 3, background: colorVar, flexShrink: 0 }} />
+        <div className="flex-1 min-w-0 p-1.5">
+          <div
+            className="text-[10px] font-bold tabular-nums leading-none"
+            style={{ color: colorVar, fontFamily: 'JetBrains Mono, monospace' }}
+          >
+            {newTimeStr}
+          </div>
+          <div
+            className="text-[11px] mt-0.5 leading-tight font-medium"
+            style={{ color: 'var(--text-primary)', overflow: 'hidden' }}
+          >
+            {event.title}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// DragGuideLine — linha horizontal grossa atravessando toda a grade
+// no horário alvo (visual de "onde vai cair")
+// ============================================================
+function DragGuideLine({ dragging, pxPerHour }) {
+  const { event, targetStartMin } = dragging
+  if (targetStartMin == null) return null
+  const colorVar = `var(--accent-${event.color || 'cyan'})`
+  const top = ((targetStartMin / 60) - WEEK_DAY_START_H) * pxPerHour
 
   return (
-    <>
-      {/* Preview do bloco no slot alvo */}
+    <div
+      className="absolute left-0 right-0 pointer-events-none z-30"
+      style={{ top, height: 2 }}
+    >
+      {/* Linha tracejada animada */}
       <div
-        className="absolute pointer-events-none rounded-lg z-40"
+        className="h-full w-full"
         style={{
-          top: top + 1,
-          left: left + 2,
-          width: colWidth - 4,
-          height: height - 2,
-          background: getColorTint(colorKey, 'bg'),
-          border: `2px solid ${colorVar}`,
-          boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
-          animation: 'dragGhostPulse 1.2s ease-in-out infinite',
+          backgroundImage: `repeating-linear-gradient(90deg, ${colorVar} 0 8px, transparent 8px 14px)`,
+          opacity: 0.65,
+        }}
+      />
+      {/* Label de hora à esquerda da linha */}
+      <div
+        className="absolute right-full mr-1 -top-2 text-[10px] tabular-nums font-bold px-1.5 py-0.5 rounded shadow"
+        style={{
+          background: colorVar,
+          color: '#fff',
+          fontFamily: 'JetBrains Mono, monospace',
+          whiteSpace: 'nowrap',
         }}
       >
-        <div className="flex h-full">
-          <div style={{ width: 3, background: colorVar, flexShrink: 0 }} />
-          <div className="flex-1 min-w-0 p-1.5">
-            <div
-              className="text-[10px] font-bold tabular-nums leading-none"
-              style={{ color: colorVar, fontFamily: 'JetBrains Mono, monospace' }}
-            >
-              {newTimeStr}
+        {String(Math.floor(targetStartMin / 60)).padStart(2, '0')}:{String(targetStartMin % 60).padStart(2, '0')}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// DragFloatingIndicator — overlay GIGANTE sticky no topo da tela
+// Sempre visível, fora do scroll container, com o dia + hora exata
+// ============================================================
+function DragFloatingIndicator({ dragging }) {
+  const { event, durationMin, targetDate, targetStartMin } = dragging
+  if (targetStartMin == null) return null
+
+  const colorVar = `var(--accent-${event.color || 'cyan'})`
+  const startH = Math.floor(targetStartMin / 60)
+  const startM = targetStartMin % 60
+  const endTotalMin = targetStartMin + durationMin
+  const endH = Math.floor(endTotalMin / 60)
+  const endM = endTotalMin % 60
+  const startStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`
+  const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+
+  const d = parseISODate(targetDate)
+  const todayFlag = isToday(targetDate)
+  const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][d.getDay()]
+  const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][d.getMonth()]
+
+  return (
+    <div
+      className="fixed left-1/2 z-[100] pointer-events-none"
+      style={{
+        top: 'calc(env(safe-area-inset-top, 0) + 12px)',
+        transform: 'translateX(-50%)',
+        animation: 'dragIndicatorIn 0.18s ease-out forwards',
+      }}
+    >
+      <div
+        className="rounded-2xl px-5 py-3 shadow-2xl flex items-center gap-4"
+        style={{
+          background: 'rgba(15, 23, 42, 0.92)',
+          backdropFilter: 'blur(16px)',
+          border: `2px solid ${colorVar}`,
+          boxShadow: `0 12px 40px rgba(0,0,0,0.5), 0 0 0 4px ${colorVar}33`,
+          minWidth: 240,
+          maxWidth: 'calc(100vw - 32px)',
+        }}
+      >
+        {/* Cor + título */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div style={{ width: 4, height: 36, background: colorVar, borderRadius: 2 }} />
+          <div className="min-w-0">
+            <div className="text-[9px] uppercase tracking-widest font-bold opacity-60" style={{ color: '#fff' }}>
+              Movendo
             </div>
-            <div
-              className="text-[11px] mt-0.5 leading-tight font-medium"
-              style={{ color: 'var(--text-primary)', overflow: 'hidden' }}
-            >
+            <div className="text-xs font-semibold truncate" style={{ color: '#fff', maxWidth: 140 }}>
               {event.title}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tooltip mostrando dia/hora alvo */}
-      <div
-        className="absolute pointer-events-none z-50 rounded-xl px-3 py-2 text-xs font-semibold shadow-xl"
-        style={{
-          top: top - 36,
-          left: left + colWidth / 2,
-          transform: 'translateX(-50%)',
-          background: colorVar,
-          color: '#fff',
-          boxShadow: `0 8px 20px ${colorVar}99`,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        → {dayName}, {newTimeStr.split('–')[0]}
-        <div
-          className="absolute left-1/2 -bottom-1 w-2 h-2 rotate-45"
-          style={{
-            background: colorVar,
-            transform: 'translateX(-50%) rotate(45deg)',
-          }}
-        />
+        <div className="h-8 w-px" style={{ background: 'rgba(255,255,255,0.15)' }} />
+
+        {/* Dia + horário grandes */}
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: colorVar }}>
+            {todayFlag ? 'HOJE' : dayName.slice(0, 3).toUpperCase()} · {d.getDate()} {monthName.slice(0, 3)}
+          </div>
+          <div
+            className="text-2xl font-bold tabular-nums leading-tight"
+            style={{
+              color: '#fff',
+              fontFamily: 'JetBrains Mono, monospace',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {startStr}
+            <span className="text-sm opacity-70 font-normal mx-1">–</span>
+            <span className="text-base opacity-70">{endStr}</span>
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   )
 }
 
