@@ -204,7 +204,6 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
                 O que é?
               </label>
               <input
-                autoFocus
                 type="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
