@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle, Mail, Loader2, ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react'
+import { MessageCircle, Mail, Loader2, ArrowLeft, CheckCircle2, RotateCcw, ClipboardPaste } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useVerified } from '../../hooks/useVerified'
 import { supabase } from '../../lib/supabase'
@@ -16,6 +16,13 @@ import { playSuccess } from '../../lib/sounds'
 //   - 'verifying': checando código
 //   - 'verified': sucesso (transição rápida pro app)
 //   - 'email_sent': fallback de email disparado
+//
+// PERSISTÊNCIA: state, code, phoneMasked, cooldown são salvos em sessionStorage.
+// Isso preserva a tela "awaiting" quando o usuário sai pro WhatsApp pra copiar o
+// código e volta — em mobile (especialmente iOS) o navegador pode desmontar
+// o componente quando você troca de app.
+
+const SS_KEY = 'domus:verify-state'
 
 const inputStyle = {
   background: 'var(--bg-elev1)',
@@ -32,19 +39,58 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
+// Lê o state salvo no sessionStorage (se houver)
+function readSaved() {
+  try {
+    const raw = sessionStorage.getItem(SS_KEY)
+    if (!raw) return null
+    const obj = JSON.parse(raw)
+    // Expira após 15 min — não vale a pena restaurar
+    if (obj.savedAt && Date.now() - obj.savedAt > 15 * 60 * 1000) {
+      sessionStorage.removeItem(SS_KEY)
+      return null
+    }
+    return obj
+  } catch { return null }
+}
+
+function saveState(state, extras) {
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({
+      state, ...extras, savedAt: Date.now(),
+    }))
+  } catch {}
+}
+
+function clearSaved() {
+  try { sessionStorage.removeItem(SS_KEY) } catch {}
+}
+
 export default function VerifyAccount() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { refresh: refreshVerified } = useVerified()
 
-  const [state, setState] = useState('idle')
+  // Inicialização — restaura do sessionStorage se houver (ex.: voltou do WhatsApp)
+  const saved = readSaved()
+  const [state, setState] = useState(saved?.state || 'idle')
   const [error, setError] = useState('')
-  const [code, setCode] = useState('')
-  const [phoneMasked, setPhoneMasked] = useState('')
-  const [cooldown, setCooldown] = useState(0)
+  const [code, setCode] = useState(saved?.code || '')
+  const [phoneMasked, setPhoneMasked] = useState(saved?.phoneMasked || '')
+  const [cooldown, setCooldown] = useState(saved?.cooldown || 0)
+  const [pasteHint, setPasteHint] = useState('')  // mensagem quando colar dá erro
   const codeInputRef = useRef(null)
 
   const phoneFromMeta = user?.user_metadata?.phone || ''
+
+  // Persiste mudanças do state — sobrevive desmontagem do componente
+  useEffect(() => {
+    if (state === 'awaiting' || state === 'verifying') {
+      saveState(state, { code, phoneMasked, cooldown })
+    } else if (state === 'verified' || state === 'idle') {
+      clearSaved()
+    }
+  }, [state, code, phoneMasked, cooldown])
 
   // Cooldown de reenvio
   useEffect(() => {
@@ -81,7 +127,7 @@ export default function VerifyAccount() {
       const data = await res.json()
 
       if (data.alreadyVerified) {
-        // Já tava verificado por algum motivo — redireciona
+        clearSaved()
         await refreshVerified()
         navigate('/app', { replace: true })
         return
@@ -90,7 +136,6 @@ export default function VerifyAccount() {
       if (!res.ok) {
         setError(data.error || 'Falha ao enviar código')
         setState('idle')
-        // Se backend sinalizou fallback, mostra opção
         if (data.fallback === 'email' && method === 'whatsapp') {
           setError((data.error || 'WhatsApp indisponível.') + ' Clique abaixo pra receber por email.')
         }
@@ -102,9 +147,9 @@ export default function VerifyAccount() {
         return
       }
 
-      // WhatsApp enviado
       setPhoneMasked(data.phoneMasked || '')
       setCooldown(60)
+      setCode('')
       setState('awaiting')
     } catch (e) {
       console.error('sendCode error:', e)
@@ -113,8 +158,9 @@ export default function VerifyAccount() {
     }
   }
 
-  const checkCode = async () => {
-    if (code.length !== 6) return
+  const checkCode = async (codeOverride) => {
+    const codeToCheck = codeOverride ?? code
+    if (codeToCheck.length !== 6) return
     setError('')
     setState('verifying')
     try {
@@ -130,7 +176,7 @@ export default function VerifyAccount() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: codeToCheck }),
       })
       const data = await res.json()
 
@@ -142,6 +188,7 @@ export default function VerifyAccount() {
       }
 
       setState('verified')
+      clearSaved()
       playSuccess()
       await refreshVerified()
       setTimeout(() => navigate('/app', { replace: true }), 1200)
@@ -149,6 +196,29 @@ export default function VerifyAccount() {
       console.error('checkCode error:', e)
       setError('Erro de rede. Tente novamente.')
       setState('awaiting')
+    }
+  }
+
+  // Lê código do clipboard (botão Colar)
+  const handlePaste = async () => {
+    setPasteHint('')
+    try {
+      const text = await navigator.clipboard.readText()
+      const digits = (text || '').replace(/\D/g, '').slice(0, 6)
+      if (digits.length === 6) {
+        setCode(digits)
+        // Auto-submit logo após colar 6 dígitos
+        setTimeout(() => checkCode(digits), 150)
+      } else if (digits.length > 0) {
+        setCode(digits)
+        setPasteHint('Faltam dígitos — copie o código completo')
+      } else {
+        setPasteHint('Não encontrei um código no clipboard — copie do WhatsApp e tente novamente')
+      }
+    } catch (e) {
+      // Navegador bloqueou clipboard.readText (algumas combinações de iOS Safari)
+      setPasteHint('Permissão negada — toque no campo e cole com 👆')
+      codeInputRef.current?.focus()
     }
   }
 
@@ -163,10 +233,10 @@ export default function VerifyAccount() {
         <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-2xl mb-2">
           Conta confirmada
         </h2>
-        <p className="text-white/65 text-sm">
+        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
           🎩 Excelente. Abrindo o app...
         </p>
-        <Loader2 size={20} className="animate-spin mx-auto mt-4 text-white/45" />
+        <Loader2 size={20} className="animate-spin mx-auto mt-4" style={{ color: 'var(--text-muted)' }} />
       </div>
     )
   }
@@ -182,16 +252,17 @@ export default function VerifyAccount() {
         <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-2xl">
           Email enviado
         </h2>
-        <p className="text-white/65 text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
           Mandamos um link de confirmação pro seu email.
           Abra a mensagem, clique no link, e seu acesso será liberado automaticamente.
         </p>
-        <p className="text-xs text-white/40">
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
           Não recebeu? Confira a pasta de spam ou volte e tente o WhatsApp.
         </p>
         <button
-          onClick={() => { setState('idle'); setError('') }}
-          className="text-xs text-white/55 hover:text-white/85 inline-flex items-center gap-1 transition"
+          onClick={() => { setState('idle'); setError(''); clearSaved() }}
+          className="text-xs inline-flex items-center gap-1 transition hover:underline"
+          style={{ color: 'var(--text-secondary)' }}
         >
           <ArrowLeft size={11} /> Voltar
         </button>
@@ -205,7 +276,7 @@ export default function VerifyAccount() {
         <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-2xl mb-1">
           Confirme sua conta
         </h2>
-        <p className="text-sm text-white/55">
+        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
           Vou te mandar um código pra confirmar que você é você.
         </p>
       </div>
@@ -276,7 +347,7 @@ export default function VerifyAccount() {
       {state === 'sending' && (
         <div className="text-center py-8">
           <Loader2 size={28} className="animate-spin mx-auto mb-3" style={{ color: '#d4af37' }} />
-          <p className="text-sm text-white/65">Enviando código…</p>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Enviando código…</p>
         </div>
       )}
 
@@ -292,6 +363,32 @@ export default function VerifyAccount() {
             )}
           </div>
 
+          {/* Botão de COLAR — bem visível, fácil pra mobile */}
+          <button
+            type="button"
+            onClick={handlePaste}
+            disabled={state === 'verifying'}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition disabled:opacity-50"
+            style={{
+              background: 'rgba(37,211,102,0.1)',
+              border: '1px solid rgba(37,211,102,0.35)',
+              color: '#25D366',
+            }}
+          >
+            <ClipboardPaste size={15} />
+            Colar código copiado
+          </button>
+
+          {pasteHint && (
+            <div className="text-xs text-center px-2" style={{ color: 'var(--text-muted)' }}>
+              {pasteHint}
+            </div>
+          )}
+
+          <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
+            ou digite manualmente:
+          </div>
+
           <input
             ref={codeInputRef}
             type="text"
@@ -301,9 +398,8 @@ export default function VerifyAccount() {
               const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 6)
               setCode(onlyDigits)
               if (onlyDigits.length === 6) {
-                // Auto-submit
                 setTimeout(() => {
-                  if (onlyDigits.length === 6) checkCode()
+                  if (onlyDigits.length === 6) checkCode(onlyDigits)
                 }, 150)
               }
             }}
@@ -315,7 +411,7 @@ export default function VerifyAccount() {
           />
 
           <button
-            onClick={checkCode}
+            onClick={() => checkCode()}
             disabled={code.length !== 6 || state === 'verifying'}
             className="w-full py-3 rounded-xl text-sm font-semibold transition disabled:opacity-40"
             style={{

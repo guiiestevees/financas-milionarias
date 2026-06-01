@@ -1,10 +1,10 @@
-import { LayoutDashboard, Wallet, Receipt, Vault, Settings } from 'lucide-react'
+import { LayoutDashboard, Wallet, Receipt, Coins, Settings } from 'lucide-react'
 
 const TABS = [
   { id: 'painel',   label: 'Painel',  icon: LayoutDashboard },
   { id: 'receitas', label: 'Entradas', icon: Wallet },
   { id: 'gastos',   label: 'Gastos',  icon: Receipt },
-  { id: 'cofres',   label: 'Cofres',  icon: Vault },
+  { id: 'cofres',   label: 'Cofres',  icon: Coins },
   { id: 'config',   label: 'Ajustes', icon: Settings },
 ]
 
@@ -52,7 +52,7 @@ export function Tabs({ tab, setTab }) {
                   style={{ background: 'var(--accent-gold)' }}
                 />
               )}
-              <Icon size={24} strokeWidth={active ? 2.2 : 1.8} />
+              <Icon size={26} strokeWidth={active ? 2.2 : 1.8} />
               <span className="text-[11px] sm:text-[12px] font-medium" style={{ letterSpacing: '0.01em' }}>
                 {it.label}
               </span>
