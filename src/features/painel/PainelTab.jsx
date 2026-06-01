@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Sparkles, ArrowUpRight, ArrowDownRight, CreditCard, Users, Target,
   Banknote, Bell, Check, Circle, AlertTriangle, CheckCircle2, Calendar,
   X, Plus, Pencil, Trash2, ChevronDown, PiggyBank, ArrowLeftRight, Wallet,
-  MessageCircle, PieChart as PieChartIcon,
+  MessageCircle, PieChart as PieChartIcon, PlayCircle, ArrowRight,
 } from 'lucide-react'
 import { Card, Empty, SectionTitle, MetricCard, Btn, Field, MoneyInput, Select } from '../../components/ui'
 import EditDespesaModal from '../gastos/EditDespesaModal'
@@ -1226,6 +1227,9 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
   return (
     <>
     <div className="space-y-6">
+      {/* Botão pra acessar a página de tutoriais */}
+      <TutorialBanner />
+
       {pendingActions.length > 0 && (
         <PendingPanel
           pendings={pendingActions}
@@ -1301,4 +1305,37 @@ function formatMonthLabelPT(ym) {
   if (!ym) return ''
   const [y, m] = ym.split('-').map(Number)
   return `${PT_MONTH_NAMES[m - 1]} de ${y}`
+}
+
+// ---------- TutorialBanner ----------
+// Faixa sutil no topo do painel que leva pra página /tutorial.
+function TutorialBanner() {
+  return (
+    <Link
+      to="/tutorial"
+      className="block rounded-2xl p-4 sm:p-5 transition hover:opacity-95"
+      style={{
+        background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
+        border: '1px solid rgba(212,175,55,0.3)',
+      }}
+    >
+      <div className="flex items-center gap-3.5">
+        <div
+          className="p-2.5 rounded-xl shrink-0"
+          style={{ background: 'rgba(212,175,55,0.18)', color: 'var(--accent-gold)' }}
+        >
+          <PlayCircle size={22} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
+            🎩 Como usar o Domus
+          </div>
+          <div className="text-xs sm:text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            Vídeos curtos pra você dominar o app em minutos.
+          </div>
+        </div>
+        <ArrowRight size={18} className="shrink-0" style={{ color: 'var(--accent-gold)' }} />
+      </div>
+    </Link>
+  )
 }

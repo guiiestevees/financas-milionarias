@@ -149,8 +149,7 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   }
 
   const displayName = brand?.name?.trim() || 'Seu nome aqui'
-  // "Domus" é fixo — não é mais editável. Usuário só personaliza o próprio nome.
-  const appTitle = 'Domus'
+  // Nome do app é fixo: "Domus App". Apenas o nome do usuário é editável.
   const hasName = !!brand?.name?.trim()
 
   return (
@@ -194,8 +193,9 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
           style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
           className="text-4xl sm:text-5xl"
         >
+          Domus{' '}
           <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
-            {appTitle}.
+            App.
           </em>
         </h1>
       </div>

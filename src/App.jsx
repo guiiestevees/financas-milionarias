@@ -12,6 +12,7 @@ import Confirm from './pages/auth/Confirm'
 import VerifyAccount from './pages/auth/VerifyAccount'
 import Comecar from './pages/auth/Comecar'
 import AdminPage from './pages/admin/AdminPage'
+import Tutorial from './pages/app/Tutorial'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
         <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+        <Route path="/tutorial" element={<ProtectedRoute><Tutorial /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfUse />} />
 

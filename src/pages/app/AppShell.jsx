@@ -17,7 +17,7 @@ import ConfigTab from '../../features/config/ConfigTab'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import VerificationBanner from '../../components/VerificationBanner'
 import SubscriptionBlocked from '../../components/SubscriptionBlocked'
-import WelcomeTour from '../../components/WelcomeTour'
+// import WelcomeTour from '../../components/WelcomeTour'  // removido — agora usamos a página /tutorial acessível pelo painel
 import { useSubscription } from '../../hooks/useSubscription'
 
 // Chave do localStorage pra marcar que o tour foi dispensado
@@ -56,34 +56,11 @@ export default function AppShell() {
     if (next !== tab) setTabRaw(next)
   }, [searchParams, tab])
   const [saving, setSaving] = useState(false)
-  const [showTour, setShowTour] = useState(false)
   const saveTimer = useRef(null)
   const initialized = useRef(false)
   const loadedUserId = useRef(null)
 
-  // Mostra o welcome tour no primeiro acesso (por usuário).
-  // Critério: nunca dispensou antes E ainda não tem dados configurados.
-  useEffect(() => {
-    if (!data || !user) return
-    if (initialized.current === false) return  // espera a inicialização
-    const key = `${TOUR_DISMISSED_KEY}_${user.id}`
-    const alreadyDismissed = localStorage.getItem(key) === '1'
-    if (alreadyDismissed) return
-    // Considera "novo" se não tem cartões nem categorias cadastradas
-    const cfg = data.months?.[activeMonth]?.config || {}
-    const hasCards = Array.isArray(cfg.cards) && cfg.cards.length > 0
-    const hasCategories = Array.isArray(cfg.categories) && cfg.categories.length > 0
-    if (!hasCards && !hasCategories) {
-      setShowTour(true)
-    }
-  }, [data, user, activeMonth])
-
-  const dismissTour = () => {
-    if (user?.id) {
-      localStorage.setItem(`${TOUR_DISMISSED_KEY}_${user.id}`, '1')
-    }
-    setShowTour(false)
-  }
+  // Tour inicial removido — tutorial agora é acessível via página /tutorial.
 
   const loadFromStorage = useCallback(() => {
     storage.load().then((raw) => {
@@ -893,7 +870,7 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-app)' }}>
-      {showTour && <WelcomeTour userName={user?.user_metadata?.name || ''} onClose={dismissTour} />}
+      {/* Tour inicial removido — acesso ao tutorial via botão no Painel */}
       <VerificationBanner />
       <SubscriptionBanner />
       <div className="w-full max-w-4xl mx-auto px-4 pt-8">
