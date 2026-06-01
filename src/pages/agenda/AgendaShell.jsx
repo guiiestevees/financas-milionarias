@@ -101,19 +101,19 @@ export default function AgendaShell() {
             </div>
           </div>
 
-          {/* Botão "trocar app" (volta pro launcher) */}
+          {/* Botão "Menu Domus" (volta pro launcher) — destaque ciano pra ficar óbvio */}
           <button
             onClick={() => navigate('/launcher')}
-            title="Trocar app"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:opacity-80 shrink-0"
+            title="Voltar ao menu de apps"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl transition hover:opacity-90 shrink-0"
             style={{
-              background: 'var(--bg-elev1)',
-              border: '1px solid var(--border-medium)',
-              color: 'var(--text-secondary)',
+              background: 'rgba(6,182,212,0.12)',
+              border: '1px solid rgba(6,182,212,0.35)',
+              color: AGENDA_ACCENT,
             }}
           >
-            <LayoutGrid size={14} />
-            <span className="text-xs font-medium hidden sm:inline">Trocar app</span>
+            <LayoutGrid size={15} />
+            <span className="text-xs sm:text-sm font-semibold">Menu</span>
           </button>
         </div>
 
@@ -621,10 +621,45 @@ function groupByDate(events) {
 // SETTINGS VIEW
 // ============================================================
 function SettingsView() {
+  const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
 
   return (
     <div className="space-y-4">
+      {/* Navegação rápida entre apps */}
+      <div className="rounded-2xl p-4 sm:p-5"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+          Trocar de app
+        </div>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <button
+            onClick={() => navigate('/launcher')}
+            className="flex items-center gap-3 p-3 rounded-xl text-left transition hover:opacity-90"
+            style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+          >
+            <div className="p-2 rounded-lg shrink-0" style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--accent-gold)' }}>
+              <LayoutGrid size={16} />
+            </div>
+            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Menu de apps
+            </div>
+          </button>
+          <button
+            onClick={() => navigate('/app')}
+            className="flex items-center gap-3 p-3 rounded-xl text-left transition hover:opacity-90"
+            style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)' }}
+          >
+            <div className="p-2 rounded-lg shrink-0" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)' }}>
+              <ArrowLeft size={16} />
+            </div>
+            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Ir para Finanças
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Tema */}
       <div className="rounded-2xl p-4 sm:p-5"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
@@ -632,20 +667,8 @@ function SettingsView() {
           Aparência
         </div>
         <div className="flex gap-3">
-          <ThemeOption
-            current={theme}
-            value="light"
-            icon={Sun}
-            label="Claro"
-            onSelect={() => setTheme('light')}
-          />
-          <ThemeOption
-            current={theme}
-            value="dark"
-            icon={Moon}
-            label="Escuro"
-            onSelect={() => setTheme('dark')}
-          />
+          <ThemeOption current={theme} value="light" icon={Sun} label="Claro" onSelect={() => setTheme('light')} />
+          <ThemeOption current={theme} value="dark" icon={Moon} label="Escuro" onSelect={() => setTheme('dark')} />
         </div>
       </div>
 
@@ -667,10 +690,6 @@ function SettingsView() {
           <li className="flex items-start gap-2">
             <span style={{ color: AGENDA_ACCENT }}>•</span>
             Editar uma ocorrência específica de evento recorrente
-          </li>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Convidar outras pessoas pra um compromisso
           </li>
         </ul>
       </div>

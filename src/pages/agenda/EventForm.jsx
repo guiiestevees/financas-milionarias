@@ -1,48 +1,56 @@
 import { useState, useEffect } from 'react'
-import { X, Calendar, Clock, MapPin, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle } from 'lucide-react'
+import { X, Calendar, Clock, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle } from 'lucide-react'
 import { AGENDA_COLORS, RECURRENCE_OPTIONS, todayISO } from '../../lib/agendaUtils'
 
 // Modal pra criar OU editar um compromisso.
 //
 // Props:
-//   event?    — se passado, é edição (preenche campos)
-//   initialDate? — pré-preenche a data (ex: clicou num dia da semana)
+//   event?    — se passado, é edição
+//   initialDate? — pré-preenche a data
 //   onSave    — async (payload) => void
 //   onDelete  — async (mode: 'single' | 'forever') => void
-//                  (só chamado quando editing && event.recurring !== 'none' OU evento único)
 //   onClose   — () => void
-//
-// Pra evento recorrente em edição, mostra modal de escolha quando salva:
-//   "Editar só essa ocorrência" ou "Editar todas as ocorrências"
-//   (por simplicidade nesse MVP: sempre edita TODAS — depois evoluímos)
 export default function EventForm({ event, initialDate, occurrenceDate, onSave, onDelete, onClose }) {
   const isEditing = !!event
   const isRecurringEdit = isEditing && event.recurring !== 'none'
 
-  const [title, setTitle] = useState(event?.title || '')
+  // Campo único — substitui título + descrição
+  const [text, setText] = useState(event?.title || '')
   const [date, setDate] = useState(event?.date || occurrenceDate || initialDate || todayISO())
-  const [hasTime, setHasTime] = useState(!!event?.time)
-  const [time, setTime] = useState(event?.time?.slice(0, 5) || '09:00')
+  const [time, setTime] = useState(event?.time?.slice(0, 5) || nextRoundHour())
   const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) || '')
-  const [location, setLocation] = useState(event?.location || '')
-  const [notes, setNotes] = useState(event?.notes || '')
+  const [notes, setNotes] = useState(event?.notes || '')  // mantém no banco caso queira
   const [color, setColor] = useState(event?.color || 'cyan')
   const [recurring, setRecurring] = useState(event?.recurring || 'none')
   const [endsAt, setEndsAt] = useState(event?.ends_at || '')
 
-  // Calcula duração inicial (em minutos) se vier evento com end_time
+  // Calcula duração inicial em minutos
   function computeInitialDuration() {
     if (!event?.time || !event?.end_time) return null
     const [sh, sm] = event.time.split(':').map(Number)
     const [eh, em] = event.end_time.split(':').map(Number)
     return (eh * 60 + em) - (sh * 60 + sm)
   }
-  const [duration, setDuration] = useState(computeInitialDuration())  // minutos
+  const [duration, setDuration] = useState(computeInitialDuration())
   const [showCustomDuration, setShowCustomDuration] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState('')
+
+  // ===== Bloqueia scroll do body enquanto modal está aberto =====
+  // Compensa a largura da scrollbar pra evitar o "salto" visual
+  useEffect(() => {
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+    const previousOverflow = document.body.style.overflow
+    const previousPaddingRight = document.body.style.paddingRight
+    document.body.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.paddingRight = previousPaddingRight
+    }
+  }, [])
 
   // ESC fecha
   useEffect(() => {
@@ -51,11 +59,12 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, saving])
 
-  const canSubmit = title.trim().length > 0 && !!date && !saving
+  const canSubmit = text.trim().length > 0 && !!date && !!time && !saving
 
-  // Quando muda time, ajusta endTime se houver duração escolhida
+  // Aplica duração escolhida — calcula endTime
   const applyDuration = (mins) => {
     setDuration(mins)
+    setShowCustomDuration(false)
     if (!mins) { setEndTime(''); return }
     const [h, m] = time.split(':').map(Number)
     const totalStart = h * 60 + m
@@ -65,7 +74,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
     setEndTime(`${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`)
   }
 
-  // Quando user muda time manualmente, recalcula endTime se duração foi escolhida
+  // Quando muda time manualmente, recalcula endTime se houver duração
   const onTimeChange = (newTime) => {
     setTime(newTime)
     if (duration) {
@@ -84,17 +93,16 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
     setSaving(true)
     try {
       await onSave({
-        title: title.trim(),
+        title: text.trim(),
         date,
-        time: hasTime ? time : null,
-        end_time: hasTime && endTime ? endTime : null,
-        location: location.trim() || null,
+        time,
+        end_time: endTime || null,
+        location: null,
         notes: notes.trim() || null,
         color,
         recurring,
         ends_at: recurring !== 'none' && endsAt ? endsAt : null,
       })
-      // Fechamento fica a cargo do onSave (pra mostrar sucesso animado se quiser)
     } catch (e) {
       setError(e.message || 'Erro ao salvar')
       setSaving(false)
@@ -122,12 +130,12 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
               {isEditing ? event.title : 'O que vai acontecer?'}
             </h2>
           </div>
-          <button onClick={onClose} disabled={saving} className="p-1.5 rounded transition hover:bg-white/5" style={{ color: 'var(--text-tertiary)' }}>
+          <button onClick={onClose} disabled={saving} className="p-1.5 rounded transition hover:bg-white/5 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
             <X size={16} />
           </button>
         </div>
 
-        {/* Confirmação de delete (overlay interno) */}
+        {/* Confirmação de delete */}
         {confirmingDelete && (
           <DeleteConfirm
             event={event}
@@ -153,186 +161,131 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
               </div>
             )}
 
-            {/* Título */}
+            {/* Campo principal — único */}
             <div>
-              <label className="text-xs mb-1 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                Título <span className="normal-case opacity-70">(o que é?)</span>
+              <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                O que é?
               </label>
               <input
                 autoFocus
                 type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Reunião com cliente, Médico, Jantar..."
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Ex: Reunião com cliente, Consulta médica, Jantar com Ana..."
                 style={inputStyle}
                 className="placeholder:text-white/25 focus:border-cyan-400"
               />
             </div>
 
-            {/* Descrição */}
-            <div>
-              <label className="text-xs mb-1 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                <FileText size={11} className="inline mr-1" />
-                Descrição <span className="normal-case opacity-70">(opcional, mais detalhes)</span>
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Sobre o que será? Pauta da reunião, exames, contatos..."
-                rows={2}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }}
-                className="placeholder:text-white/25 focus:border-cyan-400"
-              />
-            </div>
-
-            {/* Data */}
-            <div>
-              <label className="text-xs mb-1 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                <Calendar size={11} className="inline mr-1" />
-                Data
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
-                className="focus:border-cyan-400"
-              />
-            </div>
-
-            {/* Horário + Duração */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                  <Clock size={11} className="inline mr-1" />
-                  Horário
+            {/* Data e Horário lado a lado */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              {/* Data */}
+              <div>
+                <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  <Calendar size={11} className="inline mr-1" />
+                  Data
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHasTime((v) => !v)
-                    if (hasTime) { setEndTime(''); setDuration(null); setShowCustomDuration(false) }
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-full transition"
-                  style={{
-                    background: hasTime ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev2)',
-                    color: hasTime ? '#06b6d4' : 'var(--text-muted)',
-                    border: `1px solid ${hasTime ? 'rgba(6,182,212,0.35)' : 'var(--border-soft)'}`,
-                  }}
-                >
-                  {hasTime ? 'Com horário ✓' : 'Dia inteiro'}
-                </button>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={dateTimeStyle}
+                  className="focus:border-cyan-400"
+                />
               </div>
 
-              {hasTime && (
-                <div className="space-y-3">
-                  {/* Hora de início */}
-                  <div>
-                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Começa às</div>
-                    <input
-                      type="time"
-                      value={time}
-                      onChange={(e) => onTimeChange(e.target.value)}
-                      style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
-                      className="focus:border-cyan-400"
-                    />
-                  </div>
-
-                  {/* Chips de duração rápida */}
-                  <div>
-                    <div className="text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Duração</div>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {[
-                        { label: '15 min', mins: 15 },
-                        { label: '30 min', mins: 30 },
-                        { label: '1 hora', mins: 60 },
-                        { label: '1h 30min', mins: 90 },
-                        { label: '2 horas', mins: 120 },
-                      ].map((opt) => {
-                        const isSel = duration === opt.mins && !showCustomDuration
-                        return (
-                          <button
-                            key={opt.mins}
-                            type="button"
-                            onClick={() => { setShowCustomDuration(false); applyDuration(opt.mins) }}
-                            className="px-3 py-1.5 rounded-full text-xs font-medium transition"
-                            style={{
-                              background: isSel ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
-                              border: `1px solid ${isSel ? 'rgba(6,182,212,0.5)' : 'var(--border-medium)'}`,
-                              color: isSel ? '#06b6d4' : 'var(--text-secondary)',
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        )
-                      })}
-                      <button
-                        type="button"
-                        onClick={() => setShowCustomDuration(true)}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium transition"
-                        style={{
-                          background: showCustomDuration ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
-                          border: `1px solid ${showCustomDuration ? 'rgba(6,182,212,0.5)' : 'var(--border-medium)'}`,
-                          color: showCustomDuration ? '#06b6d4' : 'var(--text-secondary)',
-                        }}
-                      >
-                        Outra…
-                      </button>
-                      {(duration || endTime) && (
-                        <button
-                          type="button"
-                          onClick={() => { setEndTime(''); setDuration(null); setShowCustomDuration(false) }}
-                          className="px-3 py-1.5 rounded-full text-xs transition"
-                          style={{ color: 'var(--text-muted)' }}
-                          title="Limpar duração"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Hora de fim personalizada (só aparece se clicar "Outra…") */}
-                  {showCustomDuration && (
-                    <div>
-                      <div className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
-                        Termina às
-                      </div>
-                      <input
-                        type="time"
-                        value={endTime}
-                        onChange={(e) => { setEndTime(e.target.value); setDuration(null) }}
-                        placeholder="--:--"
-                        style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
-                        className="focus:border-cyan-400"
-                      />
-                    </div>
-                  )}
-
-                  {/* Preview do horário final */}
-                  {endTime && (
-                    <div className="text-xs px-1" style={{ color: 'var(--text-tertiary)' }}>
-                      🕐 Termina às <strong style={{ color: 'var(--text-primary)' }}>{endTime}</strong>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Horário */}
+              <div>
+                <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  <Clock size={11} className="inline mr-1" />
+                  Hora
+                </label>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => onTimeChange(e.target.value)}
+                  style={dateTimeStyle}
+                  className="focus:border-cyan-400"
+                />
+              </div>
             </div>
 
-            {/* Local */}
+            {/* Duração — chips rápidos */}
             <div>
-              <label className="text-xs mb-1 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                <MapPin size={11} className="inline mr-1" />
-                Local <span className="normal-case opacity-70">(opcional)</span>
+              <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                Duração
               </label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Ex: Av. Paulista 1000, sala 502"
-                style={inputStyle}
-                className="placeholder:text-white/25 focus:border-cyan-400"
-              />
+              <div className="flex gap-1.5 flex-wrap">
+                {[
+                  { label: '15 min', mins: 15 },
+                  { label: '30 min', mins: 30 },
+                  { label: '1 hora', mins: 60 },
+                  { label: '1h 30min', mins: 90 },
+                  { label: '2 horas', mins: 120 },
+                ].map((opt) => {
+                  const isSel = duration === opt.mins && !showCustomDuration
+                  return (
+                    <button
+                      key={opt.mins}
+                      type="button"
+                      onClick={() => applyDuration(opt.mins)}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition"
+                      style={{
+                        background: isSel ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
+                        border: `1px solid ${isSel ? 'rgba(6,182,212,0.5)' : 'var(--border-medium)'}`,
+                        color: isSel ? '#06b6d4' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={() => { setShowCustomDuration(true); setDuration(null) }}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition"
+                  style={{
+                    background: showCustomDuration ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
+                    border: `1px solid ${showCustomDuration ? 'rgba(6,182,212,0.5)' : 'var(--border-medium)'}`,
+                    color: showCustomDuration ? '#06b6d4' : 'var(--text-secondary)',
+                  }}
+                >
+                  Outro…
+                </button>
+                {(duration || endTime) && (
+                  <button
+                    type="button"
+                    onClick={() => { setEndTime(''); setDuration(null); setShowCustomDuration(false) }}
+                    className="px-3 py-1.5 rounded-full text-xs transition"
+                    style={{ color: 'var(--text-muted)' }}
+                    title="Sem duração definida"
+                  >
+                    ✕ Limpar
+                  </button>
+                )}
+              </div>
+
+              {/* Campo customizado de fim */}
+              {showCustomDuration && (
+                <div className="mt-3">
+                  <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                    Termina às
+                  </label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => { setEndTime(e.target.value); setDuration(null) }}
+                    style={{ ...dateTimeStyle, maxWidth: 160 }}
+                    className="focus:border-cyan-400"
+                  />
+                </div>
+              )}
+
+              {endTime && !showCustomDuration && (
+                <div className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                  🕐 Termina às <strong style={{ color: 'var(--text-primary)' }}>{endTime}</strong>
+                </div>
+              )}
             </div>
 
             {/* Cor */}
@@ -364,7 +317,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
 
             {/* Recorrência */}
             <div>
-              <label className="text-xs mb-1 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+              <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                 <Repeat size={11} className="inline mr-1" />
                 Repetição
               </label>
@@ -391,20 +344,16 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
               {recurring !== 'none' && (
                 <div className="mt-2">
                   <div className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
-                    Repetir até (opcional)
+                    Repetir até <span className="opacity-70">(deixe vazio pra sempre)</span>
                   </div>
                   <input
                     type="date"
                     value={endsAt}
                     onChange={(e) => setEndsAt(e.target.value)}
                     min={date}
-                    placeholder="Sem fim"
-                    style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace' }}
+                    style={{ ...dateTimeStyle, maxWidth: 200 }}
                     className="focus:border-cyan-400"
                   />
-                  <div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Deixe vazio pra repetir pra sempre
-                  </div>
                 </div>
               )}
             </div>
@@ -445,7 +394,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                 }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {saving ? 'Salvando…' : isEditing ? 'Salvar mudanças' : 'Criar'}
+                {saving ? 'Salvando…' : isEditing ? 'Salvar' : 'Criar'}
               </button>
             </div>
           </div>
@@ -453,6 +402,15 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
       </div>
     </div>
   )
+}
+
+// ===== Helpers =====
+
+// Arredonda hora atual pra próxima hora cheia (ex: 14:23 → 15:00)
+function nextRoundHour() {
+  const d = new Date()
+  d.setHours(d.getHours() + 1, 0, 0, 0)
+  return `${String(d.getHours()).padStart(2, '0')}:00`
 }
 
 const inputStyle = {
@@ -467,7 +425,16 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
-// ---------- DeleteConfirm (interno) ----------
+// Fonte mais bonita pra data/hora — usa a do app (Manrope) em vez de mono
+const dateTimeStyle = {
+  ...inputStyle,
+  fontFamily: 'Manrope, system-ui, -apple-system, sans-serif',
+  fontSize: 15,
+  fontWeight: 500,
+  letterSpacing: '0.01em',
+}
+
+// ---------- DeleteConfirm ----------
 function DeleteConfirm({ event, isRecurring, onConfirm, onCancel, loading }) {
   return (
     <div className="p-5 space-y-3">

@@ -208,19 +208,19 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
           </div>
         )}
 
-        {/* Trocar app (volta pro launcher) */}
+        {/* Menu de apps — destaque dourado pra ficar óbvio */}
         <button
           onClick={() => navigate('/launcher')}
-          title="Trocar app"
-          className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition"
+          title="Voltar ao menu de apps"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition hover:opacity-90"
           style={{
-            background: 'var(--bg-elev1)',
-            border: '1px solid var(--border-medium)',
-            color: 'var(--text-secondary)',
+            background: 'rgba(212,175,55,0.12)',
+            border: '1px solid rgba(212,175,55,0.35)',
+            color: 'var(--accent-gold)',
           }}
         >
-          <LayoutGrid size={14} />
-          <span className="text-xs font-medium hidden sm:inline">Trocar app</span>
+          <LayoutGrid size={15} />
+          <span className="text-xs font-semibold hidden sm:inline">Menu</span>
         </button>
 
         {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
