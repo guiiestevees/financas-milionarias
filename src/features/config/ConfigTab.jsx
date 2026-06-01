@@ -53,23 +53,17 @@ function sanitizeMoneyInput(raw) {
 }
 
 // ---------- BrandConfig ----------
+// Apenas o nome do USUÁRIO é editável. O nome do app "Domus" é fixo.
+// Futuramente: foto de perfil opcional.
 function BrandConfig({ brand, updateBrand }) {
   const [name, setName] = useState(brand?.name || '')
-  const [subtitle, setSubtitle] = useState(brand?.subtitle || 'Domus')
   return (
     <Card className="p-6" accent="gold">
-      <SectionTitle icon={Sparkles} title="Identidade do app" subtitle="Personalize o título que aparece no topo." accent="gold" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="uppercase text-white/45 mb-1.5 block" style={{ fontSize: '10px', letterSpacing: '0.1em' }}>Seu nome (em cima)</label>
-          <TextInput value={name} onChange={setName} onBlur={() => updateBrand({ name: name.trim() })} placeholder="Ex: João, Ju, Ana…" />
-          <div className="text-xs text-white/40 mt-1">Aparece em letras pequenas douradas no topo.</div>
-        </div>
-        <div>
-          <label className="uppercase text-white/45 mb-1.5 block" style={{ fontSize: '10px', letterSpacing: '0.1em' }}>Nome do app (subtítulo grande)</label>
-          <TextInput value={subtitle} onChange={setSubtitle} onBlur={() => updateBrand({ subtitle: subtitle.trim() || 'Domus' })} placeholder="Domus" />
-          <div className="text-xs text-white/40 mt-1">Padrão: "Domus". Última palavra recebe o destaque dourado.</div>
-        </div>
+      <SectionTitle icon={Sparkles} title="Como te chamar" subtitle="Personalize o nome que aparece no topo do app." accent="gold" />
+      <div>
+        <label className="uppercase text-white/45 mb-1.5 block" style={{ fontSize: '10px', letterSpacing: '0.1em' }}>Seu nome</label>
+        <TextInput value={name} onChange={setName} onBlur={() => updateBrand({ name: name.trim() })} placeholder="Ex: João, Ju, Ana…" />
+        <div className="text-xs text-white/40 mt-1">Aparece em letras pequenas douradas acima do título "Domus".</div>
       </div>
     </Card>
   )

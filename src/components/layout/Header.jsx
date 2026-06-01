@@ -149,7 +149,8 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   }
 
   const displayName = brand?.name?.trim() || 'Seu nome aqui'
-  const subtitle = brand?.subtitle || 'Domus'
+  // "Domus" é fixo — não é mais editável. Usuário só personaliza o próprio nome.
+  const appTitle = 'Domus'
   const hasName = !!brand?.name?.trim()
 
   return (
@@ -191,28 +192,11 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
 
         <h1
           style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-          className="text-4xl sm:text-5xl text-white"
+          className="text-4xl sm:text-5xl"
         >
-          {(() => {
-            const parts = subtitle.trim().split(/\s+/)
-            if (parts.length < 2) {
-              return (
-                <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
-                  {subtitle}.
-                </em>
-              )
-            }
-            const last = parts.pop()
-            const head = parts.join(' ')
-            return (
-              <>
-                {head}{' '}
-                <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
-                  {last}.
-                </em>
-              </>
-            )
-          })()}
+          <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
+            {appTitle}.
+          </em>
         </h1>
       </div>
 

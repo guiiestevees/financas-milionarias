@@ -82,6 +82,23 @@ async function asaasFetch(path, options = {}) {
  *                   neighborhood, city, state }  — todos opcionais individualmente,
  *                   mas Asaas só aceita NF se estiver preenchido.
  */
+// Normaliza telefone pro formato que o Asaas BR espera:
+// 10 ou 11 dígitos (DDD + número). Remove DDI 55 se vier no início.
+// Ex: '5519997557872' → '19997557872'
+//     '19997557872'   → '19997557872' (sem mudança)
+function normalizePhoneBR(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (!digits) return undefined
+  // Tem 12 ou 13 dígitos começando com 55? Remove o DDI.
+  if ((digits.length === 12 || digits.length === 13) && digits.startsWith('55')) {
+    return digits.slice(2)
+  }
+  // Já tá no formato BR de 10 ou 11 dígitos
+  if (digits.length === 10 || digits.length === 11) return digits
+  // Formato desconhecido — não envia (deixa Asaas reclamar de outra coisa, não do telefone)
+  return undefined
+}
+
 export async function createOrFindCustomer({ userId, name, email, cpfCnpj, phone, address }) {
   // Monta payload de endereço pro Asaas (campos com nomes que ele espera)
   const addressPayload = address ? {
@@ -94,11 +111,13 @@ export async function createOrFindCustomer({ userId, name, email, cpfCnpj, phone
     state: address.state || undefined,
   } : {}
 
+  const phoneNormalized = normalizePhoneBR(phone)
+
   const basePayload = {
     name: name || email || 'Usuário Domus',
     email: email || undefined,
     cpfCnpj: cpfCnpj || undefined,
-    mobilePhone: phone || undefined,
+    mobilePhone: phoneNormalized,
     notificationDisabled: true,  // a gente notifica pelo Alfred no WhatsApp
     ...addressPayload,
   }
@@ -348,14 +367,15 @@ function buildHolderInfo(h) {
   const addr = h.address || {}
   const postalCode = (addr.postalCode || h.postalCode || '').replace(/\D/g, '')
   const addressNumber = addr.addressNumber || h.addressNumber || ''
+  const phoneNormalized = normalizePhoneBR(h.phone)
   return {
     name: h.name,
     email: h.email,
     cpfCnpj: h.cpfCnpj,
     postalCode: postalCode || '01310100',  // fallback Av. Paulista (não recomendado)
     addressNumber: addressNumber || '0',
-    phone: h.phone || undefined,
-    mobilePhone: h.phone || undefined,
+    phone: phoneNormalized,
+    mobilePhone: phoneNormalized,
   }
 }
 
