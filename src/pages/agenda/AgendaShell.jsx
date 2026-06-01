@@ -701,20 +701,26 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
       className="absolute"
       style={{ top, height, left, width, transition: 'opacity 0.3s' }}
     >
-      <button
-        onClick={onClick}
-        className="absolute inset-0 rounded-lg text-left overflow-hidden flex group/event"
+      {/* CARD — clique abre detalhes */}
+      <div
+        className="absolute inset-0 rounded-lg overflow-hidden flex"
         style={{
           background: tintBg,
           border: `1px solid ${tintBorder}`,
           opacity: completed ? 0.55 : 1,
-          transition: 'opacity 0.4s ease, transform 0.15s',
+          transition: 'opacity 0.4s ease',
           animation: glow ? 'cardGlow 0.7s ease-out' : 'none',
-          ['--glow-color']: `${colorVar.replace('var(--accent-', 'rgba(0,0,0,0.6))').replace(')', '')}`,
         }}
       >
+        {/* Barra colorida lateral */}
         <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
-        <div className="flex-1 min-w-0 px-2 py-1" style={{ paddingRight: 38 }}>
+
+        {/* Conteúdo (clique abre modal) */}
+        <button
+          onClick={onClick}
+          className="flex-1 min-w-0 px-2 py-1 text-left transition active:scale-[0.99]"
+          style={{ paddingRight: compact ? 36 : 44 }}
+        >
           <div
             className={`font-medium ${compact ? 'text-[11px] truncate' : 'text-xs'}`}
             style={{
@@ -735,50 +741,47 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
               )}
             </div>
           )}
-        </div>
-      </button>
+        </button>
 
-      {/* Check no canto top-right — hit area 44x44 (Apple HIG), visual 30px */}
-      <button
-        onClick={handleCheck}
-        className="absolute flex items-center justify-center z-20"
-        style={{
-          // Hit area de 44x44, posicionada pra que o círculo visual fique no canto
-          top: -7,
-          right: -7,
-          width: 44,
-          height: 44,
-          // Centro do círculo visual cai exatamente top:8, right:8 do card
-          padding: 7,
-          border: 'none',
-          background: 'transparent',
-          cursor: 'pointer',
-        }}
-        title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
-      >
-        <span
-          className="flex items-center justify-center transition-transform"
+        {/* CHECK — integrado dentro do card, à direita, centralizado verticalmente */}
+        <button
+          onClick={handleCheck}
+          className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90"
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: '50%',
-            border: `1.5px solid ${completed ? colorVar : tintBorder}`,
-            background: completed ? colorVar : 'var(--bg-elev1)',
-            boxShadow: completed ? `0 2px 12px ${colorVar}, 0 0 24px ${colorVar}55` : `0 1px 4px rgba(0,0,0,0.10)`,
-            animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+            width: compact ? 36 : 44,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
           }}
+          title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
         >
-          {completed && <Check size={18} color="#fff" strokeWidth={3.5} />}
-        </span>
-      </button>
+          <span
+            className="flex items-center justify-center transition-all"
+            style={{
+              width: compact ? 22 : 28,
+              height: compact ? 22 : 28,
+              borderRadius: '50%',
+              border: `2px solid ${completed ? colorVar : `${colorVar}55`}`,
+              background: completed ? colorVar : 'transparent',
+              boxShadow: completed
+                ? `0 0 0 4px ${colorVar}20, 0 2px 8px ${colorVar}88`
+                : 'none',
+              animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+            }}
+          >
+            {completed && <Check size={compact ? 13 : 17} color="#fff" strokeWidth={3.5} />}
+          </span>
+        </button>
+      </div>
 
-      {/* Confete em volta do check — overflow visível pra sair fora do botão */}
+      {/* Confete em volta do check — overflow visível */}
       {burst && (
         <div
           className="absolute pointer-events-none"
           style={{
-            top: -28,
-            right: -28,
+            top: '50%',
+            right: compact ? 18 : 22,
+            transform: 'translate(50%, -50%)',
             width: 80,
             height: 80,
           }}
@@ -2562,7 +2565,7 @@ function EventCard({ event, onClick, compact = false, completed, onToggleComplet
       <button
         onClick={onClick}
         className="flex-1 min-w-0 text-left transition hover:opacity-95"
-        style={{ padding: `${verticalPad}px 12px`, paddingRight: onToggleComplete ? 40 : 12 }}
+        style={{ padding: `${verticalPad}px 12px`, paddingRight: onToggleComplete ? 52 : 12 }}
       >
         <div className="flex items-start justify-between gap-2 mb-0.5">
           <div
@@ -2603,43 +2606,47 @@ function EventCard({ event, onClick, compact = false, completed, onToggleComplet
         )}
       </button>
 
-      {/* Check no canto top-right — hit area 48x48, visual 32px */}
+      {/* CHECK — integrado dentro do card, à direita, centralizado verticalmente */}
       {onToggleComplete && (
         <>
           <button
             onClick={handleCheck}
-            className="absolute flex items-center justify-center z-20"
+            className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90"
             style={{
-              top: -4,
-              right: -4,
-              width: 48,
-              height: 48,
-              padding: 8,
-              border: 'none',
+              width: 52,
               background: 'transparent',
+              border: 'none',
               cursor: 'pointer',
             }}
             title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
           >
             <span
-              className="flex items-center justify-center transition-transform"
+              className="flex items-center justify-center transition-all"
               style={{
-                width: 32,
-                height: 32,
+                width: 30,
+                height: 30,
                 borderRadius: '50%',
-                border: `1.5px solid ${completed ? colorVar : tintBorder}`,
-                background: completed ? colorVar : 'var(--bg-elev1)',
-                boxShadow: completed ? `0 2px 12px ${colorVar}, 0 0 24px ${colorVar}55` : `0 1px 4px rgba(0,0,0,0.10)`,
+                border: `2px solid ${completed ? colorVar : `${colorVar}55`}`,
+                background: completed ? colorVar : 'transparent',
+                boxShadow: completed
+                  ? `0 0 0 4px ${colorVar}20, 0 2px 8px ${colorVar}88`
+                  : 'none',
                 animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
               }}
             >
-              {completed && <Check size={19} color="#fff" strokeWidth={3.5} />}
+              {completed && <Check size={18} color="#fff" strokeWidth={3.5} />}
             </span>
           </button>
           {burst && (
             <div
               className="absolute pointer-events-none"
-              style={{ top: -25, right: -25, width: 80, height: 80 }}
+              style={{
+                top: '50%',
+                right: 26,
+                transform: 'translate(50%, -50%)',
+                width: 80,
+                height: 80,
+              }}
             >
               <CompletionBurst colorVar={colorVar} />
             </div>
