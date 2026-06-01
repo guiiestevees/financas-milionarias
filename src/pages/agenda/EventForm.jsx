@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Calendar, Clock, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle } from 'lucide-react'
+import { X, Calendar, Clock, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle, Bell, MessageCircle } from 'lucide-react'
 import { AGENDA_COLORS, RECURRENCE_OPTIONS, WEEKDAY_LABELS, WEEKDAY_PRESETS, todayISO } from '../../lib/agendaUtils'
 
 // Modal pra criar OU editar um compromisso.
@@ -24,7 +24,16 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
   const [recurring, setRecurring] = useState(event?.recurring || 'none')
   const [weekdays, setWeekdays] = useState(event?.recurring_weekdays || [])
   const [endsAt, setEndsAt] = useState(event?.ends_at || '')
-  const [customDurInput, setCustomDurInput] = useState('')  // input pra digitar duração custom
+  const [customDurInput, setCustomDurInput] = useState('')
+
+  // Lembrete: toggle + minutos antes
+  const [wantReminder, setWantReminder] = useState(
+    event?.reminder_minutes_before != null && event?.reminder_minutes_before >= 0
+  )
+  const [reminderMins, setReminderMins] = useState(
+    event?.reminder_minutes_before != null ? event.reminder_minutes_before : 15
+  )
+  const [customReminderInput, setCustomReminderInput] = useState('')
 
   // Calcula duração inicial em minutos
   function computeInitialDuration() {
@@ -127,6 +136,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
         recurring,
         recurring_weekdays: recurring === 'weekdays' ? weekdays : null,
         ends_at: recurring !== 'none' && endsAt ? endsAt : null,
+        reminder_minutes_before: wantReminder ? reminderMins : null,
       })
     } catch (e) {
       setError(e.message || 'Erro ao salvar')
@@ -330,6 +340,103 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                   )
                 })}
               </div>
+            </div>
+
+            {/* Lembrete via Alfred */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setWantReminder((v) => !v)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl transition text-left"
+                style={{
+                  background: wantReminder ? 'rgba(37,211,102,0.08)' : 'var(--bg-elev1)',
+                  border: `1px solid ${wantReminder ? 'rgba(37,211,102,0.4)' : 'var(--border-medium)'}`,
+                }}
+              >
+                <div className="p-2 rounded-lg shrink-0" style={{
+                  background: wantReminder ? '#25D366' : 'var(--bg-elev2)',
+                  color: wantReminder ? 'white' : 'var(--text-tertiary)',
+                }}>
+                  <MessageCircle size={15} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+                    Quer um lembrete do Alfred?
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    🎩 Alfred manda mensagem no seu WhatsApp antes do compromisso
+                  </div>
+                </div>
+                <div
+                  className="flex items-center justify-center w-5 h-5 rounded shrink-0"
+                  style={{
+                    background: wantReminder ? '#25D366' : 'transparent',
+                    border: `2px solid ${wantReminder ? '#25D366' : 'var(--border-strong)'}`,
+                  }}
+                >
+                  {wantReminder && <Check size={11} style={{ color: 'white' }} strokeWidth={3} />}
+                </div>
+              </button>
+
+              {wantReminder && (
+                <div className="mt-3 pl-1">
+                  <div className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                    Avisar quanto tempo antes?
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap items-center">
+                    {[
+                      { label: 'na hora', mins: 0 },
+                      { label: '5 min', mins: 5 },
+                      { label: '15 min', mins: 15 },
+                      { label: '30 min', mins: 30 },
+                      { label: '1 hora', mins: 60 },
+                      { label: '1 dia', mins: 1440 },
+                    ].map((opt) => {
+                      const isSel = reminderMins === opt.mins && customReminderInput === ''
+                      return (
+                        <button
+                          key={opt.mins}
+                          type="button"
+                          onClick={() => { setReminderMins(opt.mins); setCustomReminderInput('') }}
+                          className="px-3 py-1.5 rounded-full text-xs font-medium transition"
+                          style={{
+                            background: isSel ? 'rgba(37,211,102,0.15)' : 'var(--bg-elev1)',
+                            border: `1px solid ${isSel ? 'rgba(37,211,102,0.5)' : 'var(--border-medium)'}`,
+                            color: isSel ? '#25D366' : 'var(--text-secondary)',
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      )
+                    })}
+
+                    {/* Input livre */}
+                    <div className="flex items-center gap-1.5 rounded-full"
+                      style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={customReminderInput}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '').slice(0, 4)
+                          setCustomReminderInput(v)
+                          if (v) setReminderMins(parseInt(v, 10))
+                        }}
+                        placeholder="ou…"
+                        style={{
+                          background: 'transparent', border: 'none', outline: 'none',
+                          color: 'var(--text-primary)',
+                          fontSize: 12, fontWeight: 500,
+                          width: 50, padding: '6px 4px 6px 12px',
+                          textAlign: 'right',
+                          fontFamily: 'Manrope, sans-serif',
+                        }}
+                      />
+                      <span className="pr-3 text-xs" style={{ color: 'var(--text-muted)' }}>min</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Recorrência */}

@@ -721,35 +721,56 @@ function ThemeOption({ current, value, icon: Icon, label, onSelect }) {
 }
 
 // ============================================================
-// EventCard — card de evento
+// EventCard — card de evento com TAMANHO PROPORCIONAL à duração
+// e COR PRESENTE em todo o fundo (tint).
 // ============================================================
 function EventCard({ event, onClick, compact = false }) {
-  const colorVar = `var(--accent-${event.color || 'cyan'})`
+  const colorKey = event.color || 'cyan'
+  const colorVar = `var(--accent-${colorKey})`
+
+  // Calcula duração em minutos pra escalar altura/padding
+  const duration = computeDurationMinutes(event.time, event.end_time)
+
+  // Padding vertical proporcional: <= 30 min = compacto, 1h = padrão, > 1h = generoso
+  // Fórmula: 6px base + 0.18px por minuto (mín 8, máx 28)
+  const verticalPad = duration
+    ? Math.max(8, Math.min(28, Math.round(6 + duration * 0.18)))
+    : (compact ? 10 : 12)
+
+  // Background com tint suave da cor (visual da cor presente em todo o card)
+  // Usamos rgba derivada do hex (mapeamento manual pq CSS var não funciona em rgba)
+  const tintBg = getColorTint(colorKey, 'bg')
+  const tintBorder = getColorTint(colorKey, 'border')
+
   return (
     <button
       onClick={onClick}
       className="w-full text-left rounded-xl transition hover:opacity-95 flex items-stretch overflow-hidden"
       style={{
-        background: 'var(--card-bg)',
-        border: '1px solid var(--card-border)',
+        background: tintBg,
+        border: `1px solid ${tintBorder}`,
       }}
     >
-      <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
+      {/* Barra lateral mais espessa pra reforçar a cor */}
+      <div style={{ width: 5, background: colorVar, flexShrink: 0 }} />
 
-      <div className={`flex-1 min-w-0 ${compact ? 'p-2.5' : 'p-3'}`}>
+      <div className="flex-1 min-w-0" style={{ padding: `${verticalPad}px 12px` }}>
         <div className="flex items-start justify-between gap-2 mb-0.5">
           <div className="font-medium text-sm sm:text-base truncate" style={{ color: 'var(--text-primary)' }}>
             {event.title}
           </div>
           {event.isOccurrence && (
-            <Repeat size={11} className="shrink-0 mt-1" style={{ color: 'var(--text-muted)' }} title="Recorrente" />
+            <Repeat size={11} className="shrink-0 mt-1" style={{ color: colorVar }} title="Recorrente" />
           )}
         </div>
 
         <div className="flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
-          <span className="inline-flex items-center gap-1 tabular-nums" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-            <Clock size={11} />
+          <span className="inline-flex items-center gap-1 tabular-nums" style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 500 }}>
+            <Clock size={11} style={{ color: colorVar }} />
             {formatTimeRange(event.time, event.end_time)}
+            {duration && duration >= 60 && (
+              <span className="opacity-60">· {formatDurationShort(duration)}</span>
+            )}
           </span>
           {event.location && (
             <span className="inline-flex items-center gap-1 truncate">
@@ -766,6 +787,42 @@ function EventCard({ event, onClick, compact = false }) {
       </div>
     </button>
   )
+}
+
+// Calcula duração em minutos entre time e end_time (formato 'HH:MM:SS' ou 'HH:MM')
+function computeDurationMinutes(time, endTime) {
+  if (!time || !endTime) return null
+  const [sh, sm] = time.split(':').map(Number)
+  const [eh, em] = endTime.split(':').map(Number)
+  const start = sh * 60 + sm
+  let end = eh * 60 + em
+  if (end < start) end += 24 * 60  // virou o dia
+  return end - start
+}
+
+function formatDurationShort(mins) {
+  if (mins < 60) return `${mins}min`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2,'0')}`
+}
+
+// Retorna tint da cor (background suave) ou cor da borda
+function getColorTint(colorKey, mode) {
+  // Mapeamento manual rgba pra cada accent (não dá pra usar CSS var em alpha)
+  const tints = {
+    gold:    { bg: 'rgba(212,175,55,0.10)',  border: 'rgba(212,175,55,0.30)'  },
+    emerald: { bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.30)'  },
+    rose:    { bg: 'rgba(244,63,94,0.10)',   border: 'rgba(244,63,94,0.30)'   },
+    amber:   { bg: 'rgba(245,158,11,0.10)',  border: 'rgba(245,158,11,0.30)'  },
+    cyan:    { bg: 'rgba(6,182,212,0.10)',   border: 'rgba(6,182,212,0.30)'   },
+    violet:  { bg: 'rgba(139,92,246,0.10)',  border: 'rgba(139,92,246,0.30)'  },
+    sky:     { bg: 'rgba(14,165,233,0.10)',  border: 'rgba(14,165,233,0.30)'  },
+    fuchsia: { bg: 'rgba(217,70,239,0.10)',  border: 'rgba(217,70,239,0.30)'  },
+    lime:    { bg: 'rgba(132,204,22,0.10)',  border: 'rgba(132,204,22,0.30)'  },
+    orange:  { bg: 'rgba(249,115,22,0.10)',  border: 'rgba(249,115,22,0.30)'  },
+  }
+  return (tints[colorKey] || tints.cyan)[mode]
 }
 
 // ============================================================

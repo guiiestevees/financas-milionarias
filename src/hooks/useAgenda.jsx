@@ -55,6 +55,9 @@ export function useAgenda() {
         ? payload.recurring_weekdays
         : null,
       ends_at: payload.ends_at || null,
+      reminder_minutes_before: typeof payload.reminder_minutes_before === 'number'
+        ? payload.reminder_minutes_before
+        : null,
       skipped_dates: [],
     }
     const { data, error } = await supabase
@@ -69,7 +72,7 @@ export function useAgenda() {
 
   // Atualiza um evento existente (todas as ocorrências se for recorrente)
   const updateEvent = useCallback(async (id, patch) => {
-    const allowed = ['title', 'date', 'time', 'end_time', 'location', 'notes', 'color', 'recurring', 'recurring_weekdays', 'ends_at', 'skipped_dates']
+    const allowed = ['title', 'date', 'time', 'end_time', 'location', 'notes', 'color', 'recurring', 'recurring_weekdays', 'ends_at', 'skipped_dates', 'reminder_minutes_before']
     const update = {}
     for (const k of allowed) {
       if (k in patch) update[k] = patch[k]
