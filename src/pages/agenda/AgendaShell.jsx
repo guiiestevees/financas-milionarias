@@ -185,7 +185,7 @@ export default function AgendaShell() {
                 weekDates={weekDates}
                 weekEvents={weekEvents}
                 onClickEvent={(occ) => setEditing(occ)}
-                onCreate={(date) => setCreating({ initialDate: date })}
+                onCreate={(date, time) => setCreating({ initialDate: date, initialTime: time })}
                 onJumpToDay={(date) => { setRefDate(date); setTab('day') }}
                 onMoveEvent={async (eventId, newDate, newTime, newEndTime) => {
                   await updateEvent(eventId, {
