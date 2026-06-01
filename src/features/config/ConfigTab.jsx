@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2, Sun, Moon, Palette } from 'lucide-react'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2, Sun, Moon, Palette, PlayCircle, ArrowRight } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
@@ -512,6 +512,38 @@ function WhatsAppConfig({ whatsappPhone, updateWhatsappPhone }) {
 }
 
 // ---------- AppearanceSection (Tema light/dark) ----------
+// ---------- HelpSection ----------
+// Card sempre visível em Configurações com acesso à página de tutoriais.
+// (No painel também aparece um aviso compacto dispensável.)
+function HelpSection() {
+  return (
+    <Card className="p-4 sm:p-6">
+      <SectionTitle icon={PlayCircle} title="Ajuda & tutoriais" subtitle="Vídeos pra você dominar o app." accent="gold" />
+      <Link
+        to="/tutorial"
+        className="flex items-center gap-3 p-4 rounded-xl transition hover:opacity-95"
+        style={{
+          background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
+          border: '1px solid rgba(212,175,55,0.3)',
+        }}
+      >
+        <div className="p-2 rounded-lg shrink-0" style={{ background: 'rgba(212,175,55,0.18)', color: 'var(--accent-gold)' }}>
+          <PlayCircle size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+            Ver tutoriais
+          </div>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            Vídeos curtos sobre cartões, Alfred, cofres e mais
+          </div>
+        </div>
+        <ArrowRight size={16} className="shrink-0" style={{ color: 'var(--accent-gold)' }} />
+      </Link>
+    </Card>
+  )
+}
+
 function AppearanceSection() {
   const { theme, setTheme } = useTheme()
 
@@ -749,6 +781,7 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
       </Card>
       <SubscriptionCard />
       <BrandConfig brand={brand} updateBrand={updateBrand} />
+      <HelpSection />
       <AppearanceSection />
       <WhatsAppConfig whatsappPhone={whatsappPhone} updateWhatsappPhone={updateWhatsappPhone} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

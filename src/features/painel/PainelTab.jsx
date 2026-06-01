@@ -1308,34 +1308,49 @@ function formatMonthLabelPT(ym) {
 }
 
 // ---------- TutorialBanner ----------
-// Faixa sutil no topo do painel que leva pra página /tutorial.
+// Aviso compacto no topo do painel que leva pra /tutorial.
+// Pode ser dispensado (X) — fica oculto pra sempre nesse navegador.
+// Pessoa sempre pode acessar via Configurações > Ajuda & tutoriais.
+const TUTORIAL_BANNER_KEY = 'domus:tutorial-banner-dismissed'
+
 function TutorialBanner() {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(TUTORIAL_BANNER_KEY) === '1' } catch { return false }
+  })
+
+  if (dismissed) return null
+
+  const dismiss = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try { localStorage.setItem(TUTORIAL_BANNER_KEY, '1') } catch {}
+    setDismissed(true)
+  }
+
   return (
-    <Link
-      to="/tutorial"
-      className="block rounded-2xl p-4 sm:p-5 transition hover:opacity-95"
+    <div
+      className="rounded-xl px-3 py-2 flex items-center gap-2.5"
       style={{
-        background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
-        border: '1px solid rgba(212,175,55,0.3)',
+        background: 'rgba(212,175,55,0.08)',
+        border: '1px solid rgba(212,175,55,0.25)',
       }}
     >
-      <div className="flex items-center gap-3.5">
-        <div
-          className="p-2.5 rounded-xl shrink-0"
-          style={{ background: 'rgba(212,175,55,0.18)', color: 'var(--accent-gold)' }}
-        >
-          <PlayCircle size={22} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
-            🎩 Como usar o Domus
-          </div>
-          <div className="text-xs sm:text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Vídeos curtos pra você dominar o app em minutos.
-          </div>
-        </div>
-        <ArrowRight size={18} className="shrink-0" style={{ color: 'var(--accent-gold)' }} />
-      </div>
-    </Link>
+      <PlayCircle size={15} className="shrink-0" style={{ color: 'var(--accent-gold)' }} />
+      <Link
+        to="/tutorial"
+        className="text-xs sm:text-sm min-w-0 flex-1 hover:underline transition truncate"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        🎩 Novo por aqui? <strong style={{ color: 'var(--accent-gold)' }}>Veja os tutoriais →</strong>
+      </Link>
+      <button
+        onClick={dismiss}
+        title="Dispensar (você pode acessar em Ajustes depois)"
+        className="p-1 rounded transition shrink-0 hover:bg-white/5"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <X size={14} />
+      </button>
+    </div>
   )
 }
