@@ -1193,387 +1193,502 @@ function ProgressStrip({ done, total, allDone }) {
 }
 
 // ============================================================
-// WEEK VIEW — Chips no topo + lista cronológica por dia
-// Arquitetura: navegação rápida (chips horizontais) + leitura vertical fluida
+// WEEK VIEW — Foco em tempo livre + visão panorâmica
+// "Dia útil" considerado: 06h-23h (17h de janela disponível)
 // ============================================================
+const WEEK_DAY_START_H = 6
+const WEEK_DAY_END_H = 23
+const WEEK_DAILY_AVAILABLE_MIN = (WEEK_DAY_END_H - WEEK_DAY_START_H) * 60  // 1020 min
+
 function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }) {
-  const [focusedDate, setFocusedDate] = useState(() => {
-    // Começa no hoje se está na semana, senão no primeiro dia
-    const today = todayISO()
-    return weekDates.includes(today) ? today : weekDates[0]
-  })
-
-  // Stats globais da semana
-  const totalEvents = weekDates.reduce((sum, d) => sum + (weekEvents[d]?.length || 0), 0)
-  const busyDays = weekDates.filter((d) => (weekEvents[d]?.length || 0) > 0).length
-
-  // Stats agregadas
-  let totalMinutes = 0
-  for (const d of weekDates) {
-    for (const ev of (weekEvents[d] || [])) {
-      const dur = computeDurationMinutes(ev.time, ev.end_time)
-      if (dur) totalMinutes += dur
-    }
-  }
-  const hoursOccupied = (totalMinutes / 60).toFixed(1).replace('.', ',')
+  // Calcula janelas livres e estatísticas por dia
+  const weekAnalysis = useMemo(() => analyzeWeek(weekDates, weekEvents), [weekDates, weekEvents])
 
   return (
     <div className="space-y-4">
-      {/* Hero da semana — sintético e elegante */}
-      <div
-        className="rounded-3xl p-5 relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, rgba(6,182,212,0.10), rgba(6,182,212,0.18))`,
-          border: '1px solid rgba(6,182,212,0.30)',
-        }}
-      >
-        {/* Glow decorativo */}
-        <div
-          className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ background: AGENDA_ACCENT }}
-        />
-        <div className="relative">
-          <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-1.5" style={{ color: AGENDA_ACCENT }}>
-            Sua semana
-          </div>
-          {totalEvents === 0 ? (
-            <>
-              <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }} className="text-2xl leading-tight">
-                7 dias <em style={{ color: AGENDA_ACCENT, fontStyle: 'italic' }}>completamente livres</em>
-              </h2>
-              <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                🌿 Aproveite — ou preencha com o que importa.
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="flex items-baseline gap-2">
-                <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }} className="text-3xl leading-none">
-                  {totalEvents}
-                </span>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {totalEvents === 1 ? 'compromisso' : 'compromissos'}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: AGENDA_ACCENT }} />
-                  {busyDays} {busyDays === 1 ? 'dia' : 'dias'} com atividade
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Clock size={10} style={{ color: AGENDA_ACCENT }} />
-                  {hoursOccupied}h ocupadas
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      {/* HERO: tempo livre em destaque */}
+      <WeekFreeTimeHero analysis={weekAnalysis} />
 
-      {/* Strip horizontal de chips — navegação rápida + visão geral */}
-      <WeekDayChips
-        weekDates={weekDates}
-        weekEvents={weekEvents}
-        focusedDate={focusedDate}
-        onSelect={(date) => {
-          setFocusedDate(date)
-          // Scroll suave pra seção do dia
-          setTimeout(() => {
-            const el = document.getElementById(`week-day-${date}`)
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }, 50)
-        }}
+      {/* MELHORES JANELAS LIVRES */}
+      <WeekBestSlots
+        slots={weekAnalysis.bestSlots}
+        onCreate={(date, time) => onCreate(date, time)}
       />
 
-      {/* Lista cronológica fluida — separadores grandes por dia */}
-      <div className="space-y-3">
-        {weekDates.map((date, idx) => {
-          const evs = weekEvents[date] || []
-          return (
-            <WeekDaySection
-              key={date}
-              date={date}
-              events={evs}
-              isFocused={date === focusedDate}
-              onClickEvent={onClickEvent}
-              onCreate={() => onCreate(date)}
-              onJumpToDay={() => onJumpToDay?.(date)}
-            />
-          )
-        })}
-      </div>
+      {/* GRADE PANORÂMICA — 7 colunas verticais */}
+      <WeekPanoramicGrid
+        weekDates={weekDates}
+        weekEvents={weekEvents}
+        analysis={weekAnalysis}
+        onClickEvent={onClickEvent}
+        onJumpToDay={onJumpToDay}
+        onCreate={onCreate}
+      />
     </div>
   )
 }
 
-// Strip horizontal de 7 chips clicáveis — visão geral da semana
-function WeekDayChips({ weekDates, weekEvents, focusedDate, onSelect }) {
-  return (
-    <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-      {weekDates.map((date) => {
-        const d = parseISODate(date)
-        const evs = weekEvents[date] || []
-        const todayFlag = isToday(date)
-        const isFocused = date === focusedDate
-        const dayName = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'][d.getDay()]
-        const isWeekend = d.getDay() === 0 || d.getDay() === 6
+// ============================================================
+// Análise da semana — calcula tempo livre, janelas, etc
+// ============================================================
+function analyzeWeek(weekDates, weekEvents) {
+  const days = weekDates.map((date) => {
+    const events = (weekEvents[date] || [])
+      .filter((e) => !!e.time)
+      .map((e) => {
+        const sh = Number(e.time.slice(0, 2))
+        const sm = Number(e.time.slice(3, 5)) || 0
+        const eh = e.end_time ? Number(e.end_time.slice(0, 2)) : sh + 1
+        const em = e.end_time ? (Number(e.end_time.slice(3, 5)) || 0) : 0
+        return {
+          ev: e,
+          startMin: Math.max(0, sh * 60 + sm),
+          endMin: Math.min(24 * 60, eh * 60 + em),
+        }
+      })
+      .filter((e) => e.endMin > e.startMin)
+      .sort((a, b) => a.startMin - b.startMin)
 
-        // Cores únicas presentes nos eventos
-        const colors = [...new Set(evs.map((e) => e.color || 'cyan'))]
-        const isFree = evs.length === 0
+    // Mescla sobreposições pra calcular tempo ocupado real
+    const merged = []
+    for (const e of events) {
+      const last = merged[merged.length - 1]
+      if (last && e.startMin <= last.endMin) {
+        last.endMin = Math.max(last.endMin, e.endMin)
+      } else {
+        merged.push({ startMin: e.startMin, endMin: e.endMin })
+      }
+    }
 
-        return (
-          <button
-            key={date}
-            onClick={() => onSelect(date)}
-            className="flex-1 min-w-[44px] flex flex-col items-center justify-between rounded-2xl py-2.5 px-1 transition-all"
-            style={{
-              background: isFocused
-                ? AGENDA_ACCENT
-                : todayFlag
-                  ? 'rgba(6,182,212,0.12)'
-                  : 'var(--bg-elev2)',
-              border: `1.5px solid ${isFocused
-                ? AGENDA_ACCENT
-                : todayFlag
-                  ? 'rgba(6,182,212,0.40)'
-                  : 'var(--border-soft)'}`,
-              color: isFocused ? '#fff' : 'var(--text-primary)',
-              transform: isFocused ? 'scale(1.05)' : 'scale(1)',
-              boxShadow: isFocused ? '0 8px 20px rgba(6,182,212,0.25)' : 'none',
-            }}
-          >
-            <div
-              className="text-[9px] uppercase tracking-wider leading-none mb-1"
-              style={{
-                opacity: isFocused ? 0.9 : (isWeekend ? 0.5 : 0.7),
-                fontWeight: todayFlag ? 700 : 500,
-              }}
-            >
-              {dayName}
-            </div>
-            <div
-              className="text-lg font-bold tabular-nums leading-none"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
-            >
-              {d.getDate()}
-            </div>
-            {/* Dots de eventos OU "vazio" */}
-            <div className="flex gap-0.5 mt-1.5 h-2 items-center justify-center" style={{ minHeight: 8 }}>
-              {isFree ? (
-                <span className="text-[7px] opacity-50" style={{ color: isFocused ? '#fff' : 'var(--text-muted)' }}>○</span>
-              ) : (
-                colors.slice(0, 3).map((c, i) => (
-                  <span
-                    key={i}
-                    className="rounded-full"
-                    style={{
-                      width: 5,
-                      height: 5,
-                      background: isFocused ? '#fff' : `var(--accent-${c})`,
-                    }}
-                  />
-                ))
-              )}
-              {colors.length > 3 && (
-                <span className="text-[7px] font-bold ml-0.5" style={{ color: isFocused ? '#fff' : 'var(--text-muted)' }}>
-                  +
-                </span>
-              )}
-            </div>
-          </button>
-        )
-      })}
-    </div>
-  )
+    // Tempo ocupado total
+    let busyMin = 0
+    for (const m of merged) busyMin += m.endMin - m.startMin
+
+    // Janelas livres dentro do "dia útil" (06h-23h)
+    const dayStart = WEEK_DAY_START_H * 60
+    const dayEnd = WEEK_DAY_END_H * 60
+    const gaps = []
+    let cursor = dayStart
+    for (const m of merged) {
+      if (m.endMin <= dayStart) continue
+      if (m.startMin >= dayEnd) break
+      const gStart = Math.max(cursor, dayStart)
+      const gEnd = Math.min(m.startMin, dayEnd)
+      if (gEnd > gStart) gaps.push({ date: '', startMin: gStart, endMin: gEnd })
+      cursor = Math.max(cursor, m.endMin)
+    }
+    if (cursor < dayEnd) gaps.push({ date: '', startMin: Math.max(cursor, dayStart), endMin: dayEnd })
+
+    // Considera dia útil clamped pra calcular livre
+    const busyWithinDay = Math.min(busyMin, WEEK_DAILY_AVAILABLE_MIN) // approx
+    const freeMin = Math.max(0, WEEK_DAILY_AVAILABLE_MIN - gaps.reduce((s, g) => s, 0) === 0 ? 0 : 0)
+    // (recalcula direto dos gaps pra ser mais preciso)
+    const realFreeMin = gaps.reduce((s, g) => s + (g.endMin - g.startMin), 0)
+
+    return {
+      date,
+      events,         // [{ev, startMin, endMin}]
+      merged,         // intervalos ocupados mesclados
+      busyMin,
+      freeMin: realFreeMin,
+      gaps: gaps.map((g) => ({ ...g, date })),
+    }
+  })
+
+  // Total semana
+  const totalBusyMin = days.reduce((s, d) => s + d.busyMin, 0)
+  const totalFreeMin = days.reduce((s, d) => s + d.freeMin, 0)
+
+  // Top 3 melhores janelas livres (maiores)
+  const allGaps = days.flatMap((d) => d.gaps).filter((g) => (g.endMin - g.startMin) >= 60)  // só >= 1h
+  allGaps.sort((a, b) => (b.endMin - b.startMin) - (a.endMin - a.startMin))
+  const bestSlots = allGaps.slice(0, 4)
+
+  return {
+    days,
+    totalBusyMin,
+    totalFreeMin,
+    bestSlots,
+  }
 }
 
-// Seção de um dia na lista cronológica
-function WeekDaySection({ date, events, isFocused, onClickEvent, onCreate, onJumpToDay }) {
-  const d = parseISODate(date)
-  const todayFlag = isToday(date)
-  const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][d.getDay()]
-  const dayNum = d.getDate()
-  const monthNum = d.getMonth() + 1
+// ============================================================
+// Hero — tempo livre em destaque dramático
+// ============================================================
+function WeekFreeTimeHero({ analysis }) {
+  const { totalFreeMin, totalBusyMin } = analysis
+  const totalAvailable = analysis.days.length * WEEK_DAILY_AVAILABLE_MIN
+  const freePct = totalAvailable > 0 ? Math.round((totalFreeMin / totalAvailable) * 100) : 0
 
-  const timed = events.filter((e) => !!e.time).sort((a, b) => (a.time || '').localeCompare(b.time || ''))
-  const allDay = events.filter((e) => !e.time)
+  const freeHours = Math.floor(totalFreeMin / 60)
+  const freeMins = totalFreeMin % 60
+  const busyHours = Math.floor(totalBusyMin / 60)
+  const busyMins = totalBusyMin % 60
 
-  const totalMins = events.reduce((s, ev) => s + (computeDurationMinutes(ev.time, ev.end_time) || 0), 0)
+  const fmtTime = (h, m) => m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`
 
   return (
-    <div id={`week-day-${date}`} className="scroll-mt-4">
-      {/* Separador elegante */}
-      <div className="flex items-center gap-3 mb-2.5 px-1">
+    <div
+      className="rounded-3xl p-5 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(16,185,129,0.10), rgba(6,182,212,0.10) 60%, rgba(16,185,129,0.18))',
+        border: '1px solid rgba(16,185,129,0.30)',
+      }}
+    >
+      <div
+        className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-25 blur-3xl pointer-events-none"
+        style={{ background: 'var(--accent-emerald)' }}
+      />
+      <div className="relative">
+        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-2" style={{ color: 'var(--accent-emerald)' }}>
+          🌿 Você tem disponível
+        </div>
         <div className="flex items-baseline gap-2">
-          {todayFlag && (
-            <span
-              className="text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full"
-              style={{
-                background: AGENDA_ACCENT,
-                color: '#fff',
-                boxShadow: '0 4px 8px rgba(6,182,212,0.3)',
-              }}
-            >
-              Hoje
-            </span>
-          )}
           <span
             style={{
               fontFamily: 'Fraunces, serif',
               fontWeight: 500,
-              color: todayFlag ? AGENDA_ACCENT : 'var(--text-primary)',
-              fontStyle: 'italic',
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.03em',
             }}
-            className="text-lg leading-none"
+            className="text-5xl leading-none"
           >
-            {dayName}
+            {fmtTime(freeHours, freeMins)}
           </span>
-          <span
-            className="text-xs tabular-nums"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'JetBrains Mono, monospace' }}
-          >
-            {String(dayNum).padStart(2, '0')}/{String(monthNum).padStart(2, '0')}
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            livres essa semana
           </span>
         </div>
 
-        <div className="flex-1 h-px" style={{ background: todayFlag ? 'rgba(6,182,212,0.30)' : 'var(--border-soft)' }} />
+        {/* Barra de progresso livre vs ocupado */}
+        <div className="mt-4 relative h-3 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
+          <div
+            className="absolute inset-y-0 left-0"
+            style={{
+              width: `${100 - freePct}%`,
+              background: `linear-gradient(90deg, ${AGENDA_ACCENT}, ${AGENDA_ACCENT}cc)`,
+              transition: 'width 0.6s ease',
+            }}
+          />
+        </div>
 
-        {events.length > 0 ? (
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            {events.length} · {formatDurationShort(totalMins) || '—'}
+        <div className="flex items-center justify-between mt-2.5 text-[10px]">
+          <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: AGENDA_ACCENT }} />
+            {fmtTime(busyHours, busyMins)} ocupadas ({100 - freePct}%)
           </span>
-        ) : (
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            livre
+          <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: 'var(--accent-emerald)' }}>
+            {freePct}% livre
+            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--accent-emerald)' }} />
           </span>
-        )}
+        </div>
+
+        <div className="mt-3 pt-3 text-[10px] italic" style={{ color: 'var(--text-tertiary)', borderTop: '1px solid rgba(16,185,129,0.15)' }}>
+          🎩 Considerando dia útil de 06h às 23h (17h por dia · 119h na semana).
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Best Slots — top janelas livres maiores
+// ============================================================
+function WeekBestSlots({ slots, onCreate }) {
+  if (!slots || slots.length === 0) {
+    return (
+      <div className="rounded-2xl p-4 text-center"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          📅 Semana cheia — sem janelas grandes livres (1h+)
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 px-1">
+        <Sparkles size={12} style={{ color: AGENDA_ACCENT }} />
+        <div className="text-[10px] uppercase tracking-widest font-bold" style={{ color: AGENDA_ACCENT }}>
+          Melhores janelas livres
+        </div>
+        <div className="flex-1 h-px" style={{ background: 'var(--border-soft)' }} />
       </div>
 
-      {/* Conteúdo do dia */}
-      {events.length === 0 ? (
-        <button
-          onClick={onCreate}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl transition hover:opacity-80 group"
+      <div className="grid grid-cols-2 gap-2">
+        {slots.map((slot, i) => (
+          <SlotCard key={i} slot={slot} onCreate={onCreate} highlighted={i === 0} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SlotCard({ slot, onCreate, highlighted }) {
+  const d = parseISODate(slot.date)
+  const todayFlag = isToday(slot.date)
+  const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()]
+  const durMin = slot.endMin - slot.startMin
+  const h = Math.floor(durMin / 60)
+  const m = durMin % 60
+  const durStr = m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`
+  const startTime = `${String(Math.floor(slot.startMin / 60)).padStart(2, '0')}:${String(slot.startMin % 60).padStart(2, '0')}`
+  const endTime = `${String(Math.floor(slot.endMin / 60)).padStart(2, '0')}:${String(slot.endMin % 60).padStart(2, '0')}`
+
+  return (
+    <button
+      onClick={() => onCreate(slot.date, startTime)}
+      className="text-left rounded-2xl p-3 transition hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden"
+      style={{
+        background: highlighted
+          ? 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,182,212,0.18))'
+          : 'var(--bg-elev2)',
+        border: `1px solid ${highlighted ? 'rgba(16,185,129,0.35)' : 'var(--border-soft)'}`,
+      }}
+    >
+      {highlighted && (
+        <div className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
+          style={{ background: 'var(--accent-emerald)', color: '#fff' }}>
+          maior
+        </div>
+      )}
+      <div className="flex items-baseline gap-1.5">
+        <span
+          className="text-2xl font-bold tabular-nums"
           style={{
-            background: 'transparent',
-            border: '1.5px dashed var(--border-soft)',
-            color: 'var(--text-muted)',
+            fontFamily: 'JetBrains Mono, monospace',
+            color: highlighted ? 'var(--accent-emerald)' : 'var(--text-primary)',
+            letterSpacing: '-0.02em',
           }}
         >
-          <span className="text-[11px]">🌿 Dia livre</span>
-          <span className="text-[10px] opacity-0 group-hover:opacity-100 transition" style={{ color: AGENDA_ACCENT }}>
-            · toque pra adicionar
+          {durStr}
+        </span>
+        <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+          livre
+        </span>
+      </div>
+      <div className="text-xs mt-1.5" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+        {todayFlag ? 'Hoje' : dayName}
+        <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>
+          {' '} · {String(d.getDate()).padStart(2, '0')}/{String(d.getMonth() + 1).padStart(2, '0')}
+        </span>
+      </div>
+      <div className="text-[10px] tabular-nums mt-0.5" style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+        {startTime}–{endTime}
+      </div>
+      <div className="text-[9px] mt-2 inline-flex items-center gap-1" style={{ color: AGENDA_ACCENT }}>
+        <Plus size={9} /> agendar nessa janela
+      </div>
+    </button>
+  )
+}
+
+// ============================================================
+// Grade Panorâmica — 7 colunas verticais com timeline
+// ============================================================
+function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJumpToDay, onCreate }) {
+  const PX_PER_HOUR = 22
+  const totalHours = WEEK_DAY_END_H - WEEK_DAY_START_H  // 17h
+  const gridHeight = totalHours * PX_PER_HOUR  // 374px
+
+  // Linhas de referência: a cada 4h (6, 10, 14, 18, 22)
+  const refHours = [6, 10, 14, 18, 22]
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 px-1">
+        <Clock size={12} style={{ color: AGENDA_ACCENT }} />
+        <div className="text-[10px] uppercase tracking-widest font-bold" style={{ color: AGENDA_ACCENT }}>
+          Panorama 06h–23h
+        </div>
+        <div className="flex-1 h-px" style={{ background: 'var(--border-soft)' }} />
+        <div className="flex items-center gap-2 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm" style={{ background: 'var(--accent-emerald)', opacity: 0.4 }} />
+            livre
           </span>
-        </button>
-      ) : (
-        <div className="space-y-1.5">
-          {allDay.map((ev) => (
-            <WeekEventCard
-              key={`${ev.id}:${ev.occurrenceDate}`}
-              event={ev}
-              onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
-              allDay
-            />
-          ))}
-          {timed.map((ev) => (
-            <WeekEventCard
-              key={`${ev.id}:${ev.occurrenceDate}`}
-              event={ev}
-              onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
-            />
-          ))}
-          {/* Botão adicionar pequeno no fim */}
-          <button
-            onClick={onCreate}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium transition hover:opacity-90"
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm" style={{ background: AGENDA_ACCENT }} />
+            ocupado
+          </span>
+        </div>
+      </div>
+
+      <div
+        className="rounded-2xl p-3"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
+      >
+        {/* Headers dos dias */}
+        <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: '32px repeat(7, minmax(0, 1fr))' }}>
+          <div /> {/* placeholder pra coluna de horas */}
+          {weekDates.map((date) => {
+            const d = parseISODate(date)
+            const todayFlag = isToday(date)
+            const dayName = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][d.getDay()]
+            const dayStats = analysis.days.find((dd) => dd.date === date)
+            const freeHours = Math.floor((dayStats?.freeMin || 0) / 60)
+            const freeMinsRem = (dayStats?.freeMin || 0) % 60
+            return (
+              <button
+                key={date}
+                onClick={() => onJumpToDay?.(date)}
+                className="flex flex-col items-center justify-center rounded-lg py-1.5 transition hover:opacity-90"
+                style={{
+                  background: todayFlag ? AGENDA_ACCENT : 'transparent',
+                  color: todayFlag ? '#fff' : 'var(--text-primary)',
+                }}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">{dayName}</div>
+                <div className="text-sm font-bold tabular-nums leading-none mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                  {d.getDate()}
+                </div>
+                <div
+                  className="text-[8px] mt-0.5 tabular-nums"
+                  style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    opacity: todayFlag ? 0.9 : 0.6,
+                    color: todayFlag ? '#fff' : 'var(--accent-emerald)',
+                  }}
+                >
+                  {freeMinsRem === 0 ? `${freeHours}h` : `${freeHours}h${String(freeMinsRem).padStart(2, '0')}`}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Grid timeline */}
+        <div className="grid gap-1 relative" style={{ gridTemplateColumns: '32px repeat(7, minmax(0, 1fr))', height: gridHeight }}>
+          {/* Coluna de horas (esquerda) */}
+          <div className="relative" style={{ height: gridHeight }}>
+            {refHours.map((h) => {
+              const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
+              return (
+                <div
+                  key={h}
+                  className="absolute right-1 text-[8px] tabular-nums"
+                  style={{
+                    top: top - 5,
+                    color: 'var(--text-muted)',
+                    fontFamily: 'JetBrains Mono, monospace',
+                  }}
+                >
+                  {String(h).padStart(2, '0')}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 7 colunas de dias */}
+          {weekDates.map((date) => {
+            const dayStats = analysis.days.find((dd) => dd.date === date)
+            const todayFlag = isToday(date)
+            return (
+              <DayColumn
+                key={date}
+                date={date}
+                dayStats={dayStats}
+                todayFlag={todayFlag}
+                gridHeight={gridHeight}
+                pxPerHour={PX_PER_HOUR}
+                refHours={refHours}
+                onClickEvent={onClickEvent}
+                onClickEmpty={(time) => onCreate?.(date, time)}
+              />
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, refHours, onClickEvent, onClickEmpty }) {
+  const events = dayStats?.events || []
+
+  // Linha "agora" se é hoje
+  let nowOffset = null
+  if (todayFlag) {
+    const now = new Date()
+    const nowH = now.getHours() + now.getMinutes() / 60
+    if (nowH >= WEEK_DAY_START_H && nowH <= WEEK_DAY_END_H) {
+      nowOffset = (nowH - WEEK_DAY_START_H) * pxPerHour
+    }
+  }
+
+  return (
+    <div
+      className="relative rounded-lg overflow-hidden"
+      style={{
+        background: todayFlag ? 'rgba(6,182,212,0.04)' : 'rgba(16,185,129,0.04)',
+        border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.25)' : 'rgba(0,0,0,0.04)'}`,
+        height: gridHeight,
+      }}
+    >
+      {/* Linhas de referência horizontais (a cada 4h) */}
+      {refHours.slice(1).map((h) => {
+        const top = (h - WEEK_DAY_START_H) * pxPerHour
+        return (
+          <div
+            key={h}
+            className="absolute left-0 right-0 pointer-events-none"
             style={{
-              background: 'rgba(6,182,212,0.06)',
-              border: '1px solid rgba(6,182,212,0.20)',
-              color: AGENDA_ACCENT,
+              top,
+              height: 1,
+              background: 'rgba(0,0,0,0.04)',
             }}
-          >
-            <Plus size={12} strokeWidth={2.5} /> adicionar nesse dia
-          </button>
+          />
+        )
+      })}
+
+      {/* Eventos posicionados */}
+      {events.map(({ ev, startMin, endMin }, i) => {
+        const startH = startMin / 60
+        const endH = endMin / 60
+        // Clipa pro range visível
+        const visStart = Math.max(startH, WEEK_DAY_START_H)
+        const visEnd = Math.min(endH, WEEK_DAY_END_H)
+        if (visEnd <= visStart) return null
+        const top = (visStart - WEEK_DAY_START_H) * pxPerHour
+        const height = Math.max(3, (visEnd - visStart) * pxPerHour)
+        const colorVar = `var(--accent-${ev.color || 'cyan'})`
+        return (
+          <button
+            key={`${ev.id}:${i}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })
+            }}
+            className="absolute left-0.5 right-0.5 rounded transition hover:opacity-80 hover:scale-105 origin-center"
+            style={{
+              top,
+              height,
+              background: colorVar,
+              boxShadow: `0 1px 3px ${colorVar}aa`,
+            }}
+            title={`${ev.title} · ${ev.time?.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}`}
+          />
+        )
+      })}
+
+      {/* Linha "agora" */}
+      {nowOffset !== null && (
+        <div
+          className="absolute left-0 right-0 pointer-events-none z-10"
+          style={{ top: nowOffset }}
+        >
+          <div
+            className="absolute -left-1 -top-1 w-2 h-2 rounded-full"
+            style={{ background: '#ef4444', boxShadow: '0 0 0 2px rgba(239,68,68,0.25)' }}
+          />
+          <div className="h-px" style={{ background: '#ef4444' }} />
         </div>
       )}
     </div>
   )
 }
 
-// Card de evento na semana — visual elegante com hora destacada
-function WeekEventCard({ event, onClick, allDay }) {
-  const colorKey = event.color || 'cyan'
-  const colorVar = `var(--accent-${colorKey})`
-  const tintBg = getColorTint(colorKey, 'bg')
-  const tintBorder = getColorTint(colorKey, 'border')
-  const dur = computeDurationMinutes(event.time, event.end_time)
-
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-stretch gap-0 rounded-2xl text-left transition hover:scale-[1.01] active:scale-[0.99] overflow-hidden"
-      style={{
-        background: tintBg,
-        border: `1px solid ${tintBorder}`,
-      }}
-    >
-      {/* Coluna de hora destacada */}
-      <div
-        className="flex flex-col items-center justify-center px-3 py-2.5 shrink-0"
-        style={{
-          background: colorVar,
-          color: '#fff',
-          minWidth: 60,
-        }}
-      >
-        {allDay ? (
-          <div className="text-[10px] uppercase font-bold tracking-wider">Dia<br/>todo</div>
-        ) : (
-          <>
-            <div className="text-sm font-bold tabular-nums leading-none" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-              {event.time?.slice(0, 5)}
-            </div>
-            {event.end_time && (
-              <div className="text-[9px] tabular-nums leading-none mt-1 opacity-80" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                –{event.end_time.slice(0, 5)}
-              </div>
-            )}
-            {dur && dur >= 60 && (
-              <div className="text-[8px] mt-1 opacity-70 uppercase tracking-wider">
-                {formatDurationShort(dur)}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Conteúdo */}
-      <div className="flex-1 min-w-0 px-3 py-2.5">
-        <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
-          {event.title}
-        </div>
-        {(event.location || event.notes) && (
-          <div className="text-[10px] mt-1 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
-            {event.location && (
-              <span className="inline-flex items-center gap-1 truncate">
-                <MapPin size={9} /> {event.location}
-              </span>
-            )}
-            {event.notes && (
-              <span className="truncate max-w-[140px]">— {event.notes}</span>
-            )}
-          </div>
-        )}
-        {event.isOccurrence && (
-          <div className="text-[9px] mt-1 inline-flex items-center gap-1" style={{ color: colorVar }}>
-            <Repeat size={9} /> recorrente
-          </div>
-        )}
-      </div>
-    </button>
-  )
-}
 
 // ============================================================
 // MONTH VIEW
