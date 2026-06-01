@@ -907,10 +907,10 @@ export default function AppShell() {
           onJumpTo={navigateToMonth}
           saving={saving}
         />
-        <Tabs tab={tab} setTab={setTab} />
       </div>
 
-      <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6 pb-16">
+      {/* main com padding-bottom maior pra conteúdo não ficar atrás da bottom nav fixa */}
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 mt-6" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0))' }}>
         <ErrorBoundary key={tab + activeMonth}>
           {tab === 'painel'   && <PainelTab month={month} setMonth={setMonth} setTab={setTab} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} pendingActions={data.pendingActions || []} confirmPending={confirmPending} discardPending={discardPending} />}
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
@@ -920,9 +920,8 @@ export default function AppShell() {
         </ErrorBoundary>
       </main>
 
-      <div className="w-full max-w-4xl mx-auto px-4">
-        <Footer />
-      </div>
+      {/* Bottom navigation fixa — sempre visível durante o scroll */}
+      <Tabs tab={tab} setTab={setTab} />
     </div>
   )
 }
