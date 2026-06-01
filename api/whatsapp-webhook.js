@@ -3,6 +3,12 @@
 // usa Claude (Anthropic) pra extrair o gasto e salva no Supabase.
 
 import { createClient } from '@supabase/supabase-js'
+import {
+  loadAgendaContext, formatAgendaForPrompt,
+  createAgendaEvent, createAgendaTask, markTaskCompleteByTitle, listAgendaEvents,
+  formatEventConfirmation, formatTaskConfirmation, formatAgendaList,
+  todayIso, shiftIso,
+} from './_agenda.js'
 
 // ---------- Env ----------
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
@@ -51,6 +57,20 @@ Pode falar à vontade — transcrevo e compreendo. Basta segurar o microfone do 
 📅 *Datas livres*
 "pago dia 5 do mês que vem"
 "recebi ontem do freelance"
+
+🗓 *Agendar compromissos*
+"agenda reunião com cliente amanhã às 15h"
+"marca consulta dia 5 às 10h, me lembra 1 hora antes"
+"toda terça às 19h tenho academia"
+
+✅ *Tarefas pra fazer (sem data ainda)*
+"anota que preciso ligar pro contador"
+"adiciona ao projeto mudança: contratar caminhão"
+
+🔍 *Consultar agenda*
+"o que tenho amanhã?"
+"o que tem essa semana?"
+"tenho algo dia 10?"
 
 📋 *Como funcionará nosso trabalho:*
 Tudo que enviar a mim torna-se um _lançamento pendente_. Você confirma, edita ou descarta no aplicativo — _nada é salvo sem sua aprovação_. A palavra final é sempre sua.
@@ -153,11 +173,14 @@ export default async function handler(req, res) {
 
     const userId = profile.user_id
 
-    // 2) Carrega contexto do usuário (cards, categorias, atribuídos, cofres)
-    const context = await loadUserContext(admin, userId)
+    // 2) Carrega contexto do usuário (cards, categorias, atribuídos, cofres + agenda)
+    const [context, agendaCtx] = await Promise.all([
+      loadUserContext(admin, userId),
+      loadAgendaContext(admin, userId),
+    ])
 
     // 3) Pede pro Claude extrair o gasto
-    const extraction = await extractExpense(text, context)
+    const extraction = await extractExpense(text, context, agendaCtx)
     console.log('🧠 Claude:', JSON.stringify(extraction))
 
     if (!extraction) {
@@ -207,9 +230,73 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
-    // 4d) Outras intenções (saudação, conversa, etc)
+    // 4d) AGENDA — criar compromisso
+    if (extraction.intent === 'agenda_create_event') {
+      if (!extraction.title || !extraction.date) {
+        await sendWhatsApp(from, '🗓 Faltou algo: preciso pelo menos do nome e data. Pode reformular?')
+        return res.status(200).json({ ok: true })
+      }
+      try {
+        const event = await createAgendaEvent(admin, userId, extraction)
+        await sendWhatsApp(from, formatEventConfirmation(event))
+      } catch (err) {
+        console.error('agenda_create_event error:', err)
+        await sendWhatsApp(from, '🗓 Não consegui anotar agora. Tenta de novo em alguns segundos?')
+      }
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4e) AGENDA — criar tarefa
+    if (extraction.intent === 'agenda_create_task') {
+      if (!extraction.title) {
+        await sendWhatsApp(from, '✅ O que devo anotar?')
+        return res.status(200).json({ ok: true })
+      }
+      try {
+        const { task, project } = await createAgendaTask(admin, userId, extraction, agendaCtx)
+        await sendWhatsApp(from, formatTaskConfirmation(task, project))
+      } catch (err) {
+        console.error('agenda_create_task error:', err)
+        await sendWhatsApp(from, '✅ Não consegui anotar agora. Tenta de novo em alguns segundos?')
+      }
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4f) AGENDA — marcar tarefa como feita
+    if (extraction.intent === 'agenda_complete_task') {
+      const hint = extraction.task_hint || ''
+      const result = await markTaskCompleteByTitle(admin, userId, hint, agendaCtx)
+      if (result) {
+        await sendWhatsApp(from, `✅ *Tarefa concluída*\n\n_"${result.title}"_ — riscada da lista.\n\n🎩 Bem feito. Algo mais?`)
+      } else {
+        await sendWhatsApp(from, `🤔 Não encontrei tarefa parecida com "${hint}" na sua lista. Pode ser mais específico?`)
+      }
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4g) AGENDA — consultar
+    if (extraction.intent === 'agenda_query') {
+      const { range, date, from: fromDate, to: toDate } = extraction
+      let start = todayIso(), end = todayIso(), label = 'Hoje'
+      if (range === 'tomorrow') {
+        start = shiftIso(todayIso(), 1); end = start; label = 'Amanhã'
+      } else if (range === 'week') {
+        start = todayIso(); end = shiftIso(start, 6); label = 'Próximos 7 dias'
+      } else if (range === 'month') {
+        start = todayIso(); end = shiftIso(start, 30); label = 'Próximos 30 dias'
+      } else if (range === 'date' && date) {
+        start = date; end = date; label = `Dia ${date}`
+      } else if (range === 'range' && fromDate && toDate) {
+        start = fromDate; end = toDate; label = `${fromDate} até ${toDate}`
+      }
+      const events = await listAgendaEvents(admin, userId, start, end)
+      await sendWhatsApp(from, formatAgendaList(events, label))
+      return res.status(200).json({ ok: true })
+    }
+
+    // 4h) Outras intenções (saudação, conversa, etc)
     if (extraction.intent !== 'register_expense' && extraction.intent !== 'register_income') {
-      await sendWhatsApp(from, `🎩 ${extraction.reply || 'Posso registrar despesas, receitas ou responder sobre suas finanças. Estou ao seu dispor.'}`)
+      await sendWhatsApp(from, `🎩 ${extraction.reply || 'Posso registrar despesas, receitas, agendar compromissos ou responder sobre suas finanças. Estou ao seu dispor.'}`)
       return res.status(200).json({ ok: true })
     }
 
@@ -302,12 +389,21 @@ const EXTRACT_STATIC_SYSTEM = `Você é um assistente financeiro brasileiro supe
 
 SUA TAREFA: retorne APENAS um JSON válido (sem markdown, sem texto fora do JSON), classificando a mensagem em um destes intents:
 
+FINANÇAS:
 - "register_expense" → 1 gasto / saída de dinheiro
 - "register_income" → 1 receita / entrada de dinheiro
-- "register_batch" → MÚLTIPLOS lançamentos numa mensagem (mistura de saídas e entradas permitida)
+- "register_batch" → MÚLTIPLOS lançamentos financeiros numa mensagem (mistura de saídas e entradas permitida)
 - "query" → pergunta sobre finanças (saldos, parcelas, orçamentos, cofres, totais)
-- "clarify" → você entendeu a intenção mas falta um dado essencial (valor ou se é gasto/receita)
-- "other" → saudação, conversa casual, ou dúvida fora de finanças
+
+AGENDA:
+- "agenda_create_event" → marcar compromisso com data (e geralmente hora) — "agenda reunião amanhã 15h", "marca consulta dia 5"
+- "agenda_create_task" → anotar TAREFA pra fazer SEM data definida — "anota que preciso ligar pro contador", "adiciona no projeto X: comprar caminhão"
+- "agenda_complete_task" → marcar tarefa existente como FEITA — "marca como feita o café", "já liguei pro contador"
+- "agenda_query" → perguntar o que tem na agenda — "o que tenho amanhã?", "o que tem essa semana?"
+
+OUTROS:
+- "clarify" → você entendeu a intenção mas falta um dado essencial
+- "other" → saudação, conversa casual, ou dúvida fora dos temas suportados
 
 ═══════ FORMATO DE SAÍDA POR INTENT ═══════
 
@@ -349,6 +445,45 @@ Cada item tem "kind": "expense" ou "income" e os mesmos campos do intent equival
 query:
 { "intent": "query" }
 
+agenda_create_event:
+{
+  "intent": "agenda_create_event",
+  "title": "título do compromisso, claro e curto",
+  "date": "YYYY-MM-DD (use a tabela de datas/meses do contexto)",
+  "time": "HH:MM (24h) ou null se for dia inteiro",
+  "end_time": "HH:MM ou null se não souber",
+  "location": "local mencionado ou null",
+  "notes": "obs adicional ou null",
+  "recurring": "none | daily | weekly | biweekly | monthly | weekdays",
+  "recurring_weekdays": [0..6] usando 0=Dom, 6=Sáb (SÓ se recurring=weekdays),
+  "ends_at": "YYYY-MM-DD ou null (data final da recorrência)",
+  "reminder_minutes_before": número (0=na hora, 5, 10, 15, 30, 60, 1440=1dia) ou null
+}
+
+agenda_create_task:
+{
+  "intent": "agenda_create_task",
+  "title": "o que precisa ser feito",
+  "project_name": "nome do projeto se mencionou (ou null pra tarefa avulsa)",
+  "priority": boolean (true se mencionou que é importante/urgente),
+  "notes": "obs adicional ou null"
+}
+
+agenda_complete_task:
+{
+  "intent": "agenda_complete_task",
+  "task_hint": "trecho que identifica a tarefa (use as palavras do usuário, ex: 'ligar contador', 'comprar café')"
+}
+
+agenda_query:
+{
+  "intent": "agenda_query",
+  "range": "today | tomorrow | week | month | date | range",
+  "date": "YYYY-MM-DD (preenche SÓ se range=date)",
+  "from": "YYYY-MM-DD (preenche SÓ se range=range)",
+  "to": "YYYY-MM-DD (preenche SÓ se range=range)"
+}
+
 clarify:
 { "intent": "clarify", "reply": "pergunta curta e amigável pedindo o que falta" }
 
@@ -381,6 +516,41 @@ Use a tabela de meses do contexto. NÃO calcule de cabeça:
 - "parcelado em Nx" / "Nx" / "M/N" → installmentTotal=N, installmentCurrent=M (ou 1 se só disser N).
 - "fixo", "todo mês", "mensal", "assinatura" → recurring=true.
 - Valor: aceita "200", "R$200", "200 reais", "200,50", "duzentos", "duzentos e cinquenta".
+
+═══════ REGRAS DA AGENDA ═══════
+
+VERBOS DE EVENTO (compromisso com data): agenda, marca, anota pra [data], lembra que tenho, coloca na agenda, marcar, agendar, tenho [evento] [data]
+VERBOS DE TAREFA (sem data): anota que preciso, adiciona à lista, coloca como tarefa, "pra fazer", "tenho que fazer", "lembrar de fazer" (SEM data específica)
+VERBOS DE COMPLETAR: "já fiz", "concluí", "feito", "marca como feita", "tira da lista", "completei"
+VERBOS DE QUERY DA AGENDA: "o que tenho", "tem o que", "qual minha agenda", "quais compromissos"
+
+HORÁRIOS:
+- "15h" → "15:00"
+- "15:30" → "15:30"
+- "às 9" / "9 da manhã" → "09:00"
+- "9 da noite" / "21h" → "21:00"
+- "meio-dia" → "12:00"
+- "manhã" sem hora exata: clarify
+- Se mencionar duração ("das 15 às 17"), preenche end_time
+
+RECORRÊNCIA:
+- "todo dia" / "diariamente" → recurring=daily
+- "toda semana" / "toda terça" → weekly (mas se for "toda terça/quinta" use weekdays com [2,4])
+- "todo mês" / "dia 5 de todo mês" → monthly
+- "dias úteis" → weekdays com [1,2,3,4,5]
+- "fim de semana" → weekdays com [0,6]
+- Sem menção de recorrência → recurring="none"
+
+LEMBRETE:
+- "me avisa X antes" / "me lembra X antes" → reminder_minutes_before = X em minutos
+- "1 hora antes" → 60; "30 min antes" → 30; "1 dia antes" → 1440
+- "me lembra" sem qtdade → 15 (padrão)
+- Sem menção de lembrete → null
+
+PROJETO:
+- "no projeto X" / "do projeto X" / "adiciona em X" / "pra mudança" (se X é projeto cadastrado) → project_name=X
+- Match fuzzy contra a lista de projetos do contexto. Se não bate em nenhum, project_name=null
+- Tarefa sem menção de projeto → null
 
 ═══════ QUANDO PEDIR ESCLARECIMENTO (clarify) ═══════
 
@@ -418,7 +588,33 @@ NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mê
 
 "recebi um valor" → {"intent":"clarify","reply":"Beleza! Quanto e de quem?"}
 
-"oi" → {"intent":"other","reply":"🎩 Ao seu dispor. Posso registrar despesas, receitas ou consultar suas finanças. O que deseja?"}
+═══════ EXEMPLOS DE AGENDA ═══════
+
+"agenda reunião com cliente amanhã às 15h" → {"intent":"agenda_create_event","title":"Reunião com cliente","date":"<amanhã>","time":"15:00","end_time":null,"location":null,"notes":null,"recurring":"none","recurring_weekdays":null,"ends_at":null,"reminder_minutes_before":null}
+
+"marca consulta dia 5 do mês que vem às 10h, me lembra 1h antes" → {"intent":"agenda_create_event","title":"Consulta","date":"<dia 5 próx mês>","time":"10:00","end_time":null,"location":null,"notes":null,"recurring":"none","recurring_weekdays":null,"ends_at":null,"reminder_minutes_before":60}
+
+"toda terça às 19h tenho academia" → {"intent":"agenda_create_event","title":"Academia","date":"<próxima terça>","time":"19:00","end_time":null,"location":null,"notes":null,"recurring":"weekdays","recurring_weekdays":[2],"ends_at":null,"reminder_minutes_before":null}
+
+"reunião com equipe das 14 às 16 amanhã, me avisa 15 min antes" → {"intent":"agenda_create_event","title":"Reunião com equipe","date":"<amanhã>","time":"14:00","end_time":"16:00","location":null,"notes":null,"recurring":"none","recurring_weekdays":null,"ends_at":null,"reminder_minutes_before":15}
+
+"anota que preciso ligar pro contador" → {"intent":"agenda_create_task","title":"Ligar pro contador","project_name":null,"priority":false,"notes":null}
+
+"adiciona no projeto mudança: contratar caminhão" → {"intent":"agenda_create_task","title":"Contratar caminhão","project_name":"mudança","priority":false,"notes":null}
+
+"urgente: comprar passagem pra rio" → {"intent":"agenda_create_task","title":"Comprar passagem pra Rio","project_name":null,"priority":true,"notes":null}
+
+"já liguei pro contador, marca como feita" → {"intent":"agenda_complete_task","task_hint":"ligar contador"}
+
+"o que tenho amanhã?" → {"intent":"agenda_query","range":"tomorrow"}
+
+"o que tem essa semana?" → {"intent":"agenda_query","range":"week"}
+
+"tenho algo dia 10?" → {"intent":"agenda_query","range":"date","date":"<dia 10 mês atual>"}
+
+"o que tem hoje?" → {"intent":"agenda_query","range":"today"}
+
+"oi" → {"intent":"other","reply":"🎩 Ao seu dispor. Posso registrar despesas, receitas, agendar compromissos ou consultar suas finanças. O que deseja?"}
 
 "tudo bem?" → {"intent":"other","reply":"🎩 Tudo em ordem por aqui. Deseja ver como anda seu mês ou registrar algo?"}
 
@@ -426,7 +622,7 @@ NÃO use clarify quando tudo essencial estiver presente. Ex: "tv 1000 nubank mê
 
 INSTRUÇÃO DE TOM: você é Alfred, mordomo discreto. NUNCA use "senhor", "senhora", "patrão", "patroa" ou outras formas que indiquem gênero. Use linguagem refinada e neutra ("ao seu dispor", "permita-me", "às suas ordens", "se me permite", "compreendido", "como deseja", "aguardo suas instruções"). Pode usar 🎩 com moderação no início de frases. Tom amistoso, prestativo, levemente formal — nunca brincalhão demais nem robótico.`
 
-async function extractExpense(userText, ctx) {
+async function extractExpense(userText, ctx, agendaCtx) {
   if (!ANTHROPIC_API_KEY) {
     console.error('ANTHROPIC_API_KEY ausente')
     return null
@@ -467,7 +663,10 @@ Métodos de pagamento disponíveis: ${ctx.paymentMethods.length ? ctx.paymentMet
 Cartões cadastrados: ${ctx.cardNames.length ? ctx.cardNames.join(', ') : 'nenhum'}
 Categorias cadastradas: ${ctx.categories.length ? ctx.categories.join(', ') : 'nenhuma'}
 Atribuídos cadastrados: ${ctx.attributedTo.length ? ctx.attributedTo.join(', ') : 'nenhum'}
-Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhum'}`
+Cofres cadastrados: ${ctx.cofreNames.length ? ctx.cofreNames.join(', ') : 'nenhum'}
+
+═══════ AGENDA DO USUÁRIO ═══════
+${agendaCtx ? formatAgendaForPrompt(agendaCtx) : 'sem agenda carregada'}`
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
