@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
@@ -187,6 +187,13 @@ export default function AgendaShell() {
                 onClickEvent={(occ) => setEditing(occ)}
                 onCreate={(date) => setCreating({ initialDate: date })}
                 onJumpToDay={(date) => { setRefDate(date); setTab('day') }}
+                onMoveEvent={async (eventId, newDate, newTime, newEndTime) => {
+                  await updateEvent(eventId, {
+                    date: newDate,
+                    time: newTime,
+                    end_time: newEndTime,
+                  })
+                }}
               />
             )}
             {tab === 'month' && (
@@ -1202,7 +1209,7 @@ const WEEK_DAY_START_H = 6
 const WEEK_DAY_END_H = 23
 const WEEK_DAILY_AVAILABLE_MIN = (WEEK_DAY_END_H - WEEK_DAY_START_H) * 60  // 1020 min
 
-function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }) {
+function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay, onMoveEvent }) {
   // Calcula janelas livres e estatísticas por dia
   const weekAnalysis = useMemo(() => analyzeWeek(weekDates, weekEvents), [weekDates, weekEvents])
 
@@ -1217,7 +1224,7 @@ function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }
         onCreate={(date, time) => onCreate(date, time)}
       />
 
-      {/* GRADE PANORÂMICA — 7 colunas verticais */}
+      {/* GRADE PANORÂMICA — 7 colunas verticais (drag & drop) */}
       <WeekPanoramicGrid
         weekDates={weekDates}
         weekEvents={weekEvents}
@@ -1225,6 +1232,7 @@ function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay }
         onClickEvent={onClickEvent}
         onJumpToDay={onJumpToDay}
         onCreate={onCreate}
+        onMoveEvent={onMoveEvent}
       />
     </div>
   )
@@ -1487,19 +1495,112 @@ function SlotCard({ slot, onCreate, highlighted }) {
 }
 
 // ============================================================
-// Grade Panorâmica — 7 colunas verticais com timeline GRANDE
+// Grade Panorâmica — 7 colunas verticais com timeline GRANDE + DRAG & DROP
 // Mobile: scroll horizontal pra ver toda semana (coluna fixa de horas)
+// Long-press num evento → entra em modo arrastar; solta → muda dia/hora.
 // ============================================================
-function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJumpToDay, onCreate }) {
-  const PX_PER_HOUR = 56  // ↑ era 22; agora cabe texto dentro dos blocos
+const SNAP_MIN = 15           // snap em 15min
+const LONG_PRESS_MS = 350     // tempo pra ativar drag
+
+function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJumpToDay, onCreate, onMoveEvent }) {
+  const PX_PER_HOUR = 56
   const totalHours = WEEK_DAY_END_H - WEEK_DAY_START_H  // 17h
   const gridHeight = totalHours * PX_PER_HOUR  // 952px
-  const COL_WIDTH = 110  // largura mínima por coluna pra texto caber
+  const COL_WIDTH = 110
   const HOURS_COL_WIDTH = 44
+  const COL_GAP = 4  // gap entre colunas
+
+  // Drag state
+  const [dragging, setDragging] = useState(null)
+  // dragging = { event, originalDate, durationMin, pointerY, pointerX, targetDate, targetStartMin }
+
+  const gridRef = useRef(null)
+  const columnsContainerRef = useRef(null)
 
   // Linhas de hora a cada 1h
   const allHours = []
   for (let h = WEEK_DAY_START_H; h <= WEEK_DAY_END_H; h++) allHours.push(h)
+
+  // Calcula target date+time baseado em posição do pointer
+  const computeTarget = (clientX, clientY) => {
+    if (!columnsContainerRef.current) return null
+    const rect = columnsContainerRef.current.getBoundingClientRect()
+    const xInGrid = clientX - rect.left
+    const yInGrid = clientY - rect.top
+    // Detecta coluna pelo X
+    const totalColsWidth = (COL_WIDTH + COL_GAP) * 7 - COL_GAP
+    const colIdx = Math.max(0, Math.min(6, Math.floor((xInGrid + COL_GAP / 2) / (COL_WIDTH + COL_GAP))))
+    // Detecta hora pelo Y (snap em SNAP_MIN)
+    const minutesInGrid = Math.max(0, Math.min(totalHours * 60 - SNAP_MIN, (yInGrid / PX_PER_HOUR) * 60))
+    const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
+    const targetStartMin = WEEK_DAY_START_H * 60 + snapped
+    return {
+      targetDate: weekDates[colIdx],
+      targetColIdx: colIdx,
+      targetStartMin,
+    }
+  }
+
+  // Handlers de drag
+  const handleDragStart = (ev, durationMin, originalDate) => {
+    setDragging({
+      event: ev,
+      originalDate,
+      durationMin,
+      targetDate: originalDate,
+      targetStartMin: null,
+    })
+    // Bloqueia scroll do body durante drag
+    document.body.style.userSelect = 'none'
+  }
+
+  const handlePointerMove = (e) => {
+    if (!dragging) return
+    e.preventDefault()
+    const target = computeTarget(e.clientX, e.clientY)
+    if (!target) return
+    setDragging((prev) => prev && { ...prev, ...target, pointerX: e.clientX, pointerY: e.clientY })
+  }
+
+  const handlePointerUp = async (e) => {
+    if (!dragging) return
+    document.body.style.userSelect = ''
+    const finalTarget = computeTarget(e.clientX, e.clientY)
+    setDragging(null)
+    if (!finalTarget || !onMoveEvent) return
+
+    const { targetDate, targetStartMin } = finalTarget
+    const targetEndMin = targetStartMin + dragging.durationMin
+    const newTime = `${String(Math.floor(targetStartMin / 60)).padStart(2, '0')}:${String(targetStartMin % 60).padStart(2, '0')}`
+    const newEndTime = `${String(Math.floor(targetEndMin / 60)).padStart(2, '0')}:${String(targetEndMin % 60).padStart(2, '0')}`
+
+    // Se nada mudou, não chama API
+    const oldTime = dragging.event.time?.slice(0, 5)
+    if (targetDate === dragging.originalDate && newTime === oldTime) return
+
+    try {
+      await onMoveEvent(dragging.event.id, targetDate, newTime, dragging.event.end_time ? newEndTime : null)
+      if (navigator.vibrate) navigator.vibrate(30)
+    } catch (err) {
+      console.error('Failed to move event:', err)
+    }
+  }
+
+  // Listeners globais durante drag
+  useEffect(() => {
+    if (!dragging) return
+    const move = (e) => handlePointerMove(e)
+    const up = (e) => handlePointerUp(e)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging])
 
   return (
     <div className="space-y-2">
@@ -1510,7 +1611,7 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
         </div>
         <div className="flex-1 h-px" style={{ background: 'var(--border-soft)' }} />
         <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
-          arraste pro lado →
+          segure pra mover compromisso · arraste pro lado →
         </div>
       </div>
 
@@ -1635,7 +1736,7 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                 })}
 
                 {/* Colunas dos 7 dias */}
-                <div className="flex gap-1 h-full">
+                <div ref={columnsContainerRef} className="flex h-full" style={{ gap: COL_GAP }}>
                   {weekDates.map((date) => {
                     const dayStats = analysis.days.find((dd) => dd.date === date)
                     const todayFlag = isToday(date)
@@ -1650,10 +1751,24 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                         colWidth={COL_WIDTH}
                         onClickEvent={onClickEvent}
                         onClickEmpty={(time) => onCreate?.(date, time)}
+                        onDragStart={handleDragStart}
+                        draggingEventId={dragging?.event?.id}
+                        isDropTarget={dragging?.targetDate === date}
                       />
                     )
                   })}
                 </div>
+
+                {/* GHOST do evento sendo arrastado */}
+                {dragging && dragging.targetStartMin != null && (
+                  <DragGhost
+                    dragging={dragging}
+                    pxPerHour={PX_PER_HOUR}
+                    colWidth={COL_WIDTH}
+                    colGap={COL_GAP}
+                    weekDates={weekDates}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -1663,7 +1778,7 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
   )
 }
 
-function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth, onClickEvent, onClickEmpty }) {
+function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth, onClickEvent, onClickEmpty, onDragStart, draggingEventId, isDropTarget }) {
   const events = dayStats?.events || []
 
   // Linha "agora" se é hoje
@@ -1678,12 +1793,15 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
 
   return (
     <div
-      className="relative rounded-lg shrink-0"
+      className="relative rounded-lg shrink-0 transition-colors"
       style={{
         width: colWidth,
         height: gridHeight,
-        background: todayFlag ? 'rgba(6,182,212,0.05)' : 'rgba(16,185,129,0.03)',
-        border: `1px solid ${todayFlag ? 'rgba(6,182,212,0.25)' : 'transparent'}`,
+        background: isDropTarget
+          ? 'rgba(6,182,212,0.18)'
+          : (todayFlag ? 'rgba(6,182,212,0.05)' : 'rgba(16,185,129,0.03)'),
+        border: `1.5px ${isDropTarget ? 'dashed' : 'solid'} ${isDropTarget ? AGENDA_ACCENT : (todayFlag ? 'rgba(6,182,212,0.25)' : 'transparent')}`,
+        boxShadow: isDropTarget ? `0 0 0 4px rgba(6,182,212,0.10)` : 'none',
       }}
     >
       {/* Eventos posicionados */}
@@ -1695,72 +1813,20 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
         if (visEnd <= visStart) return null
         const top = (visStart - WEEK_DAY_START_H) * pxPerHour
         const height = Math.max(20, (visEnd - visStart) * pxPerHour)
-        const colorKey = ev.color || 'cyan'
-        const colorVar = `var(--accent-${colorKey})`
-        const tintBg = getColorTint(colorKey, 'bg')
-        const tintBorder = getColorTint(colorKey, 'border')
-        // Determina quanto texto cabe baseado na altura
-        const showFull = height >= 50
-        const showTitle = height >= 26
+        const durationMin = endMin - startMin
+        const isDragging = draggingEventId === ev.id
         return (
-          <button
+          <DraggableEventBlock
             key={`${ev.id}:${i}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })
-            }}
-            className="absolute rounded-lg transition hover:scale-[1.02] active:scale-[0.99] overflow-hidden text-left flex"
-            style={{
-              top: top + 1,
-              left: 2,
-              right: 2,
-              height: height - 2,
-              background: tintBg,
-              border: `1px solid ${tintBorder}`,
-              boxShadow: `0 1px 4px rgba(0,0,0,0.05)`,
-            }}
-            title={`${ev.title} · ${ev.time?.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}`}
-          >
-            {/* Barra colorida lateral */}
-            <div style={{ width: 3, background: colorVar, flexShrink: 0 }} />
-            <div className="flex-1 min-w-0" style={{ padding: showFull ? '4px 6px' : '2px 5px' }}>
-              <div
-                className="text-[10px] font-bold tabular-nums leading-none"
-                style={{
-                  color: colorVar,
-                  fontFamily: 'JetBrains Mono, monospace',
-                }}
-              >
-                {ev.time?.slice(0, 5)}
-                {showFull && ev.end_time && (
-                  <span className="opacity-70 font-normal"> –{ev.end_time.slice(0, 5)}</span>
-                )}
-              </div>
-              {showTitle && (
-                <div
-                  className="text-[11px] mt-0.5 leading-tight"
-                  style={{
-                    color: 'var(--text-primary)',
-                    fontWeight: 500,
-                    display: '-webkit-box',
-                    WebkitLineClamp: showFull ? 3 : 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {ev.title}
-                </div>
-              )}
-              {showFull && ev.location && (
-                <div
-                  className="text-[9px] mt-1 truncate flex items-center gap-0.5"
-                  style={{ color: 'var(--text-tertiary)' }}
-                >
-                  <MapPin size={8} /> {ev.location}
-                </div>
-              )}
-            </div>
-          </button>
+            ev={ev}
+            top={top}
+            height={height}
+            durationMin={durationMin}
+            isDragging={isDragging}
+            originalDate={date}
+            onClickEvent={onClickEvent}
+            onDragStart={onDragStart}
+          />
         )
       })}
 
@@ -1781,6 +1847,214 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
   )
 }
 
+// ============================================================
+// DraggableEventBlock — long-press pra arrastar, click pra abrir
+// ============================================================
+function DraggableEventBlock({ ev, top, height, durationMin, isDragging, originalDate, onClickEvent, onDragStart }) {
+  const colorKey = ev.color || 'cyan'
+  const colorVar = `var(--accent-${colorKey})`
+  const tintBg = getColorTint(colorKey, 'bg')
+  const tintBorder = getColorTint(colorKey, 'border')
+  const showFull = height >= 50
+  const showTitle = height >= 26
+
+  const pressTimer = useRef(null)
+  const pressStarted = useRef(null)  // { x, y, time }
+  const [pressing, setPressing] = useState(false)
+
+  const cleanup = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+    pressStarted.current = null
+    setPressing(false)
+  }
+
+  const handlePointerDown = (e) => {
+    // Não interfere em scroll vertical via teclado/mouse-wheel
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    pressStarted.current = { x: e.clientX, y: e.clientY, time: Date.now() }
+    setPressing(true)
+
+    pressTimer.current = setTimeout(() => {
+      // Long press detectado → inicia drag
+      if (navigator.vibrate) navigator.vibrate(20)
+      onDragStart?.(ev, durationMin, originalDate)
+      cleanup()
+    }, LONG_PRESS_MS)
+  }
+
+  const handlePointerMove = (e) => {
+    if (!pressStarted.current) return
+    const dx = Math.abs(e.clientX - pressStarted.current.x)
+    const dy = Math.abs(e.clientY - pressStarted.current.y)
+    // Se moveu mais de 8px antes de virar long-press, cancela (foi scroll)
+    if (dx > 8 || dy > 8) cleanup()
+  }
+
+  const handlePointerUp = (e) => {
+    const started = pressStarted.current
+    cleanup()
+    if (!started) return
+    const elapsed = Date.now() - started.time
+    const dx = Math.abs(e.clientX - started.x)
+    const dy = Math.abs(e.clientY - started.y)
+    // Click curto (< LONG_PRESS_MS) sem movimento → abre modal
+    if (elapsed < LONG_PRESS_MS && dx < 5 && dy < 5) {
+      onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })
+    }
+  }
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={cleanup}
+      className="absolute rounded-lg overflow-hidden flex select-none"
+      style={{
+        top: top + 1,
+        left: 2,
+        right: 2,
+        height: height - 2,
+        background: tintBg,
+        border: `1px solid ${tintBorder}`,
+        boxShadow: pressing
+          ? `0 4px 16px ${tintBorder}, 0 0 0 2px ${colorVar}`
+          : `0 1px 4px rgba(0,0,0,0.05)`,
+        transform: pressing ? 'scale(1.04)' : 'scale(1)',
+        opacity: isDragging ? 0.35 : 1,
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease',
+        cursor: 'grab',
+        touchAction: 'none',  // bloqueia gesture nativo pra capturar long-press
+      }}
+      title={`${ev.title} · ${ev.time?.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''} · segure pra mover`}
+    >
+      <div style={{ width: 3, background: colorVar, flexShrink: 0 }} />
+      <div className="flex-1 min-w-0" style={{ padding: showFull ? '4px 6px' : '2px 5px' }}>
+        <div
+          className="text-[10px] font-bold tabular-nums leading-none"
+          style={{ color: colorVar, fontFamily: 'JetBrains Mono, monospace' }}
+        >
+          {ev.time?.slice(0, 5)}
+          {showFull && ev.end_time && (
+            <span className="opacity-70 font-normal"> –{ev.end_time.slice(0, 5)}</span>
+          )}
+        </div>
+        {showTitle && (
+          <div
+            className="text-[11px] mt-0.5 leading-tight"
+            style={{
+              color: 'var(--text-primary)',
+              fontWeight: 500,
+              display: '-webkit-box',
+              WebkitLineClamp: showFull ? 3 : 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {ev.title}
+          </div>
+        )}
+        {showFull && ev.location && (
+          <div
+            className="text-[9px] mt-1 truncate flex items-center gap-0.5"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            <MapPin size={8} /> {ev.location}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// DragGhost — preview do evento sendo arrastado, posicionado no slot alvo
+// ============================================================
+function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
+  const { event, durationMin, targetDate, targetStartMin } = dragging
+  if (targetStartMin == null) return null
+  const colIdx = weekDates.indexOf(targetDate)
+  if (colIdx < 0) return null
+
+  const colorKey = event.color || 'cyan'
+  const colorVar = `var(--accent-${colorKey})`
+  const top = ((targetStartMin / 60) - WEEK_DAY_START_H) * pxPerHour
+  const height = Math.max(24, (durationMin / 60) * pxPerHour)
+  const left = colIdx * (colWidth + colGap)
+
+  // Formata horário alvo
+  const startH = Math.floor(targetStartMin / 60)
+  const startM = targetStartMin % 60
+  const endTotalMin = targetStartMin + durationMin
+  const endH = Math.floor(endTotalMin / 60)
+  const endM = endTotalMin % 60
+  const newTimeStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}–${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+
+  const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][parseISODate(targetDate).getDay()]
+
+  return (
+    <>
+      {/* Preview do bloco no slot alvo */}
+      <div
+        className="absolute pointer-events-none rounded-lg z-40"
+        style={{
+          top: top + 1,
+          left: left + 2,
+          width: colWidth - 4,
+          height: height - 2,
+          background: getColorTint(colorKey, 'bg'),
+          border: `2px solid ${colorVar}`,
+          boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+          animation: 'dragGhostPulse 1.2s ease-in-out infinite',
+        }}
+      >
+        <div className="flex h-full">
+          <div style={{ width: 3, background: colorVar, flexShrink: 0 }} />
+          <div className="flex-1 min-w-0 p-1.5">
+            <div
+              className="text-[10px] font-bold tabular-nums leading-none"
+              style={{ color: colorVar, fontFamily: 'JetBrains Mono, monospace' }}
+            >
+              {newTimeStr}
+            </div>
+            <div
+              className="text-[11px] mt-0.5 leading-tight font-medium"
+              style={{ color: 'var(--text-primary)', overflow: 'hidden' }}
+            >
+              {event.title}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tooltip mostrando dia/hora alvo */}
+      <div
+        className="absolute pointer-events-none z-50 rounded-xl px-3 py-2 text-xs font-semibold shadow-xl"
+        style={{
+          top: top - 36,
+          left: left + colWidth / 2,
+          transform: 'translateX(-50%)',
+          background: colorVar,
+          color: '#fff',
+          boxShadow: `0 8px 20px ${colorVar}99`,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        → {dayName}, {newTimeStr.split('–')[0]}
+        <div
+          className="absolute left-1/2 -bottom-1 w-2 h-2 rotate-45"
+          style={{
+            background: colorVar,
+            transform: 'translateX(-50%) rotate(45deg)',
+          }}
+        />
+      </div>
+    </>
+  )
+}
 
 // ============================================================
 // MONTH VIEW

@@ -332,3 +332,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
   0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
 }
+
+/* Ghost do drag pulsa suavemente */
+@keyframes dragGhostPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
