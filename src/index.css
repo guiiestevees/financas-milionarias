@@ -241,26 +241,94 @@ input[type='date']::-webkit-calendar-picker-indicator {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
-/* Animação do check da agenda — pop satisfatório */
+/* Animação do check da agenda — pop satisfatório com rotação */
 @keyframes checkPop {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(1.45); }
-  70%  { transform: scale(0.92); }
-  100% { transform: scale(1); }
+  0%   { transform: scale(1) rotate(0deg); }
+  25%  { transform: scale(1.6) rotate(-12deg); }
+  50%  { transform: scale(0.85) rotate(8deg); }
+  75%  { transform: scale(1.15) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 
 /* Confete que sai do check */
 @keyframes burstParticle {
   0% {
-    transform: translate(-50%, -50%) scale(0);
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
     opacity: 0;
   }
-  20% {
+  15% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1.2) rotate(180deg);
   }
   100% {
-    transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(0.3);
+    transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(0.2) rotate(720deg);
     opacity: 0;
   }
+}
+
+/* Flash radial — onda de energia que sai do check */
+@keyframes radialFlash {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+/* Texto "+1" / emoji subindo */
+@keyframes floatUp {
+  0% {
+    transform: translate(-50%, 0) scale(0.5);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, -10px) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* Card glow pulse quando marca */
+@keyframes cardGlow {
+  0% { box-shadow: 0 0 0 0 var(--glow-color, rgba(6,182,212,0.6)); }
+  60% { box-shadow: 0 0 0 18px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Confete fullscreen quando completa o dia */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-20px) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(var(--rot, 720deg)) scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* Mensagem celebratória — entrada com bounce */
+@keyframes celebrateIn {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes celebrateOut {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
 }

@@ -369,8 +369,27 @@ function DayView({ events, onClickEvent, onCreate, date, completionsHook }) {
   ).length
   const allDone = totalCount > 0 && doneCount === totalCount
 
+  // Celebração full-screen quando bate 100% — só dispara UMA vez por dia
+  // (usa sessionStorage pra não disparar de novo se navegar e voltar)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const prevAllDone = useMemo(() => ({ value: false }), []) // ref-like
+  useEffect(() => {
+    if (allDone && !prevAllDone.value) {
+      const key = `agenda:celebrated:${date}`
+      if (!sessionStorage.getItem(key)) {
+        setShowCelebration(true)
+        sessionStorage.setItem(key, '1')
+      }
+    }
+    prevAllDone.value = allDone
+  }, [allDone, date, prevAllDone])
+
   return (
     <div className="space-y-3">
+      {showCelebration && (
+        <DayCompletedCelebration onDismiss={() => setShowCelebration(false)} />
+      )}
+
       {/* Reflexão do dia — sempre visível, ajuda a tomar direção */}
       <DailyReflection date={date} />
 
@@ -660,6 +679,7 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
   const tintBorder = getColorTint(colorKey, 'border')
   const compact = height < 50
   const [burst, setBurst] = useState(false)
+  const [glow, setGlow] = useState(false)
 
   const handleCheck = (e) => {
     e.stopPropagation()
@@ -668,8 +688,11 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
     if (!wasCompleted) {
       // Marcou como concluído → festa!
       setBurst(true)
-      setTimeout(() => setBurst(false), 900)
-      if (navigator.vibrate) navigator.vibrate([15, 30, 15])
+      setGlow(true)
+      setTimeout(() => setBurst(false), 1100)
+      setTimeout(() => setGlow(false), 700)
+      // Vibração padrão "vitória" — 3 pulsos crescentes
+      if (navigator.vibrate) navigator.vibrate([20, 30, 30, 30, 50])
     }
   }
 
@@ -686,6 +709,8 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
           border: `1px solid ${tintBorder}`,
           opacity: completed ? 0.55 : 1,
           transition: 'opacity 0.4s ease, transform 0.15s',
+          animation: glow ? 'cardGlow 0.7s ease-out' : 'none',
+          ['--glow-color']: `${colorVar.replace('var(--accent-', 'rgba(0,0,0,0.6))').replace(')', '')}`,
         }}
       >
         <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
@@ -723,17 +748,25 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
           borderRadius: '50%',
           border: `1.5px solid ${completed ? colorVar : tintBorder}`,
           background: completed ? colorVar : 'var(--bg-elev1)',
-          boxShadow: completed ? `0 2px 8px ${colorVar}55` : 'none',
-          animation: burst ? 'checkPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+          boxShadow: completed ? `0 2px 12px ${colorVar}, 0 0 24px ${colorVar}55` : 'none',
+          animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
         }}
         title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
       >
         {completed && <Check size={14} color="#fff" strokeWidth={3.5} />}
       </button>
 
-      {/* Confete em volta do check */}
+      {/* Confete em volta do check — overflow visível pra sair fora do botão */}
       {burst && (
-        <div className="absolute top-1 right-1 pointer-events-none" style={{ width: 22, height: 22 }}>
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: -25,
+            right: -25,
+            width: 72,
+            height: 72,
+          }}
+        >
           <CompletionBurst colorVar={colorVar} />
         </div>
       )}
@@ -742,19 +775,48 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
 }
 
 // ============================================================
-// CompletionBurst — confete sutil de dopamina (sem posicionamento próprio)
+// CompletionBurst — confete dopaminérgico (flash + 15 particles + emoji)
+// Sem posicionamento próprio: quem chama posiciona com absolute.
 // ============================================================
 function CompletionBurst({ colorVar }) {
+  // Gera partículas espalhadas em 360° em 2 anéis (perto e longe)
   const particles = [
-    { x: -18, y: -10, c: '#fbbf24', delay: 0 },
-    { x: 14, y: -16, c: colorVar, delay: 30 },
-    { x: 20, y: 8, c: '#10b981', delay: 60 },
-    { x: -8, y: 18, c: '#f43f5e', delay: 90 },
-    { x: -22, y: 4, c: colorVar, delay: 50 },
-    { x: 6, y: -22, c: '#8b5cf6', delay: 110 },
+    // Anel interno (mais rápido, mais perto)
+    { x: 0, y: -22, c: '#fbbf24', s: 5, delay: 0 },
+    { x: 19, y: -11, c: colorVar, s: 4, delay: 10 },
+    { x: 19, y: 11, c: '#10b981', s: 5, delay: 20 },
+    { x: 0, y: 22, c: '#f43f5e', s: 4, delay: 30 },
+    { x: -19, y: 11, c: '#8b5cf6', s: 5, delay: 40 },
+    { x: -19, y: -11, c: '#06b6d4', s: 4, delay: 50 },
+    // Anel externo (mais lentos, vão mais longe — sensação de profundidade)
+    { x: 10, y: -32, c: '#fbbf24', s: 3, delay: 60 },
+    { x: 32, y: -8, c: '#f43f5e', s: 3, delay: 70 },
+    { x: 26, y: 22, c: '#10b981', s: 3, delay: 80 },
+    { x: 0, y: 36, c: '#8b5cf6', s: 3, delay: 90 },
+    { x: -26, y: 22, c: '#fbbf24', s: 3, delay: 100 },
+    { x: -32, y: -8, c: colorVar, s: 3, delay: 110 },
+    { x: -10, y: -32, c: '#f43f5e', s: 3, delay: 120 },
+    // Stars pra dar vibe especial
+    { x: 28, y: 0, c: '#fde047', s: 4, delay: 90, isStar: true },
+    { x: -28, y: 0, c: '#fde047', s: 4, delay: 90, isStar: true },
   ]
   return (
     <>
+      {/* Flash radial — onda de luz saindo do centro */}
+      <span
+        className="absolute pointer-events-none"
+        style={{
+          top: '50%',
+          left: '50%',
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${colorVar} 0%, transparent 70%)`,
+          animation: 'radialFlash 0.55s ease-out forwards',
+        }}
+      />
+
+      {/* Partículas explodindo */}
       {particles.map((p, i) => (
         <span
           key={i}
@@ -762,19 +824,165 @@ function CompletionBurst({ colorVar }) {
           style={{
             top: '50%',
             left: '50%',
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
+            width: p.s,
+            height: p.s,
+            borderRadius: p.isStar ? '20%' : '50%',
             background: p.c,
             transform: 'translate(-50%, -50%)',
-            animation: `burstParticle 0.9s ease-out forwards`,
+            animation: 'burstParticle 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards',
             animationDelay: `${p.delay}ms`,
+            boxShadow: `0 0 6px ${p.c}`,
             ['--burst-x']: `${p.x}px`,
             ['--burst-y']: `${p.y}px`,
           }}
         />
       ))}
+
+      {/* "+1 ✨" subindo */}
+      <span
+        className="absolute pointer-events-none whitespace-nowrap"
+        style={{
+          top: -4,
+          left: '50%',
+          transform: 'translate(-50%, 0)',
+          fontSize: 12,
+          fontWeight: 800,
+          color: colorVar,
+          textShadow: `0 2px 8px ${colorVar}, 0 0 20px ${colorVar}66`,
+          animation: 'floatUp 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: '-0.02em',
+        }}
+      >
+        +1 ✨
+      </span>
     </>
+  )
+}
+
+// Mensagens motivacionais sorteadas pra quando bate 100% do dia
+const DAY_COMPLETE_MESSAGES = [
+  { emoji: '🎉', title: 'Você completou o dia', sub: 'Excelente.' },
+  { emoji: '🏆', title: 'Dia conquistado', sub: 'Continue assim.' },
+  { emoji: '🚀', title: 'Tudo riscado', sub: 'Que disciplina admirável.' },
+  { emoji: '⭐', title: 'Missão cumprida', sub: 'Você se honrou.' },
+  { emoji: '🎩', title: 'Impecável', sub: 'Permita-me parabenizá-lo.' },
+  { emoji: '💎', title: 'Brilhante', sub: 'Cada compromisso, honrado.' },
+  { emoji: '🔥', title: 'Em chamas', sub: 'Sua consistência é rara.' },
+]
+
+// Mensagem celebratória full-card quando bate 100%
+function DayCompletedCelebration({ onDismiss }) {
+  const [exiting, setExiting] = useState(false)
+  const message = useMemo(
+    () => DAY_COMPLETE_MESSAGES[Math.floor(Math.random() * DAY_COMPLETE_MESSAGES.length)],
+    []
+  )
+
+  // Auto-dismiss em 3.5s (mas user pode fechar antes)
+  useEffect(() => {
+    const t = setTimeout(() => handleDismiss(), 3500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleDismiss = () => {
+    setExiting(true)
+    setTimeout(() => onDismiss?.(), 280)
+  }
+
+  // Confete fullscreen (40 peças caindo de cima)
+  const confetti = useMemo(() => {
+    const list = []
+    const colors = ['#fbbf24', '#10b981', '#f43f5e', '#8b5cf6', '#06b6d4', '#fde047', '#ec4899', '#3b82f6']
+    for (let i = 0; i < 40; i++) {
+      list.push({
+        left: Math.random() * 100,
+        delay: Math.random() * 800,
+        duration: 1500 + Math.random() * 1500,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: 360 + Math.random() * 720,
+        size: 5 + Math.random() * 6,
+        shape: Math.random() > 0.5 ? '50%' : '20%',
+      })
+    }
+    return list
+  }, [])
+
+  return (
+    <div
+      onClick={handleDismiss}
+      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      style={{
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(6px)',
+        animation: exiting ? 'celebrateOut 0.28s ease forwards' : 'none',
+      }}
+    >
+      {/* Confete caindo */}
+      {confetti.map((c, i) => (
+        <span
+          key={i}
+          className="fixed top-0 pointer-events-none"
+          style={{
+            left: `${c.left}%`,
+            width: c.size,
+            height: c.size,
+            background: c.color,
+            borderRadius: c.shape,
+            boxShadow: `0 0 4px ${c.color}`,
+            animation: `confettiFall ${c.duration}ms cubic-bezier(0.4, 0.0, 0.6, 1) forwards`,
+            animationDelay: `${c.delay}ms`,
+            ['--rot']: `${c.rot}deg`,
+          }}
+        />
+      ))}
+
+      {/* Card central com mensagem */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative rounded-3xl p-8 text-center max-w-sm w-full"
+        style={{
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.95), rgba(6,182,212,0.95))',
+          border: '1px solid rgba(255,255,255,0.25)',
+          boxShadow: '0 30px 60px rgba(16,185,129,0.45), 0 0 0 1px rgba(255,255,255,0.1)',
+          animation: 'celebrateIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          position: 'absolute',
+        }}
+      >
+        <div className="text-7xl mb-3" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))' }}>
+          {message.emoji}
+        </div>
+        <h2
+          style={{
+            fontFamily: 'Fraunces, serif',
+            fontWeight: 500,
+            color: '#fff',
+            letterSpacing: '-0.02em',
+          }}
+          className="text-3xl mb-2"
+        >
+          {message.title}
+        </h2>
+        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
+          {message.sub}
+        </p>
+        <button
+          onClick={handleDismiss}
+          className="mt-5 px-5 py-2 rounded-full text-xs font-semibold transition hover:scale-105"
+          style={{
+            background: 'rgba(255,255,255,0.95)',
+            color: '#10b981',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}
+        >
+          Continuar
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -2307,24 +2515,29 @@ function EventCard({ event, onClick, compact = false, completed, onToggleComplet
   const tintBg = getColorTint(colorKey, 'bg')
   const tintBorder = getColorTint(colorKey, 'border')
 
+  const [glow, setGlow] = useState(false)
+
   const handleCheck = (e) => {
     e.stopPropagation()
     const wasCompleted = completed
     onToggleComplete?.()
     if (!wasCompleted) {
       setBurst(true)
-      setTimeout(() => setBurst(false), 900)
-      if (navigator.vibrate) navigator.vibrate([15, 30, 15])
+      setGlow(true)
+      setTimeout(() => setBurst(false), 1100)
+      setTimeout(() => setGlow(false), 700)
+      if (navigator.vibrate) navigator.vibrate([20, 30, 30, 30, 50])
     }
   }
 
   return (
     <div
-      className="w-full relative rounded-xl flex items-stretch overflow-hidden transition-opacity"
+      className="w-full relative rounded-xl flex items-stretch overflow-visible transition-opacity"
       style={{
         background: tintBg,
         border: `1px solid ${tintBorder}`,
         opacity: completed ? 0.6 : 1,
+        animation: glow ? 'cardGlow 0.7s ease-out' : 'none',
       }}
     >
       {/* Barra lateral mais espessa pra reforçar a cor */}
@@ -2381,20 +2594,23 @@ function EventCard({ event, onClick, compact = false, completed, onToggleComplet
             onClick={handleCheck}
             className="absolute top-2 right-2 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 z-10"
             style={{
-              width: 24,
-              height: 24,
+              width: 26,
+              height: 26,
               borderRadius: '50%',
               border: `1.5px solid ${completed ? colorVar : tintBorder}`,
               background: completed ? colorVar : 'var(--bg-elev1)',
-              boxShadow: completed ? `0 2px 8px ${colorVar}55` : 'none',
-              animation: burst ? 'checkPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+              boxShadow: completed ? `0 2px 12px ${colorVar}, 0 0 24px ${colorVar}55` : 'none',
+              animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
             }}
             title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
           >
-            {completed && <Check size={15} color="#fff" strokeWidth={3.5} />}
+            {completed && <Check size={16} color="#fff" strokeWidth={3.5} />}
           </button>
           {burst && (
-            <div className="absolute top-2 right-2 pointer-events-none" style={{ width: 24, height: 24 }}>
+            <div
+              className="absolute pointer-events-none"
+              style={{ top: -22, right: -22, width: 72, height: 72 }}
+            >
               <CompletionBurst colorVar={colorVar} />
             </div>
           )}
