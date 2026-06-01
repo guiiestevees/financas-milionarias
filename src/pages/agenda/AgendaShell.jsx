@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
   ListChecks, Settings, Sun, Moon, Sparkles, Check, Trash2, Star, CalendarPlus,
+  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
+import { useAgendaProjects } from '../../hooks/useAgendaProjects'
 import { useTheme } from '../../hooks/useTheme'
 import EventForm from './EventForm'
 import {
@@ -45,6 +47,7 @@ export default function AgendaShell() {
   } = useAgenda()
 
   const tasksHook = useAgendaTasks()
+  const projectsHook = useAgendaProjects()
 
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
@@ -193,6 +196,7 @@ export default function AgendaShell() {
             {tab === 'tasks' && (
               <TasksView
                 tasksHook={tasksHook}
+                projectsHook={projectsHook}
                 onSchedule={(task) => setCreating({
                   initialDate: todayISO(),
                   initialTitle: task.title,
@@ -575,14 +579,35 @@ function MonthView({ events, refDate, setRefDate, setView }) {
 }
 
 // ============================================================
-// TASKS VIEW — TODOs sem data definida
+// TASKS VIEW — TODOs sem data + projetos (pastas)
 // ============================================================
-function TasksView({ tasksHook, onSchedule }) {
+function TasksView({ tasksHook, projectsHook, onSchedule }) {
   const { pending, completed, loading, error, createTask, toggleTask, deleteTask, updateTask } = tasksHook
+  const { projects, createProject, updateProject, deleteProject } = projectsHook
+
   const [newTitle, setNewTitle] = useState('')
   const [important, setImportant] = useState(false)
-  const [showCompleted, setShowCompleted] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const [openProjects, setOpenProjects] = useState({})  // { [projectId]: true }
+  const [editingProject, setEditingProject] = useState(null)
+
+  // Tarefas avulsas (sem project_id)
+  const looseTasks = pending.filter((t) => !t.project_id)
+  const looseCompleted = completed.filter((t) => !t.project_id)
+
+  // Tarefas por projeto
+  const tasksByProject = useMemo(() => {
+    const map = {}
+    for (const t of [...pending, ...completed]) {
+      if (!t.project_id) continue
+      if (!map[t.project_id]) map[t.project_id] = { pending: [], completed: [] }
+      if (t.completed_at) map[t.project_id].completed.push(t)
+      else map[t.project_id].pending.push(t)
+    }
+    return map
+  }, [pending, completed])
 
   const handleAdd = async (e) => {
     e?.preventDefault?.()
@@ -600,6 +625,8 @@ function TasksView({ tasksHook, onSchedule }) {
     }
   }
 
+  const isEmpty = pending.length === 0 && completed.length === 0 && projects.length === 0
+
   return (
     <div className="space-y-4">
       {/* Explicação curta */}
@@ -610,12 +637,13 @@ function TasksView({ tasksHook, onSchedule }) {
         }}
       >
         <div className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          <strong style={{ color: AGENDA_ACCENT }}>💡 Lista de coisas pra fazer</strong> — anote o que precisa
-          ser feito, mas ainda não sabe quando. Depois é só marcar como feita ou agendar pra um dia específico.
+          <strong style={{ color: AGENDA_ACCENT }}>💡 Tarefas e projetos</strong> — anote o que precisa
+          ser feito (avulso) ou organize em <strong>projetos</strong> (pastas de tarefas relacionadas).
+          Quando definir o dia, clica em 📅 pra virar compromisso.
         </div>
       </div>
 
-      {/* Form de adicionar */}
+      {/* Form rápido de tarefa avulsa */}
       <form
         onSubmit={handleAdd}
         className="rounded-2xl p-3"
@@ -647,15 +675,38 @@ function TasksView({ tasksHook, onSchedule }) {
             type="submit"
             disabled={!newTitle.trim() || adding}
             className="px-3 py-2 rounded-lg text-sm font-semibold transition shrink-0 disabled:opacity-50"
-            style={{
-              background: AGENDA_ACCENT,
-              color: '#fff',
-            }}
+            style={{ background: AGENDA_ACCENT, color: '#fff' }}
           >
             {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
         </div>
       </form>
+
+      {/* Botão criar projeto */}
+      <button
+        onClick={() => setShowProjectForm(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition hover:opacity-90"
+        style={{
+          background: 'var(--bg-elev2)',
+          border: '1.5px dashed var(--border-medium)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        <div
+          className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+          style={{ background: 'rgba(6,182,212,0.12)', color: AGENDA_ACCENT }}
+        >
+          <FolderPlus size={16} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Criar projeto
+          </div>
+          <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+            Pasta pra agrupar tarefas relacionadas
+          </div>
+        </div>
+      </button>
 
       {error && (
         <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(244,63,94,0.1)', color: '#fda4af' }}>
@@ -663,90 +714,311 @@ function TasksView({ tasksHook, onSchedule }) {
         </div>
       )}
 
-      {/* Pendentes */}
-      {loading && pending.length === 0 && completed.length === 0 ? (
+      {/* Loading */}
+      {loading && isEmpty ? (
         <div className="text-center py-8">
           <Loader2 size={20} className="animate-spin mx-auto" style={{ color: AGENDA_ACCENT }} />
         </div>
-      ) : pending.length === 0 && completed.length === 0 ? (
-        <div className="text-center py-12 px-4 rounded-2xl"
+      ) : isEmpty ? (
+        <div className="text-center py-10 px-4 rounded-2xl"
           style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
           <div className="text-4xl mb-3">✨</div>
           <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg mb-1.5">
             Sua lista está vazia
           </h3>
           <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Anote algo lá em cima pra começar.
+            Anote uma tarefa rápida lá em cima ou crie um projeto.
           </p>
         </div>
       ) : (
         <>
-          {pending.length > 0 && (
+          {/* PROJETOS */}
+          {projects.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] uppercase tracking-widest px-1" style={{ color: 'var(--text-muted)' }}>
+                Projetos · {projects.length}
+              </div>
+              {projects.map((p) => {
+                const tasks = tasksByProject[p.id] || { pending: [], completed: [] }
+                const isOpen = !!openProjects[p.id]
+                return (
+                  <ProjectCard
+                    key={p.id}
+                    project={p}
+                    pendingTasks={tasks.pending}
+                    completedTasks={tasks.completed}
+                    isOpen={isOpen}
+                    onToggleOpen={() => setOpenProjects((o) => ({ ...o, [p.id]: !o[p.id] }))}
+                    onAddTask={(title, prio) => createTask({ title, priority: prio, project_id: p.id })}
+                    onToggleTask={(id) => toggleTask(id)}
+                    onDeleteTask={(id) => deleteTask(id)}
+                    onScheduleTask={(t) => onSchedule(t)}
+                    onTogglePriority={(t) => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
+                    onMoveTaskOut={(t) => updateTask(t.id, { project_id: null })}
+                    onEditProject={() => setEditingProject(p)}
+                  />
+                )
+              })}
+            </div>
+          )}
+
+          {/* AVULSAS */}
+          {(looseTasks.length > 0 || looseCompleted.length > 0) && (
             <div className="space-y-1.5">
               <div className="text-[10px] uppercase tracking-widest mb-1 px-1" style={{ color: 'var(--text-muted)' }}>
-                A fazer · {pending.length}
+                Avulsas · {looseTasks.length}
               </div>
-              {pending.map((t) => (
+              {looseTasks.map((t) => (
                 <TaskRow
                   key={t.id}
                   task={t}
+                  projects={projects}
                   onToggle={() => toggleTask(t.id)}
                   onDelete={() => deleteTask(t.id)}
                   onSchedule={() => onSchedule(t)}
                   onTogglePriority={() => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
+                  onMoveToProject={(pid) => updateTask(t.id, { project_id: pid })}
                 />
               ))}
             </div>
           )}
 
-          {completed.length > 0 && (
+          {/* FEITAS (avulsas) — colapsado */}
+          {looseCompleted.length > 0 && (
             <div className="space-y-1.5">
               <button
                 onClick={() => setShowCompleted((v) => !v)}
                 className="text-[10px] uppercase tracking-widest px-1 transition hover:opacity-70"
                 style={{ color: 'var(--text-muted)' }}
               >
-                {showCompleted ? '▾' : '▸'} Feitas · {completed.length}
+                {showCompleted ? '▾' : '▸'} Feitas · {looseCompleted.length}
               </button>
-              {showCompleted && completed.map((t) => (
+              {showCompleted && looseCompleted.map((t) => (
                 <TaskRow
                   key={t.id}
                   task={t}
+                  projects={projects}
                   onToggle={() => toggleTask(t.id)}
                   onDelete={() => deleteTask(t.id)}
                   onSchedule={() => onSchedule(t)}
                   onTogglePriority={() => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
+                  onMoveToProject={(pid) => updateTask(t.id, { project_id: pid })}
                 />
               ))}
             </div>
           )}
         </>
       )}
+
+      {/* Modal criar/editar projeto */}
+      {(showProjectForm || editingProject) && (
+        <ProjectForm
+          project={editingProject}
+          onSave={async (payload) => {
+            if (editingProject) await updateProject(editingProject.id, payload)
+            else await createProject(payload)
+            setShowProjectForm(false)
+            setEditingProject(null)
+          }}
+          onDelete={editingProject ? async () => {
+            await deleteProject(editingProject.id)
+            setEditingProject(null)
+          } : null}
+          onClose={() => { setShowProjectForm(false); setEditingProject(null) }}
+        />
+      )}
     </div>
   )
 }
 
-function TaskRow({ task, onToggle, onDelete, onSchedule, onTogglePriority }) {
-  const done = !!task.completed_at
-  const isImportant = task.priority === 1 && !done
+// ============================================================
+// PROJECT CARD — pasta expandível com tarefas dentro
+// ============================================================
+function ProjectCard({
+  project, pendingTasks, completedTasks, isOpen, onToggleOpen,
+  onAddTask, onToggleTask, onDeleteTask, onScheduleTask, onTogglePriority,
+  onMoveTaskOut, onEditProject,
+}) {
+  const [newInside, setNewInside] = useState('')
+  const [insideAdding, setInsideAdding] = useState(false)
+  const tintBg = getColorTint(project.color, 'bg')
+  const tintBorder = getColorTint(project.color, 'border')
+  const colorVar = `var(--accent-${project.color})`
+
+  const handleAddInside = async (e) => {
+    e?.preventDefault?.()
+    const title = newInside.trim()
+    if (!title) return
+    setInsideAdding(true)
+    try {
+      await onAddTask(title, false)
+      setNewInside('')
+    } finally {
+      setInsideAdding(false)
+    }
+  }
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition"
+      className="rounded-2xl overflow-hidden"
       style={{
-        background: isImportant ? 'rgba(245,158,11,0.06)' : 'var(--bg-elev2)',
+        background: tintBg,
+        border: `1px solid ${tintBorder}`,
+      }}
+    >
+      {/* Cabeçalho clicável */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <button
+          onClick={onToggleOpen}
+          className="flex items-center gap-2.5 flex-1 min-w-0 text-left transition hover:opacity-80"
+        >
+          <div
+            className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+            style={{ background: `${colorVar}`, color: '#fff' }}
+          >
+            {project.icon ? (
+              <span className="text-base">{project.icon}</span>
+            ) : (
+              isOpen ? <FolderOpen size={18} /> : <Folder size={18} />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+              {project.name}
+            </div>
+            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              {pendingTasks.length === 0 && completedTasks.length === 0
+                ? 'Vazio — toque pra adicionar tarefas'
+                : `${pendingTasks.length} pendente${pendingTasks.length === 1 ? '' : 's'}${completedTasks.length > 0 ? ` · ${completedTasks.length} feita${completedTasks.length === 1 ? '' : 's'}` : ''}`}
+            </div>
+          </div>
+          <ChevronDown
+            size={18}
+            style={{
+              color: 'var(--text-muted)',
+              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+            }}
+          />
+        </button>
+        <button
+          onClick={onEditProject}
+          className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+          title="Editar projeto"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <MoreVertical size={15} />
+        </button>
+      </div>
+
+      {/* Conteúdo expandido */}
+      {isOpen && (
+        <div className="px-3 pb-3 space-y-2"
+          style={{ borderTop: '1px solid var(--border-soft)', paddingTop: 10 }}
+        >
+          {/* Form de adicionar dentro do projeto */}
+          <form
+            onSubmit={handleAddInside}
+            className="flex items-center gap-2 rounded-lg p-2"
+            style={{ background: 'var(--bg-elev2)' }}
+          >
+            <input
+              type="text"
+              value={newInside}
+              onChange={(e) => setNewInside(e.target.value)}
+              placeholder="Adicionar tarefa neste projeto…"
+              className="flex-1 bg-transparent text-sm outline-none px-1"
+              style={{ color: 'var(--text-primary)' }}
+              maxLength={200}
+            />
+            <button
+              type="submit"
+              disabled={!newInside.trim() || insideAdding}
+              className="p-1.5 rounded-md text-sm font-semibold transition disabled:opacity-50"
+              style={{ background: colorVar, color: '#fff' }}
+            >
+              {insideAdding ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            </button>
+          </form>
+
+          {/* Tarefas pendentes */}
+          {pendingTasks.map((t) => (
+            <TaskRow
+              key={t.id}
+              task={t}
+              insideProject
+              onToggle={() => onToggleTask(t.id)}
+              onDelete={() => onDeleteTask(t.id)}
+              onSchedule={() => onScheduleTask(t)}
+              onTogglePriority={() => onTogglePriority(t)}
+              onMoveOut={() => onMoveTaskOut(t)}
+            />
+          ))}
+
+          {/* Tarefas feitas (compactas) */}
+          {completedTasks.length > 0 && (
+            <CompletedSection
+              tasks={completedTasks}
+              insideProject
+              onToggle={(id) => onToggleTask(id)}
+              onDelete={(id) => onDeleteTask(id)}
+            />
+          )}
+
+          {pendingTasks.length === 0 && completedTasks.length === 0 && (
+            <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Adicione tarefas neste projeto acima 👆
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompletedSection({ tasks, insideProject, onToggle, onDelete }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="text-[10px] uppercase tracking-widest transition hover:opacity-70 px-1"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        {open ? '▾' : '▸'} Feitas · {tasks.length}
+      </button>
+      {open && tasks.map((t) => (
+        <TaskRow
+          key={t.id}
+          task={t}
+          insideProject={insideProject}
+          onToggle={() => onToggle(t.id)}
+          onDelete={() => onDelete(t.id)}
+        />
+      ))}
+    </>
+  )
+}
+
+function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule, onTogglePriority, onMoveToProject, onMoveOut }) {
+  const done = !!task.completed_at
+  const isImportant = task.priority === 1 && !done
+  const [showMove, setShowMove] = useState(false)
+
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition relative"
+      style={{
+        background: isImportant ? 'rgba(245,158,11,0.06)' : (insideProject ? 'var(--bg-elev2)' : 'var(--bg-elev2)'),
         border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : 'var(--border-soft)'}`,
         opacity: done ? 0.55 : 1,
       }}
     >
-      {/* Checkbox */}
       <button
         onClick={onToggle}
         className="shrink-0 flex items-center justify-center transition"
         style={{
-          width: 22,
-          height: 22,
-          borderRadius: 6,
+          width: 22, height: 22, borderRadius: 6,
           border: `1.5px solid ${done ? AGENDA_ACCENT : 'var(--border-medium)'}`,
           background: done ? AGENDA_ACCENT : 'transparent',
         }}
@@ -755,7 +1027,6 @@ function TaskRow({ task, onToggle, onDelete, onSchedule, onTogglePriority }) {
         {done && <Check size={14} color="#fff" strokeWidth={3} />}
       </button>
 
-      {/* Título */}
       <div className="flex-1 min-w-0">
         <div
           className="text-sm truncate"
@@ -770,25 +1041,79 @@ function TaskRow({ task, onToggle, onDelete, onSchedule, onTogglePriority }) {
         </div>
       </div>
 
-      {/* Ações */}
       {!done && (
         <>
-          <button
-            onClick={onTogglePriority}
-            className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
-            title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
-            style={{ color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)' }}
-          >
-            <Star size={14} fill={isImportant ? 'currentColor' : 'none'} />
-          </button>
-          <button
-            onClick={onSchedule}
-            className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
-            title="Agendar pra um dia"
-            style={{ color: AGENDA_ACCENT }}
-          >
-            <CalendarPlus size={15} />
-          </button>
+          {onTogglePriority && (
+            <button
+              onClick={onTogglePriority}
+              className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+              title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
+              style={{ color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)' }}
+            >
+              <Star size={14} fill={isImportant ? 'currentColor' : 'none'} />
+            </button>
+          )}
+          {onSchedule && (
+            <button
+              onClick={onSchedule}
+              className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+              title="Agendar pra um dia"
+              style={{ color: AGENDA_ACCENT }}
+            >
+              <CalendarPlus size={15} />
+            </button>
+          )}
+          {/* Mover entre projetos (só aparece se tem projetos pra mover) */}
+          {((projects && projects.length > 0) || onMoveOut) && (
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowMove((v) => !v)}
+                className="p-1.5 rounded-lg transition hover:opacity-70"
+                title="Mover"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <Folder size={14} />
+              </button>
+              {showMove && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
+                  <div
+                    className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg overflow-hidden min-w-[180px]"
+                    style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+                  >
+                    {onMoveOut && (
+                      <button
+                        onClick={() => { onMoveOut(); setShowMove(false) }}
+                        className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-soft)' }}
+                      >
+                        <span>📤</span> Tirar do projeto
+                      </button>
+                    )}
+                    {projects && projects.length > 0 && (
+                      <>
+                        <div className="px-3 py-1.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                          Mover para:
+                        </div>
+                        {projects.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
+                            className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            <Folder size={11} style={{ color: `var(--accent-${p.color})` }} />
+                            {p.icon && <span>{p.icon}</span>}
+                            <span className="truncate">{p.name}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
       <button
@@ -799,6 +1124,213 @@ function TaskRow({ task, onToggle, onDelete, onSchedule, onTogglePriority }) {
       >
         <Trash2 size={14} />
       </button>
+    </div>
+  )
+}
+
+// ============================================================
+// PROJECT FORM — criar/editar projeto
+// ============================================================
+function ProjectForm({ project, onSave, onDelete, onClose }) {
+  const isEditing = !!project
+  const [name, setName] = useState(project?.name || '')
+  const [color, setColor] = useState(project?.color || 'cyan')
+  const [icon, setIcon] = useState(project?.icon || '')
+  const [notes, setNotes] = useState(project?.notes || '')
+  const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault?.()
+    if (!name.trim()) return
+    setSaving(true)
+    try {
+      await onSave({ name: name.trim(), color, icon: icon.trim() || null, notes: notes.trim() || null })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const COMMON_EMOJIS = ['📁', '🚀', '💼', '🏠', '✈️', '💪', '📚', '🎯', '💰', '❤️', '🛒', '🎨']
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <form
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl"
+        style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-soft)' }}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border-soft)' }}>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl"
+              style={{ background: `var(--accent-${color})`, color: '#fff' }}>
+              {icon ? <span>{icon}</span> : <Folder size={16} />}
+            </div>
+            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg">
+              {isEditing ? 'Editar projeto' : 'Novo projeto'}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition hover:opacity-70"
+            style={{ color: 'var(--text-muted)' }}>
+            ✕
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Nome */}
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Nome do projeto
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Mudança de casa, Site novo, Casamento…"
+              className="w-full mt-1.5 px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{
+                background: 'var(--bg-elev2)',
+                border: '1px solid var(--border-soft)',
+                color: 'var(--text-primary)',
+              }}
+              autoFocus
+              maxLength={80}
+            />
+          </div>
+
+          {/* Cor */}
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Cor
+            </label>
+            <div className="flex gap-2 mt-1.5 flex-wrap">
+              {AGENDA_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setColor(c.key)}
+                  className="w-8 h-8 rounded-lg transition"
+                  style={{
+                    background: `var(--accent-${c.key})`,
+                    border: color === c.key ? '2.5px solid var(--text-primary)' : '2.5px solid transparent',
+                    boxShadow: color === c.key ? `0 0 0 2px var(--bg-elev1)` : 'none',
+                  }}
+                  title={c.label}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Ícone (emoji) */}
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Ícone (opcional)
+            </label>
+            <div className="flex gap-1.5 mt-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIcon('')}
+                className="w-9 h-9 rounded-lg text-xs flex items-center justify-center transition"
+                style={{
+                  background: !icon ? `var(--accent-${color})` : 'var(--bg-elev2)',
+                  color: !icon ? '#fff' : 'var(--text-muted)',
+                  border: '1px solid var(--border-soft)',
+                }}
+              >
+                Sem
+              </button>
+              {COMMON_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setIcon(e)}
+                  className="w-9 h-9 rounded-lg text-base flex items-center justify-center transition"
+                  style={{
+                    background: icon === e ? `var(--accent-${color})` : 'var(--bg-elev2)',
+                    border: '1px solid var(--border-soft)',
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Objetivo / notas (opcional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: Mudança pro novo apto até abril/2026"
+              rows={2}
+              className="w-full mt-1.5 px-3 py-2 rounded-xl text-sm outline-none resize-none"
+              style={{
+                background: 'var(--bg-elev2)',
+                border: '1px solid var(--border-soft)',
+                color: 'var(--text-primary)',
+              }}
+              maxLength={300}
+            />
+          </div>
+        </div>
+
+        {/* Botões */}
+        <div className="px-5 py-4 border-t flex gap-2" style={{ borderColor: 'var(--border-soft)' }}>
+          {isEditing && onDelete && (
+            confirmDelete ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="px-3 py-2.5 rounded-xl text-xs font-semibold transition"
+                style={{ background: 'rgba(244,63,94,0.15)', color: '#fda4af', border: '1px solid rgba(244,63,94,0.3)' }}
+              >
+                Confirmar excluir
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="p-2.5 rounded-xl transition hover:opacity-70"
+                title="Excluir projeto"
+                style={{ background: 'var(--bg-elev2)', color: 'var(--text-muted)' }}
+              >
+                <Trash2 size={15} />
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium transition"
+            style={{ background: 'var(--bg-elev2)', color: 'var(--text-secondary)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={!name.trim() || saving}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50"
+            style={{ background: AGENDA_ACCENT, color: '#fff' }}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : (isEditing ? 'Salvar' : 'Criar projeto')}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
