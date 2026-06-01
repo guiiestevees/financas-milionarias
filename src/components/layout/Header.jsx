@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck, LayoutGrid } from 'lucide-react'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const MONTH_LABELS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -207,6 +207,21 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
             <span>salvando</span>
           </div>
         )}
+
+        {/* Trocar app (volta pro launcher) */}
+        <button
+          onClick={() => navigate('/launcher')}
+          title="Trocar app"
+          className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition"
+          style={{
+            background: 'var(--bg-elev1)',
+            border: '1px solid var(--border-medium)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <LayoutGrid size={14} />
+          <span className="text-xs font-medium hidden sm:inline">Trocar app</span>
+        </button>
 
         {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
         {isAdmin && (

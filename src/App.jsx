@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { useVerified } from './hooks/useVerified'
+import { useAppPreference } from './hooks/useAppPreference'
 import AppShell from './pages/app/AppShell'
 import Assinar from './pages/app/Assinar'
 import AuthLayout from './pages/auth/AuthLayout'
@@ -16,6 +17,8 @@ import Tutorial from './pages/app/Tutorial'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
+import Launcher from './pages/launcher/Launcher'
+import AgendaShell from './pages/agenda/AgendaShell'
 
 function FullscreenLoader() {
   return (
@@ -46,16 +49,28 @@ function VerifyRoute({ children }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <FullscreenLoader />
-  if (user) return <Navigate to="/app" replace />
+  if (user) return <Navigate to="/inicio" replace />
   return children
 }
 
-// Rota raiz "/": decide se mostra a landing (não-logado) ou o app
+// Rota raiz "/": decide se mostra a landing (não-logado) ou o app preferido
 function RootRoute() {
   const { user, loading } = useAuth()
   if (loading) return <FullscreenLoader />
-  if (user) return <Navigate to="/app" replace />
+  if (user) return <Navigate to="/inicio" replace />
   return <Landing />
+}
+
+// Rota "/inicio": entrypoint pós-login. Decide pra onde mandar baseado
+// na preferência do usuário (Launcher, Finanças ou Agenda).
+function StartRoute() {
+  const { user, loading } = useAuth()
+  const { defaultApp } = useAppPreference()
+  if (loading) return <FullscreenLoader />
+  if (!user) return <Navigate to="/login" replace />
+  if (defaultApp === 'financas') return <Navigate to="/app" replace />
+  if (defaultApp === 'agenda') return <Navigate to="/agenda" replace />
+  return <Navigate to="/launcher" replace />
 }
 
 export default function App() {
@@ -65,8 +80,18 @@ export default function App() {
         {/* Raiz: landing pra visitantes / redirect pro app pra logados */}
         <Route path="/" element={<RootRoute />} />
 
-        {/* App protegido (logado) */}
+        {/* Entrypoint pós-login: decide pra onde mandar baseado em preferência */}
+        <Route path="/inicio" element={<StartRoute />} />
+
+        {/* Launcher — menu de apps */}
+        <Route path="/launcher" element={<ProtectedRoute><Launcher /></ProtectedRoute>} />
+
+        {/* App de Finanças (rota mantida pra não quebrar links existentes) */}
         <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+
+        {/* App de Agenda */}
+        <Route path="/agenda" element={<ProtectedRoute><AgendaShell /></ProtectedRoute>} />
+
         <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="/tutorial" element={<ProtectedRoute><Tutorial /></ProtectedRoute>} />
