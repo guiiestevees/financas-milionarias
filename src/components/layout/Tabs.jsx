@@ -1,10 +1,10 @@
-import { LayoutDashboard, Wallet, Receipt, PiggyBank, Settings } from 'lucide-react'
+import { LayoutDashboard, Wallet, Receipt, Vault, Settings } from 'lucide-react'
 
 const TABS = [
   { id: 'painel',   label: 'Painel',  icon: LayoutDashboard },
   { id: 'receitas', label: 'Entradas', icon: Wallet },
   { id: 'gastos',   label: 'Gastos',  icon: Receipt },
-  { id: 'cofres',   label: 'Cofres',  icon: PiggyBank },
+  { id: 'cofres',   label: 'Cofres',  icon: Vault },
   { id: 'config',   label: 'Ajustes', icon: Settings },
 ]
 
@@ -39,20 +39,21 @@ export function Tabs({ tab, setTab }) {
             <button
               key={it.id}
               onClick={() => setTab(it.id)}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3 transition relative"
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-3.5 sm:py-4 transition relative"
               style={{
                 color: active ? 'var(--accent-gold)' : 'var(--text-muted)',
+                minHeight: 64,  // toque confortável (recomendação Apple/Google: 44-48px mín)
               }}
             >
               {/* Indicador superior do tab ativo */}
               {active && (
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full transition-all"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-10 rounded-full transition-all"
                   style={{ background: 'var(--accent-gold)' }}
                 />
               )}
-              <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-              <span className="text-[10px] sm:text-[11px] font-medium" style={{ letterSpacing: '0.01em' }}>
+              <Icon size={24} strokeWidth={active ? 2.2 : 1.8} />
+              <span className="text-[11px] sm:text-[12px] font-medium" style={{ letterSpacing: '0.01em' }}>
                 {it.label}
               </span>
             </button>
