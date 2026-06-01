@@ -19,7 +19,6 @@ import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
 import Launcher from './pages/launcher/Launcher'
 import AgendaShell from './pages/agenda/AgendaShell'
-import DayPreview from './pages/agenda/DayPreview'
 
 function FullscreenLoader() {
   return (
@@ -92,7 +91,6 @@ export default function App() {
 
         {/* App de Agenda */}
         <Route path="/agenda" element={<ProtectedRoute><AgendaShell /></ProtectedRoute>} />
-        <Route path="/agenda-preview" element={<ProtectedRoute><DayPreview /></ProtectedRoute>} />
 
         <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />

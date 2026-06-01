@@ -403,10 +403,13 @@ function DayView({ events, onClickEvent, onCreate, date }) {
 
 // Timeline do dia: coluna esquerda com horas + coluna direita com slots
 function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty }) {
-  // Determina range: mín 07:00, máx 23:00, mas expande se evento sair fora
-  const PX_PER_HOUR = 60  // 60px por hora — confortável no mobile
-  let startHour = 7
-  let endHour = 23
+  // Default: 07h-23h. Expande automático se evento sai fora. User pode forçar madrugada/madrugada-noite.
+  const [showEarly, setShowEarly] = useState(false)   // 00h-06h
+  const [showLate, setShowLate] = useState(false)     // 23h-24h
+  const PX_PER_HOUR = 60
+
+  let startHour = showEarly ? 0 : 7
+  let endHour = showLate ? 24 : 23
   for (const e of events) {
     const sh = Number(e.time?.slice(0, 2) || 0)
     const eh = e.end_time ? Number(e.end_time.slice(0, 2)) : sh + 1
@@ -415,6 +418,10 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
   }
   const totalHours = endHour - startHour
   const totalHeight = totalHours * PX_PER_HOUR
+
+  // Auto-show se algum evento já tá nessa zona (pra botão não aparecer redundante)
+  const hasEarlyEvent = startHour < 7
+  const hasLateEvent = endHour > 23
 
   // Linha "agora" — só se é hoje
   let nowOffset = null
@@ -466,6 +473,22 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
           </div>
         )}
       </div>
+
+      {/* Toggle: mostrar madrugada (00h-06h) */}
+      {!hasEarlyEvent && (
+        <button
+          onClick={() => setShowEarly((v) => !v)}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] transition hover:bg-white/5"
+          style={{
+            color: 'var(--text-muted)',
+            borderBottom: '1px solid var(--border-soft)',
+            background: showEarly ? 'rgba(6,182,212,0.04)' : 'transparent',
+          }}
+        >
+          <span>{showEarly ? '▾' : '▸'}</span>
+          <span>{showEarly ? 'Esconder madrugada' : 'Mostrar madrugada (00h–06h)'}</span>
+        </button>
+      )}
 
       {/* Timeline em si */}
       <div className="relative" style={{ height: totalHeight }}>
@@ -552,6 +575,22 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
           )
         })}
       </div>
+
+      {/* Toggle: mostrar fim da noite (23h-24h) */}
+      {!hasLateEvent && (
+        <button
+          onClick={() => setShowLate((v) => !v)}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] transition hover:bg-white/5"
+          style={{
+            color: 'var(--text-muted)',
+            borderTop: '1px solid var(--border-soft)',
+            background: showLate ? 'rgba(6,182,212,0.04)' : 'transparent',
+          }}
+        >
+          <span>{showLate ? '▴' : '▸'}</span>
+          <span>{showLate ? 'Esconder fim da noite' : 'Mostrar fim da noite (23h–00h)'}</span>
+        </button>
+      )}
     </div>
   )
 }
