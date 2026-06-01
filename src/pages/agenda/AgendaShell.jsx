@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
-  ListChecks, Settings, Sun, Moon,
+  ListChecks, Settings, Sun, Moon, Sparkles, Check, Trash2, Star, CalendarPlus,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
+import { useAgendaTasks } from '../../hooks/useAgendaTasks'
 import { useTheme } from '../../hooks/useTheme'
 import EventForm from './EventForm'
 import {
@@ -23,11 +24,11 @@ const AGENDA_ACCENT = '#06b6d4'  // ciano
 const AGENDA_ACCENT_GRADIENT = 'linear-gradient(90deg,#67e8f9,#06b6d4,#0e7490)'
 
 const TABS = [
-  { id: 'day',           label: 'Dia',          icon: CalendarDays },
-  { id: 'week',          label: 'Semana',       icon: CalendarRange },
-  { id: 'month',         label: 'Mês',          icon: CalendarIcon },
-  { id: 'list',          label: 'Compromissos', icon: ListChecks },
-  { id: 'settings',      label: 'Ajustes',      icon: Settings },
+  { id: 'day',           label: 'Dia',     icon: CalendarDays },
+  { id: 'week',          label: 'Semana',  icon: CalendarRange },
+  { id: 'month',         label: 'Mês',     icon: CalendarIcon },
+  { id: 'tasks',         label: 'Tarefas', icon: ListChecks },
+  { id: 'settings',      label: 'Ajustes', icon: Settings },
 ]
 
 export default function AgendaShell() {
@@ -35,13 +36,15 @@ export default function AgendaShell() {
   const [tab, setTab] = useState('day')
   const [refDate, setRefDate] = useState(todayISO())
   const [editing, setEditing] = useState(null)        // { event, occurrenceDate } | null
-  const [creating, setCreating] = useState(null)      // { initialDate } | null
+  const [creating, setCreating] = useState(null)      // { initialDate, initialTitle } | null
 
   const {
     events, loading, error,
     createEvent, updateEvent, deleteEvent,
     deleteOccurrence, deleteForever,
   } = useAgenda()
+
+  const tasksHook = useAgendaTasks()
 
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
@@ -58,6 +61,10 @@ export default function AgendaShell() {
       setEditing(null)
     } else {
       await createEvent(payload)
+      // Se veio de uma tarefa (creating.fromTaskId), marca a tarefa como feita
+      if (creating?.fromTaskId) {
+        try { await tasksHook.deleteTask(creating.fromTaskId) } catch (e) { /* ignora */ }
+      }
       setCreating(null)
     }
   }
@@ -94,8 +101,11 @@ export default function AgendaShell() {
               </div>
               <div className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
                 {TABS.find((t) => t.id === tab)?.label}
-                {tab !== 'settings' && tab !== 'list' && events.length > 0 && (
+                {tab !== 'settings' && tab !== 'tasks' && events.length > 0 && (
                   <span> · {events.length} {events.length === 1 ? 'compromisso' : 'compromissos'} cadastrado{events.length === 1 ? '' : 's'}</span>
+                )}
+                {tab === 'tasks' && tasksHook.pending.length > 0 && (
+                  <span> · {tasksHook.pending.length} pendente{tasksHook.pending.length === 1 ? '' : 's'}</span>
                 )}
               </div>
             </div>
@@ -125,7 +135,7 @@ export default function AgendaShell() {
           {tab === 'day' && (<>O dia <em style={titleEm}>de hoje.</em></>)}
           {tab === 'week' && (<>Sua <em style={titleEm}>semana.</em></>)}
           {tab === 'month' && (<>Seu <em style={titleEm}>mês.</em></>)}
-          {tab === 'list' && (<>Todos os <em style={titleEm}>compromissos.</em></>)}
+          {tab === 'tasks' && (<>Suas <em style={titleEm}>tarefas.</em></>)}
           {tab === 'settings' && (<>Ajustes da <em style={titleEm}>Agenda.</em></>)}
         </h1>
       </div>
@@ -180,11 +190,14 @@ export default function AgendaShell() {
                 setView={setTab}
               />
             )}
-            {tab === 'list' && (
-              <ListView
-                events={events}
-                onClickEvent={(occ) => setEditing(occ)}
-                onCreate={() => setCreating({ initialDate: todayISO() })}
+            {tab === 'tasks' && (
+              <TasksView
+                tasksHook={tasksHook}
+                onSchedule={(task) => setCreating({
+                  initialDate: todayISO(),
+                  initialTitle: task.title,
+                  fromTaskId: task.id,
+                })}
               />
             )}
             {tab === 'settings' && <SettingsView />}
@@ -201,6 +214,7 @@ export default function AgendaShell() {
           event={editing?.event}
           occurrenceDate={editing?.occurrenceDate}
           initialDate={creating?.initialDate}
+          initialTitle={creating?.initialTitle}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => { setCreating(null); setEditing(null) }}
@@ -350,6 +364,33 @@ function DayView({ events, onClickEvent, onCreate, date }) {
 
   return (
     <div className="space-y-3">
+      {/* CTA didático no topo — botão grande pra adicionar mais um compromisso */}
+      <button
+        onClick={() => onCreate(date)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition hover:opacity-90 active:scale-[0.99]"
+        style={{
+          background: 'linear-gradient(135deg, rgba(6,182,212,0.10) 0%, rgba(6,182,212,0.18) 100%)',
+          border: '1.5px dashed rgba(6,182,212,0.45)',
+          color: AGENDA_ACCENT,
+        }}
+      >
+        <div
+          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+          style={{ background: 'rgba(6,182,212,0.20)' }}
+        >
+          <Plus size={18} strokeWidth={2.5} />
+        </div>
+        <div className="text-left min-w-0 flex-1">
+          <div className="text-sm font-semibold" style={{ color: AGENDA_ACCENT }}>
+            Adicionar compromisso {isToday(date) ? 'pra hoje' : 'neste dia'}
+          </div>
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+            Reunião, consulta, lembrete… toque pra criar
+          </div>
+        </div>
+        <Sparkles size={14} style={{ color: AGENDA_ACCENT, opacity: 0.7 }} />
+      </button>
+
       {allDay.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
@@ -534,87 +575,232 @@ function MonthView({ events, refDate, setRefDate, setView }) {
 }
 
 // ============================================================
-// LIST VIEW — todos os compromissos agrupados por mês
+// TASKS VIEW — TODOs sem data definida
 // ============================================================
-function ListView({ events, onClickEvent, onCreate }) {
-  // Expande TODAS as ocorrências dos próximos 90 dias
-  const expanded = useMemo(() => {
-    const range = []
-    const today = todayISO()
-    for (let i = 0; i < 90; i++) {
-      const date = shiftDays(today, i)
-      const evs = getEventsForDate(events, date)
-      evs.forEach((ev) => range.push(ev))
+function TasksView({ tasksHook, onSchedule }) {
+  const { pending, completed, loading, error, createTask, toggleTask, deleteTask, updateTask } = tasksHook
+  const [newTitle, setNewTitle] = useState('')
+  const [important, setImportant] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [adding, setAdding] = useState(false)
+
+  const handleAdd = async (e) => {
+    e?.preventDefault?.()
+    const title = newTitle.trim()
+    if (!title) return
+    setAdding(true)
+    try {
+      await createTask({ title, priority: important })
+      setNewTitle('')
+      setImportant(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setAdding(false)
     }
-    return range
-  }, [events])
-
-  if (expanded.length === 0) {
-    return <EmptyState
-      icon="📋"
-      title="Nenhum compromisso agendado"
-      text="🎩 Que tal começar criando o primeiro?"
-      ctaLabel="Adicionar compromisso"
-      onCta={onCreate}
-    />
-  }
-
-  // Agrupa por mês YYYY-MM
-  const byMonth = {}
-  for (const ev of expanded) {
-    const ym = ev.occurrenceDate.slice(0, 7)
-    if (!byMonth[ym]) byMonth[ym] = []
-    byMonth[ym].push(ev)
-  }
-  const months = Object.keys(byMonth).sort()
-
-  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-  const formatMonthLabel = (ym) => {
-    const [y, m] = ym.split('-').map(Number)
-    return `${monthNames[m - 1]} ${y}`
   }
 
   return (
-    <div className="space-y-6">
-      {months.map((ym) => (
-        <div key={ym}>
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-base">
-              {formatMonthLabel(ym)}
-            </h3>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              · {byMonth[ym].length} {byMonth[ym].length === 1 ? 'compromisso' : 'compromissos'}
-            </span>
-          </div>
-
-          {/* Agrupa por dia dentro do mês */}
-          {Object.entries(groupByDate(byMonth[ym])).map(([date, evs]) => (
-            <div key={date} className="mb-2">
-              <div className="flex items-center gap-2 mb-1.5 px-1">
-                <div className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                  {formatFriendlyDate(date)}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {evs.map((ev) => (
-                  <EventCard key={`${ev.id}:${ev.occurrenceDate}`} event={ev} onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })} compact />
-                ))}
-              </div>
-            </div>
-          ))}
+    <div className="space-y-4">
+      {/* Explicação curta */}
+      <div className="rounded-2xl p-3 px-4"
+        style={{
+          background: 'rgba(6,182,212,0.06)',
+          border: '1px solid rgba(6,182,212,0.20)',
+        }}
+      >
+        <div className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <strong style={{ color: AGENDA_ACCENT }}>💡 Lista de coisas pra fazer</strong> — anote o que precisa
+          ser feito, mas ainda não sabe quando. Depois é só marcar como feita ou agendar pra um dia específico.
         </div>
-      ))}
+      </div>
+
+      {/* Form de adicionar */}
+      <form
+        onSubmit={handleAdd}
+        className="rounded-2xl p-3"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
+      >
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Ex: Ligar pro contador, comprar café…"
+            className="flex-1 bg-transparent text-sm outline-none px-2 py-2"
+            style={{ color: 'var(--text-primary)' }}
+            maxLength={200}
+          />
+          <button
+            type="button"
+            onClick={() => setImportant((v) => !v)}
+            title={important ? 'Importante (vai pro topo)' : 'Marcar como importante'}
+            className="p-2 rounded-lg transition shrink-0"
+            style={{
+              background: important ? 'rgba(245,158,11,0.15)' : 'var(--bg-elev1)',
+              color: important ? 'var(--accent-amber)' : 'var(--text-muted)',
+            }}
+          >
+            <Star size={16} fill={important ? 'currentColor' : 'none'} />
+          </button>
+          <button
+            type="submit"
+            disabled={!newTitle.trim() || adding}
+            className="px-3 py-2 rounded-lg text-sm font-semibold transition shrink-0 disabled:opacity-50"
+            style={{
+              background: AGENDA_ACCENT,
+              color: '#fff',
+            }}
+          >
+            {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+          </button>
+        </div>
+      </form>
+
+      {error && (
+        <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(244,63,94,0.1)', color: '#fda4af' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Pendentes */}
+      {loading && pending.length === 0 && completed.length === 0 ? (
+        <div className="text-center py-8">
+          <Loader2 size={20} className="animate-spin mx-auto" style={{ color: AGENDA_ACCENT }} />
+        </div>
+      ) : pending.length === 0 && completed.length === 0 ? (
+        <div className="text-center py-12 px-4 rounded-2xl"
+          style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+          <div className="text-4xl mb-3">✨</div>
+          <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg mb-1.5">
+            Sua lista está vazia
+          </h3>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            Anote algo lá em cima pra começar.
+          </p>
+        </div>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] uppercase tracking-widest mb-1 px-1" style={{ color: 'var(--text-muted)' }}>
+                A fazer · {pending.length}
+              </div>
+              {pending.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  onToggle={() => toggleTask(t.id)}
+                  onDelete={() => deleteTask(t.id)}
+                  onSchedule={() => onSchedule(t)}
+                  onTogglePriority={() => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
+                />
+              ))}
+            </div>
+          )}
+
+          {completed.length > 0 && (
+            <div className="space-y-1.5">
+              <button
+                onClick={() => setShowCompleted((v) => !v)}
+                className="text-[10px] uppercase tracking-widest px-1 transition hover:opacity-70"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {showCompleted ? '▾' : '▸'} Feitas · {completed.length}
+              </button>
+              {showCompleted && completed.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  onToggle={() => toggleTask(t.id)}
+                  onDelete={() => deleteTask(t.id)}
+                  onSchedule={() => onSchedule(t)}
+                  onTogglePriority={() => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
 
-function groupByDate(events) {
-  const out = {}
-  for (const ev of events) {
-    if (!out[ev.occurrenceDate]) out[ev.occurrenceDate] = []
-    out[ev.occurrenceDate].push(ev)
-  }
-  return out
+function TaskRow({ task, onToggle, onDelete, onSchedule, onTogglePriority }) {
+  const done = !!task.completed_at
+  const isImportant = task.priority === 1 && !done
+
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition"
+      style={{
+        background: isImportant ? 'rgba(245,158,11,0.06)' : 'var(--bg-elev2)',
+        border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : 'var(--border-soft)'}`,
+        opacity: done ? 0.55 : 1,
+      }}
+    >
+      {/* Checkbox */}
+      <button
+        onClick={onToggle}
+        className="shrink-0 flex items-center justify-center transition"
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 6,
+          border: `1.5px solid ${done ? AGENDA_ACCENT : 'var(--border-medium)'}`,
+          background: done ? AGENDA_ACCENT : 'transparent',
+        }}
+        title={done ? 'Marcar como não feita' : 'Marcar como feita'}
+      >
+        {done && <Check size={14} color="#fff" strokeWidth={3} />}
+      </button>
+
+      {/* Título */}
+      <div className="flex-1 min-w-0">
+        <div
+          className="text-sm truncate"
+          style={{
+            color: 'var(--text-primary)',
+            textDecoration: done ? 'line-through' : 'none',
+            fontWeight: isImportant ? 600 : 400,
+          }}
+        >
+          {isImportant && <Star size={11} className="inline mr-1 mb-0.5" fill="currentColor" style={{ color: 'var(--accent-amber)' }} />}
+          {task.title}
+        </div>
+      </div>
+
+      {/* Ações */}
+      {!done && (
+        <>
+          <button
+            onClick={onTogglePriority}
+            className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+            title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
+            style={{ color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)' }}
+          >
+            <Star size={14} fill={isImportant ? 'currentColor' : 'none'} />
+          </button>
+          <button
+            onClick={onSchedule}
+            className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+            title="Agendar pra um dia"
+            style={{ color: AGENDA_ACCENT }}
+          >
+            <CalendarPlus size={15} />
+          </button>
+        </>
+      )}
+      <button
+        onClick={onDelete}
+        className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+        title="Apagar"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  )
 }
 
 // ============================================================
