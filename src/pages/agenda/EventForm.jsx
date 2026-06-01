@@ -20,7 +20,19 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
   const [text, setText] = useState(event?.title || initialTitle || '')
   const [date, setDate] = useState(event?.date || occurrenceDate || initialDate || todayISO())
   const [time, setTime] = useState(event?.time?.slice(0, 5) || initialTime || nextRoundHour())
-  const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) || '')
+  // Duração padrão: 1h quando criando novo (se já tem time mas não tem end_time)
+  const computeDefaultEndTime = () => {
+    if (event?.end_time) return event.end_time.slice(0, 5)
+    if (event) return ''  // editando evento sem end_time, mantém vazio
+    // Criando novo: assume 1h
+    const startStr = event?.time?.slice(0, 5) || initialTime || nextRoundHour()
+    const [h, m] = startStr.split(':').map(Number)
+    const totalEnd = (h * 60 + m) + 60
+    const eh = Math.floor(totalEnd / 60) % 24
+    const em = totalEnd % 60
+    return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`
+  }
+  const [endTime, setEndTime] = useState(computeDefaultEndTime())
   const [notes, setNotes] = useState(event?.notes || '')  // mantém no banco caso queira
   const [color, setColor] = useState(event?.color || 'cyan')
   const [recurring, setRecurring] = useState(event?.recurring || 'none')
@@ -37,12 +49,15 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
   )
   const [customReminderInput, setCustomReminderInput] = useState('')
 
-  // Calcula duração inicial em minutos
+  // Calcula duração inicial em minutos. Default ao criar = 60min (1h)
   function computeInitialDuration() {
-    if (!event?.time || !event?.end_time) return null
-    const [sh, sm] = event.time.split(':').map(Number)
-    const [eh, em] = event.end_time.split(':').map(Number)
-    return (eh * 60 + em) - (sh * 60 + sm)
+    if (event?.time && event?.end_time) {
+      const [sh, sm] = event.time.split(':').map(Number)
+      const [eh, em] = event.end_time.split(':').map(Number)
+      return (eh * 60 + em) - (sh * 60 + sm)
+    }
+    if (event) return null  // editando sem end_time
+    return 60  // criando novo: padrão 1h
   }
   const [duration, setDuration] = useState(computeInitialDuration())
 

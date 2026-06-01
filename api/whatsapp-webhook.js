@@ -237,6 +237,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true })
       }
       try {
+        // Padrão: se tem hora de início mas não de fim, assume 1h de duração
+        if (extraction.time && !extraction.end_time) {
+          const [sh, sm] = extraction.time.split(':').map(Number)
+          const totalEnd = (sh * 60 + (sm || 0)) + 60
+          const eh = Math.floor(totalEnd / 60) % 24
+          const em = totalEnd % 60
+          extraction.end_time = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`
+        }
         const event = await createAgendaEvent(admin, userId, extraction)
         await sendWhatsApp(from, formatEventConfirmation(event))
       } catch (err) {

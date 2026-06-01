@@ -1824,6 +1824,8 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
 
 function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth, onClickEvent, onClickEmpty, onDragStart, draggingEventId, isDropTarget }) {
   const events = dayStats?.events || []
+  const colRef = useRef(null)
+  const [hoverY, setHoverY] = useState(null)  // posição Y do hover pra mostrar preview do slot
 
   // Linha "agora" se é hoje
   let nowOffset = null
@@ -1835,9 +1837,42 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
     }
   }
 
+  // Handler de click em área vazia — calcula hora baseado no Y e dispara onClickEmpty
+  const handleColumnClick = (e) => {
+    if (!colRef.current || !onClickEmpty) return
+    const rect = colRef.current.getBoundingClientRect()
+    const yInCol = e.clientY - rect.top
+    if (yInCol < 0 || yInCol > gridHeight) return
+    // Snap em 15min pra ser consistente com o drag
+    const minutesInGrid = Math.max(0, Math.min(gridHeight - 1, yInCol) / pxPerHour * 60)
+    const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
+    const totalMin = WEEK_DAY_START_H * 60 + snapped
+    const hh = String(Math.floor(totalMin / 60)).padStart(2, '0')
+    const mm = String(totalMin % 60).padStart(2, '0')
+    onClickEmpty(`${hh}:${mm}`)
+  }
+
+  // Hover preview (desktop)
+  const handleColumnMouseMove = (e) => {
+    if (!colRef.current) return
+    const rect = colRef.current.getBoundingClientRect()
+    const yInCol = e.clientY - rect.top
+    if (yInCol < 0 || yInCol > gridHeight) {
+      setHoverY(null)
+      return
+    }
+    const minutesInGrid = (yInCol / pxPerHour) * 60
+    const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
+    setHoverY((snapped / 60) * pxPerHour)
+  }
+
   return (
     <div
-      className="relative rounded-lg shrink-0 transition-colors"
+      ref={colRef}
+      onClick={handleColumnClick}
+      onMouseMove={handleColumnMouseMove}
+      onMouseLeave={() => setHoverY(null)}
+      className="relative rounded-lg shrink-0 transition-colors cursor-pointer"
       style={{
         width: colWidth,
         height: gridHeight,
@@ -1873,6 +1908,24 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
           />
         )
       })}
+
+      {/* Preview do slot ao passar mouse — ghost de "+ 1h aqui" */}
+      {hoverY !== null && !isDropTarget && !draggingEventId && (
+        <div
+          className="absolute left-1 right-1 pointer-events-none rounded-md flex items-center justify-center transition-opacity"
+          style={{
+            top: hoverY,
+            height: Math.min(60, gridHeight - hoverY - 1),
+            background: 'rgba(6,182,212,0.15)',
+            border: `1.5px dashed ${AGENDA_ACCENT}`,
+            opacity: 0.85,
+          }}
+        >
+          <span className="text-[10px] font-bold" style={{ color: AGENDA_ACCENT }}>
+            + criar aqui
+          </span>
+        </div>
+      )}
 
       {/* Linha "agora" */}
       {nowOffset !== null && (
@@ -1918,6 +1971,7 @@ function DraggableEventBlock({ ev, top, height, durationMin, isDragging, origina
   const handlePointerDown = (e) => {
     // Não interfere em scroll vertical via teclado/mouse-wheel
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.stopPropagation()  // evita disparar click na DayColumn
     pressStarted.current = { x: e.clientX, y: e.clientY, time: Date.now() }
     setPressing(true)
 
@@ -1941,6 +1995,7 @@ function DraggableEventBlock({ ev, top, height, durationMin, isDragging, origina
     const started = pressStarted.current
     cleanup()
     if (!started) return
+    e.stopPropagation()  // evita disparar click na DayColumn
     const elapsed = Date.now() - started.time
     const dx = Math.abs(e.clientX - started.x)
     const dy = Math.abs(e.clientY - started.y)
@@ -1950,12 +2005,16 @@ function DraggableEventBlock({ ev, top, height, durationMin, isDragging, origina
     }
   }
 
+  // Bloqueia o onClick padrão do React (bubble) pra não disparar criação
+  const stopClick = (e) => { e.stopPropagation() }
+
   return (
     <div
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={cleanup}
+      onClick={stopClick}
       className="absolute rounded-lg overflow-hidden flex select-none"
       style={{
         top: top + 1,
