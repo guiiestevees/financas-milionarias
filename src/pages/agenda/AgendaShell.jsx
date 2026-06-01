@@ -428,12 +428,13 @@ function DayView({ events, onClickEvent, onCreate, date, completionsHook }) {
 
 // Timeline do dia: coluna esquerda com horas + coluna direita com slots
 function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty, completionsHook }) {
-  // Default: 07h-23h. Expande automático se evento sai fora. User pode forçar madrugada/madrugada-noite.
-  const [showEarly, setShowEarly] = useState(false)   // 00h-06h
+  // Default: 05h-23h (cobre quem acorda cedo). Expande automático se evento sai fora.
+  // User pode forçar madrugada/fim-de-noite com os toggles.
+  const [showEarly, setShowEarly] = useState(false)   // 00h-04h
   const [showLate, setShowLate] = useState(false)     // 23h-24h
   const PX_PER_HOUR = 60
 
-  let startHour = showEarly ? 0 : 7
+  let startHour = showEarly ? 0 : 5
   let endHour = showLate ? 24 : 23
   for (const e of events) {
     const sh = Number(e.time?.slice(0, 2) || 0)
@@ -445,7 +446,7 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
   const totalHeight = totalHours * PX_PER_HOUR
 
   // Auto-show se algum evento já tá nessa zona (pra botão não aparecer redundante)
-  const hasEarlyEvent = startHour < 7
+  const hasEarlyEvent = startHour < 5
   const hasLateEvent = endHour > 23
 
   // Linha "agora" — só se é hoje
@@ -511,7 +512,7 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
           }}
         >
           <span>{showEarly ? '▾' : '▸'}</span>
-          <span>{showEarly ? 'Esconder madrugada' : 'Mostrar madrugada (00h–06h)'}</span>
+          <span>{showEarly ? 'Esconder madrugada' : 'Mostrar madrugada (00h–04h)'}</span>
         </button>
       )}
 
