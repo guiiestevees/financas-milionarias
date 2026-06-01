@@ -746,7 +746,7 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
         {/* CHECK — integrado dentro do card, à direita, centralizado verticalmente */}
         <button
           onClick={handleCheck}
-          className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90"
+          className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90 z-10"
           style={{
             width: compact ? 36 : 44,
             background: 'transparent',
@@ -761,11 +761,13 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
               width: compact ? 22 : 28,
               height: compact ? 22 : 28,
               borderRadius: '50%',
-              border: `2px solid ${completed ? colorVar : `${colorVar}55`}`,
-              background: completed ? colorVar : 'transparent',
+              border: completed
+                ? `2px solid ${colorVar}`
+                : `2px solid ${getColorTint(colorKey, 'border')}`,
+              background: completed ? colorVar : 'var(--bg-elev1)',
               boxShadow: completed
-                ? `0 0 0 4px ${colorVar}20, 0 2px 8px ${colorVar}88`
-                : 'none',
+                ? `0 0 0 3px ${getColorTint(colorKey, 'bg')}, 0 2px 8px ${getColorTint(colorKey, 'border')}`
+                : `0 1px 3px rgba(0,0,0,0.10)`,
               animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
             }}
           >
@@ -2726,7 +2728,7 @@ function EventCard({ event, onClick, compact = false, completed, onToggleComplet
         <>
           <button
             onClick={handleCheck}
-            className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90"
+            className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90 z-10"
             style={{
               width: 52,
               background: 'transparent',
@@ -2741,11 +2743,13 @@ function EventCard({ event, onClick, compact = false, completed, onToggleComplet
                 width: 30,
                 height: 30,
                 borderRadius: '50%',
-                border: `2px solid ${completed ? colorVar : `${colorVar}55`}`,
-                background: completed ? colorVar : 'transparent',
+                border: completed
+                  ? `2px solid ${colorVar}`
+                  : `2px solid ${tintBorder}`,
+                background: completed ? colorVar : 'var(--bg-elev1)',
                 boxShadow: completed
-                  ? `0 0 0 4px ${colorVar}20, 0 2px 8px ${colorVar}88`
-                  : 'none',
+                  ? `0 0 0 4px ${tintBg}, 0 2px 12px ${tintBorder}`
+                  : `0 1px 4px rgba(0,0,0,0.10)`,
                 animation: burst ? 'checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
               }}
             >
