@@ -51,6 +51,9 @@ export function useAgenda() {
       notes: payload.notes || null,
       color: payload.color || 'gold',
       recurring: payload.recurring || 'none',
+      recurring_weekdays: Array.isArray(payload.recurring_weekdays) && payload.recurring_weekdays.length > 0
+        ? payload.recurring_weekdays
+        : null,
       ends_at: payload.ends_at || null,
       skipped_dates: [],
     }
@@ -66,7 +69,7 @@ export function useAgenda() {
 
   // Atualiza um evento existente (todas as ocorrências se for recorrente)
   const updateEvent = useCallback(async (id, patch) => {
-    const allowed = ['title', 'date', 'time', 'end_time', 'location', 'notes', 'color', 'recurring', 'ends_at', 'skipped_dates']
+    const allowed = ['title', 'date', 'time', 'end_time', 'location', 'notes', 'color', 'recurring', 'recurring_weekdays', 'ends_at', 'skipped_dates']
     const update = {}
     for (const k of allowed) {
       if (k in patch) update[k] = patch[k]

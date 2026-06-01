@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Calendar, Clock, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle } from 'lucide-react'
-import { AGENDA_COLORS, RECURRENCE_OPTIONS, todayISO } from '../../lib/agendaUtils'
+import { AGENDA_COLORS, RECURRENCE_OPTIONS, WEEKDAY_LABELS, WEEKDAY_PRESETS, todayISO } from '../../lib/agendaUtils'
 
 // Modal pra criar OU editar um compromisso.
 //
@@ -22,7 +22,9 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
   const [notes, setNotes] = useState(event?.notes || '')  // mantém no banco caso queira
   const [color, setColor] = useState(event?.color || 'cyan')
   const [recurring, setRecurring] = useState(event?.recurring || 'none')
+  const [weekdays, setWeekdays] = useState(event?.recurring_weekdays || [])
   const [endsAt, setEndsAt] = useState(event?.ends_at || '')
+  const [customDurInput, setCustomDurInput] = useState('')  // input pra digitar duração custom
 
   // Calcula duração inicial em minutos
   function computeInitialDuration() {
@@ -32,7 +34,6 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
     return (eh * 60 + em) - (sh * 60 + sm)
   }
   const [duration, setDuration] = useState(computeInitialDuration())
-  const [showCustomDuration, setShowCustomDuration] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -59,12 +60,14 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, saving])
 
-  const canSubmit = text.trim().length > 0 && !!date && !!time && !saving
+  const canSubmit = text.trim().length > 0 && !!date && !!time
+    && !(recurring === 'weekdays' && weekdays.length === 0)
+    && !saving
 
   // Aplica duração escolhida — calcula endTime
   const applyDuration = (mins) => {
     setDuration(mins)
-    setShowCustomDuration(false)
+    if (mins) setCustomDurInput('')  // limpa input custom quando seleciona chip
     if (!mins) { setEndTime(''); return }
     const [h, m] = time.split(':').map(Number)
     const totalStart = h * 60 + m
@@ -72,6 +75,27 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
     const eh = Math.floor(totalEnd / 60) % 24
     const em = totalEnd % 60
     setEndTime(`${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`)
+  }
+
+  // Quando digita duração custom no input
+  const onCustomDurChange = (val) => {
+    const cleaned = val.replace(/\D/g, '').slice(0, 4)
+    setCustomDurInput(cleaned)
+    if (cleaned) {
+      applyDuration(parseInt(cleaned, 10))
+    } else {
+      setDuration(null)
+      setEndTime('')
+    }
+  }
+
+  // Toggle dia da semana selecionado
+  const toggleWeekday = (id) => {
+    setWeekdays((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].sort())
+  }
+
+  const applyPreset = (days) => {
+    setWeekdays(days)
   }
 
   // Quando muda time manualmente, recalcula endTime se houver duração
@@ -101,6 +125,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
         notes: notes.trim() || null,
         color,
         recurring,
+        recurring_weekdays: recurring === 'weekdays' ? weekdays : null,
         ends_at: recurring !== 'none' && endsAt ? endsAt : null,
       })
     } catch (e) {
@@ -177,10 +202,9 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
               />
             </div>
 
-            {/* Data e Horário lado a lado */}
-            <div className="grid sm:grid-cols-2 gap-3">
-              {/* Data */}
-              <div>
+            {/* Data e Hora — compactos, largura limitada (evita estouro no iOS) */}
+            <div className="flex flex-wrap gap-4">
+              <div className="min-w-0">
                 <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   <Calendar size={11} className="inline mr-1" />
                   Data
@@ -189,13 +213,12 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  style={dateTimeStyle}
+                  style={dateInputStyle}
                   className="focus:border-cyan-400"
                 />
               </div>
 
-              {/* Horário */}
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   <Clock size={11} className="inline mr-1" />
                   Hora
@@ -204,18 +227,18 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                   type="time"
                   value={time}
                   onChange={(e) => onTimeChange(e.target.value)}
-                  style={dateTimeStyle}
+                  style={timeInputStyle}
                   className="focus:border-cyan-400"
                 />
               </div>
             </div>
 
-            {/* Duração — chips rápidos */}
+            {/* Duração — chips + input livre sempre visível */}
             <div>
               <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                 Duração
               </label>
-              <div className="flex gap-1.5 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap items-center">
                 {[
                   { label: '15 min', mins: 15 },
                   { label: '30 min', mins: 30 },
@@ -223,7 +246,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                   { label: '1h 30min', mins: 90 },
                   { label: '2 horas', mins: 120 },
                 ].map((opt) => {
-                  const isSel = duration === opt.mins && !showCustomDuration
+                  const isSel = duration === opt.mins
                   return (
                     <button
                       key={opt.mins}
@@ -240,48 +263,42 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                     </button>
                   )
                 })}
-                <button
-                  type="button"
-                  onClick={() => { setShowCustomDuration(true); setDuration(null) }}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium transition"
-                  style={{
-                    background: showCustomDuration ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
-                    border: `1px solid ${showCustomDuration ? 'rgba(6,182,212,0.5)' : 'var(--border-medium)'}`,
-                    color: showCustomDuration ? '#06b6d4' : 'var(--text-secondary)',
-                  }}
-                >
-                  Outro…
-                </button>
+
+                {/* Input livre — sempre visível, sem botão "Outro" */}
+                <div className="flex items-center gap-1.5 rounded-full"
+                  style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={customDurInput}
+                    onChange={(e) => onCustomDurChange(e.target.value)}
+                    placeholder="ou…"
+                    style={{
+                      background: 'transparent', border: 'none', outline: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: 12, fontWeight: 500,
+                      width: 50, padding: '6px 4px 6px 12px',
+                      textAlign: 'right',
+                      fontFamily: 'Manrope, sans-serif',
+                    }}
+                  />
+                  <span className="pr-3 text-xs" style={{ color: 'var(--text-muted)' }}>min</span>
+                </div>
+
                 {(duration || endTime) && (
                   <button
                     type="button"
-                    onClick={() => { setEndTime(''); setDuration(null); setShowCustomDuration(false) }}
-                    className="px-3 py-1.5 rounded-full text-xs transition"
+                    onClick={() => { setEndTime(''); setDuration(null); setCustomDurInput('') }}
+                    className="px-2.5 py-1.5 rounded-full text-xs transition"
                     style={{ color: 'var(--text-muted)' }}
                     title="Sem duração definida"
                   >
-                    ✕ Limpar
+                    ✕
                   </button>
                 )}
               </div>
 
-              {/* Campo customizado de fim */}
-              {showCustomDuration && (
-                <div className="mt-3">
-                  <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>
-                    Termina às
-                  </label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => { setEndTime(e.target.value); setDuration(null) }}
-                    style={{ ...dateTimeStyle, maxWidth: 160 }}
-                    className="focus:border-cyan-400"
-                  />
-                </div>
-              )}
-
-              {endTime && !showCustomDuration && (
+              {endTime && (
                 <div className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
                   🕐 Termina às <strong style={{ color: 'var(--text-primary)' }}>{endTime}</strong>
                 </div>
@@ -341,8 +358,69 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                 ))}
               </select>
 
+              {/* Seletor de dias da semana — só quando recurring='weekdays' */}
+              {recurring === 'weekdays' && (
+                <div className="mt-3 space-y-2.5">
+                  {/* Presets */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {WEEKDAY_PRESETS.map((p) => {
+                      const isSel = JSON.stringify([...weekdays].sort()) === JSON.stringify([...p.days].sort())
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => applyPreset(p.days)}
+                          className="px-3 py-1.5 rounded-full text-xs font-medium transition"
+                          style={{
+                            background: isSel ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
+                            border: `1px solid ${isSel ? 'rgba(6,182,212,0.5)' : 'var(--border-medium)'}`,
+                            color: isSel ? '#06b6d4' : 'var(--text-secondary)',
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Bolinhas de dias da semana */}
+                  <div>
+                    <div className="text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                      Ou escolha os dias:
+                    </div>
+                    <div className="flex gap-1.5 justify-between sm:justify-start sm:flex-wrap">
+                      {WEEKDAY_LABELS.map((d) => {
+                        const isSel = weekdays.includes(d.id)
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => toggleWeekday(d.id)}
+                            title={d.label}
+                            className="w-9 h-9 rounded-full text-sm font-semibold transition flex items-center justify-center"
+                            style={{
+                              background: isSel ? '#06b6d4' : 'var(--bg-elev1)',
+                              border: `1px solid ${isSel ? '#06b6d4' : 'var(--border-medium)'}`,
+                              color: isSel ? '#fff' : 'var(--text-secondary)',
+                            }}
+                          >
+                            {d.short}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {weekdays.length === 0 && (
+                    <div className="text-[11px]" style={{ color: 'var(--accent-amber)' }}>
+                      ⚠ Selecione ao menos um dia da semana
+                    </div>
+                  )}
+                </div>
+              )}
+
               {recurring !== 'none' && (
-                <div className="mt-2">
+                <div className="mt-3">
                   <div className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
                     Repetir até <span className="opacity-70">(deixe vazio pra sempre)</span>
                   </div>
@@ -351,7 +429,7 @@ export default function EventForm({ event, initialDate, occurrenceDate, onSave, 
                     value={endsAt}
                     onChange={(e) => setEndsAt(e.target.value)}
                     min={date}
-                    style={{ ...dateTimeStyle, maxWidth: 200 }}
+                    style={dateInputStyle}
                     className="focus:border-cyan-400"
                   />
                 </div>
@@ -432,6 +510,37 @@ const dateTimeStyle = {
   fontSize: 15,
   fontWeight: 500,
   letterSpacing: '0.01em',
+}
+
+// Inputs date/time COMPACTOS — pra não estourar em iOS (native input ocupa tela toda)
+const dateInputStyle = {
+  background: 'var(--bg-elev1)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
+  borderRadius: 10,
+  padding: '10px 12px',
+  fontFamily: 'Manrope, system-ui, -apple-system, sans-serif',
+  fontSize: 14,
+  fontWeight: 500,
+  outline: 'none',
+  width: 160,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
+}
+
+const timeInputStyle = {
+  background: 'var(--bg-elev1)',
+  border: '1px solid var(--border-medium)',
+  color: 'var(--text-primary)',
+  borderRadius: 10,
+  padding: '10px 12px',
+  fontFamily: 'Manrope, system-ui, -apple-system, sans-serif',
+  fontSize: 14,
+  fontWeight: 500,
+  outline: 'none',
+  width: 110,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
 }
 
 // ---------- DeleteConfirm ----------

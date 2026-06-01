@@ -13,11 +13,29 @@ export const AGENDA_COLORS = [
 ]
 
 export const RECURRENCE_OPTIONS = [
-  { id: 'none',     label: 'Não se repete',     short: 'Único' },
-  { id: 'daily',    label: 'Todos os dias',     short: 'Diário' },
-  { id: 'weekly',   label: 'Toda semana',       short: 'Semanal' },
-  { id: 'biweekly', label: 'A cada 2 semanas',  short: 'Quinzenal' },
-  { id: 'monthly',  label: 'Todo mês',          short: 'Mensal' },
+  { id: 'none',     label: 'Não se repete',                         short: 'Único' },
+  { id: 'daily',    label: 'Todos os dias',                         short: 'Diário' },
+  { id: 'weekdays', label: 'Dias específicos da semana',            short: 'Dias da semana' },
+  { id: 'weekly',   label: 'Toda semana (mesmo dia da semana)',     short: 'Semanal' },
+  { id: 'biweekly', label: 'A cada 2 semanas',                      short: 'Quinzenal' },
+  { id: 'monthly',  label: 'Todo mês (mesmo dia do mês)',           short: 'Mensal' },
+]
+
+// Helpers de dias da semana (0=dom, 1=seg, ..., 6=sáb)
+export const WEEKDAY_LABELS = [
+  { id: 0, short: 'D', label: 'Domingo' },
+  { id: 1, short: 'S', label: 'Segunda' },
+  { id: 2, short: 'T', label: 'Terça' },
+  { id: 3, short: 'Q', label: 'Quarta' },
+  { id: 4, short: 'Q', label: 'Quinta' },
+  { id: 5, short: 'S', label: 'Sexta' },
+  { id: 6, short: 'S', label: 'Sábado' },
+]
+
+// Presets úteis pra "dias da semana"
+export const WEEKDAY_PRESETS = [
+  { id: 'weekdays_workdays', label: 'Seg–Sex (dias úteis)', days: [1, 2, 3, 4, 5] },
+  { id: 'weekdays_weekends', label: 'Sáb–Dom (fim de semana)', days: [0, 6] },
 ]
 
 // ---------- Formatação ----------
@@ -161,12 +179,16 @@ function eventOccursOnDate(event, targetIso) {
     case 'weekly':   return diffDays >= 0 && diffDays % 7 === 0
     case 'biweekly': return diffDays >= 0 && diffDays % 14 === 0
     case 'monthly':  {
-      // Mesmo dia do mês (se o mês não tem o dia, pula)
       if (startDate.getDate() !== targetDate.getDate()) return false
-      // Tem que ser mês futuro (ou igual + diffDays=0)
       const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12
         + (targetDate.getMonth() - startDate.getMonth())
       return monthsDiff >= 0
+    }
+    case 'weekdays': {
+      // Acontece nos dias da semana listados em recurring_weekdays
+      const wd = Array.isArray(event.recurring_weekdays) ? event.recurring_weekdays : []
+      if (wd.length === 0) return false
+      return diffDays >= 0 && wd.includes(targetDate.getDay())
     }
     default: return false
   }
