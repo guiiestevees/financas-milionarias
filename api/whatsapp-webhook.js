@@ -499,11 +499,13 @@ PERGUNTA com "quanto", "quantas", "qual", "como tá", "me diz": query.
 
 ═══════ DATAS — IMPORTANTÍSSIMO ═══════
 
-Use a tabela de meses do contexto. NÃO calcule de cabeça:
+Use a tabela de meses E a tabela "PRÓXIMOS DIAS DA SEMANA" do contexto. NÃO calcule de cabeça:
 - "hoje", "agora" → null
 - "ontem" → veja contexto
 - "anteontem" → veja contexto
 - "amanhã" → veja contexto
+- "segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo" → USE EXATAMENTE a data da tabela "PRÓXIMOS DIAS DA SEMANA" (essa tabela já calcula a próxima ocorrência futura — se hoje é segunda e o usuário fala "terça", a tabela já te dá amanhã; se hoje é terça e fala "terça", te dá daqui a 7 dias). NUNCA invente dia da semana.
+- "próxima segunda/terça/etc" → mesma tabela "PRÓXIMOS DIAS DA SEMANA" (sempre a próxima ocorrência)
 - "mês que vem" / "próximo mês" / "no mês que vem" SEM DIA → use o dia 01 do mês seguinte (veja tabela do contexto)
 - "dia X do mês que vem" → use o dia X do mês seguinte
 - "DD/MM" sozinho → assume ano atual (ou próximo se DD/MM já passou)
@@ -630,7 +632,34 @@ async function extractExpense(userText, ctx, agendaCtx) {
 
   const now = new Date()
   const todayPT = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const todayISO = now.toISOString().slice(0, 10)
+
+  // todayISO usando hora BR (UTC-3) — importante porque mensagens tarde da noite
+  // poderiam virar pra próximo dia se usasse UTC
+  const brNow = new Date(now.getTime() - 3 * 60 * 60 * 1000)
+  const todayISO = brNow.toISOString().slice(0, 10)
+  const todayWeekday = brNow.getUTCDay()  // 0=Dom..6=Sáb na hora BR
+
+  // Helper: soma N dias a um ISO YYYY-MM-DD
+  const shiftIsoDays = (iso, days) => {
+    const [y, m, d] = iso.split('-').map(Number)
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    dt.setUTCDate(dt.getUTCDate() + days)
+    return dt.toISOString().slice(0, 10)
+  }
+
+  // Próximas ocorrências de cada dia da semana (a partir de AMANHÃ inclusive — se hoje
+  // é segunda e user fala "segunda", queremos a próxima segunda = daqui 7 dias)
+  const weekdayNames = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+  const nextWeekdays = []
+  for (let i = 0; i < 7; i++) {
+    const targetWd = i
+    // Quantos dias até o próximo targetWd (1 a 7, nunca 0)
+    let delta = (targetWd - todayWeekday + 7) % 7
+    if (delta === 0) delta = 7
+    const iso = shiftIsoDays(todayISO, delta)
+    nextWeekdays.push(`  - próxima ${weekdayNames[targetWd]}: ${iso}`)
+  }
+
   // Próximos meses pré-calculados pra Claude não precisar fazer aritmética
   const monthRefs = []
   for (let i = -2; i <= 6; i++) {
@@ -651,10 +680,15 @@ async function extractExpense(userText, ctx, agendaCtx) {
 
 Hoje é ${todayPT} (data ISO: ${todayISO}).
 
-Datas relativas pré-calculadas:
-- ontem: ${(new Date(now - 86400000)).toISOString().slice(0, 10)}
-- anteontem: ${(new Date(now - 2 * 86400000)).toISOString().slice(0, 10)}
-- amanhã: ${(new Date(now.getTime() + 86400000)).toISOString().slice(0, 10)}
+Datas relativas pré-calculadas (use SEMPRE estas — não recalcule):
+- ontem: ${shiftIsoDays(todayISO, -1)}
+- anteontem: ${shiftIsoDays(todayISO, -2)}
+- amanhã: ${shiftIsoDays(todayISO, 1)}
+- depois de amanhã: ${shiftIsoDays(todayISO, 2)}
+
+PRÓXIMOS DIAS DA SEMANA (próxima ocorrência futura — NUNCA calcule de cabeça):
+${nextWeekdays.join('\n')}
+  💡 Se hoje é ${weekdayNames[todayWeekday]} e o usuário fala "${weekdayNames[todayWeekday]}", USE a data da tabela acima (que é daqui 7 dias). NÃO use hoje.
 
 Referência de meses:
 ${monthRefs.join('\n')}

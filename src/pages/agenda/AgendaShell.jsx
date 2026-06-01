@@ -361,31 +361,18 @@ function DayView({ events, onClickEvent, onCreate, date }) {
 
   return (
     <div className="space-y-3">
-      {/* CTA didático no topo */}
+      {/* CTA sólido ciano — botão de ação principal */}
       <button
         onClick={() => onCreate(date)}
-        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition hover:opacity-90 active:scale-[0.99]"
+        className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-semibold text-sm transition hover:opacity-90 active:scale-[0.99]"
         style={{
-          background: 'linear-gradient(135deg, rgba(6,182,212,0.10) 0%, rgba(6,182,212,0.18) 100%)',
-          border: '1.5px dashed rgba(6,182,212,0.45)',
-          color: AGENDA_ACCENT,
+          background: AGENDA_ACCENT,
+          color: '#fff',
+          boxShadow: '0 8px 20px rgba(6,182,212,0.30)',
         }}
       >
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-          style={{ background: 'rgba(6,182,212,0.20)' }}
-        >
-          <Plus size={18} strokeWidth={2.5} />
-        </div>
-        <div className="text-left min-w-0 flex-1">
-          <div className="text-sm font-semibold" style={{ color: AGENDA_ACCENT }}>
-            Adicionar compromisso {todayFlag ? 'pra hoje' : 'neste dia'}
-          </div>
-          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-            Reunião, consulta, lembrete… toque pra criar
-          </div>
-        </div>
-        <Sparkles size={14} style={{ color: AGENDA_ACCENT, opacity: 0.7 }} />
+        <Plus size={18} strokeWidth={2.5} />
+        <span>Adicionar compromisso</span>
       </button>
 
       {/* Dia inteiro */}
