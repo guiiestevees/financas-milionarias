@@ -4,6 +4,8 @@ import { Crown, CreditCard, Calendar, Check, X, ArrowRight, Loader2, AlertTriang
 import { Card, SectionTitle, Btn } from '../../components/ui'
 import { accents } from '../../lib/constants'
 import { supabase } from '../../lib/supabase'
+import { isNativeApp } from '../../lib/platform'
+import NativeReaderNotice from '../../components/NativeReaderNotice'
 
 // Formata "27 de junho de 2026"
 function formatDateLongPT(iso) {
@@ -39,6 +41,7 @@ const PAYMENT_STATUS_LABEL = {
 
 export default function SubscriptionCard() {
   const navigate = useNavigate()
+  const native = isNativeApp()
   const [info, setInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -206,54 +209,66 @@ export default function SubscriptionCard() {
           </div>
 
           {/* Ações */}
-          <div className="grid sm:grid-cols-2 gap-2">
-            {canChangePlan && (
-              <button
-                onClick={() => navigate('/assinar?from=config')}
-                className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition"
-                style={{ background: 'rgba(201,169,97,0.08)', border: '1px solid rgba(201,169,97,0.25)', color: '#c9a961' }}
-              >
-                <span className="font-medium">{isTrial ? 'Assinar agora' : 'Trocar plano'}</span>
-                <ArrowRight size={14} />
-              </button>
-            )}
+          {native ? (
+            // MODO NATIVO (Reader App): toda gestão de pagamento via site
+            <NativeReaderNotice
+              action={
+                isTrial ? 'contratar um plano' :
+                isCancelled ? 'reativar sua assinatura' :
+                'alterar plano, forma de pagamento ou cancelar'
+              }
+              compact
+            />
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-2">
+              {canChangePlan && (
+                <button
+                  onClick={() => navigate('/assinar?from=config')}
+                  className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition"
+                  style={{ background: 'rgba(201,169,97,0.08)', border: '1px solid rgba(201,169,97,0.25)', color: '#c9a961' }}
+                >
+                  <span className="font-medium">{isTrial ? 'Assinar agora' : 'Trocar plano'}</span>
+                  <ArrowRight size={14} />
+                </button>
+              )}
 
-            {(isActive || isOverdue) && (
-              <button
-                onClick={handleChangePayment}
-                disabled={changing}
-                className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition disabled:opacity-50"
-                style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
-              >
-                <span className="font-medium flex items-center gap-2">
-                  <CreditCard size={14} /> Trocar forma de pagamento
-                </span>
-                {changing ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
-              </button>
-            )}
+              {(isActive || isOverdue) && (
+                <button
+                  onClick={handleChangePayment}
+                  disabled={changing}
+                  className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition disabled:opacity-50"
+                  style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                >
+                  <span className="font-medium flex items-center gap-2">
+                    <CreditCard size={14} /> Trocar forma de pagamento
+                  </span>
+                  {changing ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+                </button>
+              )}
 
-            {isCancelled && (
-              <button
-                onClick={() => navigate('/assinar?from=config')}
-                className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition sm:col-span-2"
-                style={{ background: 'linear-gradient(180deg, #c9a961, #a88a4a)', color: '#070912' }}
-              >
-                <span className="font-semibold">Reativar assinatura</span>
-                <ArrowRight size={14} />
-              </button>
-            )}
+              {isCancelled && (
+                <button
+                  onClick={() => navigate('/assinar?from=config')}
+                  className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition sm:col-span-2"
+                  style={{ background: 'linear-gradient(180deg, #c9a961, #a88a4a)', color: '#070912' }}
+                >
+                  <span className="font-semibold">Reativar assinatura</span>
+                  <ArrowRight size={14} />
+                </button>
+              )}
 
-            {canCancel && (
-              <button
-                onClick={() => setShowCancelConfirm(true)}
-                className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition sm:col-span-2"
-                style={{ background: 'transparent', border: '1px solid rgba(244,63,94,0.25)', color: 'rgba(244,63,94,0.85)' }}
-              >
-                <span className="font-medium">Cancelar assinatura</span>
-                <X size={14} />
-              </button>
-            )}
-          </div>
+              {canCancel && (
+                <button
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition sm:col-span-2"
+                  style={{ background: 'transparent', border: '1px solid rgba(244,63,94,0.25)', color: 'rgba(244,63,94,0.85)' }}
+                >
+                  <span className="font-medium">Cancelar assinatura</span>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="text-xs text-rose-300 px-1">{error}</div>

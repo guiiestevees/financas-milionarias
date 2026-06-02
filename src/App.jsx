@@ -19,6 +19,8 @@ import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
 import Launcher from './pages/launcher/Launcher'
 import AgendaShell from './pages/agenda/AgendaShell'
+import NativeCheckoutBlock from './pages/NativeCheckoutBlock'
+import { isNativeApp } from './lib/platform'
 
 function FullscreenLoader() {
   return (
@@ -92,14 +94,22 @@ export default function App() {
         {/* App de Agenda */}
         <Route path="/agenda" element={<ProtectedRoute><AgendaShell /></ProtectedRoute>} />
 
-        <Route path="/assinar" element={<ProtectedRoute><Assinar /></ProtectedRoute>} />
+        {/* /assinar — checkout completo no web, ou mensagem neutra no app nativo (Reader App) */}
+        <Route path="/assinar" element={
+          <ProtectedRoute>
+            {isNativeApp() ? <NativeCheckoutBlock variant="manage" /> : <Assinar />}
+          </ProtectedRoute>
+        } />
+
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="/tutorial" element={<ProtectedRoute><Tutorial /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfUse />} />
 
-        {/* Comecar — signup + checkout integrado (fluxo principal pra novos clientes) */}
-        <Route path="/comecar" element={<Comecar />} />
+        {/* /comecar — signup + checkout no web, ou redireciona pro login no nativo */}
+        <Route path="/comecar" element={
+          isNativeApp() ? <NativeCheckoutBlock variant="signup" /> : <Comecar />
+        } />
 
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />

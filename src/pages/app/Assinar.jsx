@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, ArrowLeft, Loader2, Lock, CreditCard, QrCode, AlertCircle } from 'lucide-react'
+import { Check, ArrowLeft, Loader2, Lock, CreditCard, QrCode, AlertCircle, Crown, ShieldCheck, Zap, Sparkles, MessageCircle, X } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
 import { supabase } from '../../lib/supabase'
@@ -39,6 +39,7 @@ const PLANS = [
     name: 'Mensal',
     price: 19.00,
     priceLabel: 'R$ 19',
+    perMonthLabel: 'R$ 19',
     period: 'por mês',
     accent: 'emerald',
     description: 'Cobrança recorrente. Cancele quando quiser.',
@@ -54,15 +55,17 @@ const PLANS = [
     name: 'Anual',
     price: 167.00,
     priceLabel: 'R$ 167',
+    perMonthLabel: 'R$ 13,92',  // R$ 167 / 12
     period: 'por ano',
     accent: 'gold',
-    badge: 'Mais escolhido',
-    description: 'Pague 1× e fique 12 meses tranquilo.',
+    badge: '⭐ Mais escolhido',
+    description: 'Pague uma vez e fique 12 meses ao seu dispor.',
+    savings: 'Economize R$ 61 (~27% off)',
     features: [
       'Tudo do plano Mensal',
-      '✨ Economia de R$ 61 (~27% off)',
-      'Sem preocupação com cobrança mensal',
-      'Reembolso garantido em até 7 dias (CDC)',
+      'Pague 1× e esqueça por 12 meses',
+      'Economiza R$ 61 — equivalente a 3 meses grátis',
+      'Reembolso garantido em até 7 dias',
     ],
   },
 ]
@@ -114,6 +117,8 @@ export default function Assinar() {
   const backUrl = from === 'config' ? '/app?tab=config' : '/app'
 
   // ----- Dados do formulário (tela única) -----
+  // (Todos os hooks DEVEM ser chamados antes de qualquer return condicional —
+  // Rules of Hooks. Mesmo no modo nativo, os hooks são chamados.)
   const [selectedPlan, setSelectedPlan] = useState('annual')
   const [name, setName] = useState(user?.user_metadata?.name || '')
   const [cpfCnpj, setCpfCnpj] = useState('')
@@ -221,68 +226,212 @@ export default function Assinar() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
-      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
+      {/* Background decorativo sutil */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-40"
+        style={{
+          background: `
+            radial-gradient(ellipse at top, rgba(212,175,55,0.10), transparent 55%),
+            radial-gradient(ellipse at bottom, rgba(16,185,129,0.06), transparent 60%)
+          `,
+        }}
+      />
+
+      <div className="relative max-w-3xl mx-auto px-4 py-6 sm:py-10">
         {/* Voltar */}
         <button
           onClick={() => navigate(backUrl)}
-          className="flex items-center gap-2 text-white/55 hover:text-white text-sm mb-6 transition"
+          className="flex items-center gap-2 text-sm mb-6 transition hover:opacity-70"
+          style={{ color: 'var(--text-tertiary)' }}
         >
           <ArrowLeft size={16} /> Voltar
         </button>
 
-        {/* ============ HEADER ============ */}
+        {/* ============ HERO ============ */}
         <div className="text-center mb-8">
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
-            Assinar Domus
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-4"
+            style={{
+              background: 'rgba(212,175,55,0.10)',
+              border: '1px solid rgba(212,175,55,0.30)',
+            }}
+          >
+            <Crown size={12} style={{ color: '#c9a961' }} />
+            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#c9a961' }}>
+              Alfred aguarda suas ordens
+            </span>
+          </div>
+          <h1
+            style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
+            className="text-3xl sm:text-5xl mb-4 leading-tight"
+          >
+            Comece a usar Domus<br />
+            <em style={{
+              fontStyle: 'italic',
+              background: 'linear-gradient(135deg, #f4e4a8, #c9a961 50%, #8b6f2f)',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+            }}>
+              por menos de R$ 14 por mês.
+            </em>
           </h1>
-          <p className="text-white/65 text-sm max-w-lg mx-auto leading-relaxed">
-            🎩 Escolha seu plano e forma de pagamento — Alfred fica ao seu dispor logo em seguida.
+          <p
+            className="text-sm sm:text-base max-w-lg mx-auto leading-relaxed"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            🎩 Controle financeiro, agenda, Alfred no WhatsApp e tudo mais.
+            Sem fidelidade, sem letras miúdas — cancele quando quiser.
           </p>
+        </div>
+
+        {/* ============ POR QUE ASSINAR (mini-grid de benefícios) ============ */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-8">
+          <BenefitCard
+            icon={<MessageCircle size={16} />}
+            title="Alfred 24/7"
+            text="Texto e áudio no WhatsApp"
+            color="#10b981"
+          />
+          <BenefitCard
+            icon={<Sparkles size={16} />}
+            title="Tudo num lugar"
+            text="Finanças, agenda, cofres"
+            color="#06b6d4"
+          />
+          <BenefitCard
+            icon={<ShieldCheck size={16} />}
+            title="7 dias garantia"
+            text="Reembolso integral"
+            color="#c9a961"
+          />
         </div>
 
         {/* ============ SECTION: PLANOS ============ */}
         <div className="mb-8">
-          <div className="text-xs uppercase tracking-widest text-white/40 mb-3 px-1">1 · Escolha o plano</div>
+          <div className="text-xs uppercase tracking-widest mb-3 px-1" style={{ color: 'var(--text-muted)' }}>
+            1 · Escolha o plano
+          </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {PLANS.map((p) => {
               const isSelected = selectedPlan === p.id
               const accentColor = p.accent === 'gold' ? '#c9a961' : '#10b981'
-              const accentSoft = p.accent === 'gold' ? 'rgba(201,169,97,0.1)' : 'rgba(16,185,129,0.08)'
+              const accentSoft = p.accent === 'gold' ? 'rgba(201,169,97,0.10)' : 'rgba(16,185,129,0.08)'
+              const isHighlight = p.id === 'annual'
               return (
                 <button
                   key={p.id}
                   onClick={() => { setSelectedPlan(p.id); setMethod(null); setPixData(null) }}
-                  className="text-left p-5 rounded-2xl transition relative"
+                  className="text-left p-5 rounded-2xl transition relative overflow-hidden"
                   style={{
-                    background: isSelected ? accentSoft : 'var(--bg-elev2)',
+                    background: isSelected
+                      ? (isHighlight
+                          ? `linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06))`
+                          : accentSoft)
+                      : 'var(--bg-elev2)',
                     border: `2px solid ${isSelected ? accentColor : 'var(--border-medium)'}`,
-                    boxShadow: isSelected ? `0 8px 24px ${accentColor}25` : 'none',
+                    boxShadow: isSelected
+                      ? `0 12px 32px ${accentColor}30, 0 0 0 4px ${accentColor}15`
+                      : 'none',
+                    transform: isSelected ? 'translateY(-2px)' : 'translateY(0)',
                   }}
                 >
+                  {/* Glow decorativo no Anual */}
+                  {isHighlight && (
+                    <div
+                      className="absolute -top-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
+                      style={{
+                        background: 'radial-gradient(circle, rgba(212,175,55,0.25), transparent 70%)',
+                        opacity: isSelected ? 1 : 0.4,
+                      }}
+                    />
+                  )}
+
                   {p.badge && (
-                    <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ background: accentColor, color: '#070912' }}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg"
+                      style={{ background: `linear-gradient(135deg, ${accentColor}, #8b6f2f)`, color: '#fff' }}>
                       {p.badge}
                     </div>
                   )}
 
-                  <div className="flex items-baseline justify-between mb-1">
-                    <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: accentColor }} className="text-xl">{p.name}</div>
-                    {isSelected && <Check size={18} style={{ color: accentColor }} />}
+                  <div className="relative">
+                    <div className="flex items-baseline justify-between mb-1">
+                      <div
+                        style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: accentColor }}
+                        className="text-xl italic"
+                      >
+                        {p.name}
+                      </div>
+                      <div
+                        className="flex items-center justify-center"
+                        style={{
+                          width: 22, height: 22,
+                          borderRadius: '50%',
+                          border: `2px solid ${isSelected ? accentColor : 'var(--border-medium)'}`,
+                          background: isSelected ? accentColor : 'transparent',
+                        }}
+                      >
+                        {isSelected && <Check size={13} color="#fff" strokeWidth={3.5} />}
+                      </div>
+                    </div>
+
+                    {/* Preço com hierarquia: principal + equivalente */}
+                    {isHighlight ? (
+                      <>
+                        <div className="flex items-baseline gap-2 mb-0.5">
+                          <span
+                            style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                            className="text-3xl font-semibold tabular-nums"
+                          >
+                            {p.perMonthLabel}
+                          </span>
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            equivalente por mês
+                          </span>
+                        </div>
+                        <div className="text-[11px] mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                          {p.priceLabel} pagos uma vez · {p.period}
+                        </div>
+                        {p.savings && (
+                          <div
+                            className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-3"
+                            style={{
+                              background: 'rgba(16,185,129,0.15)',
+                              color: 'var(--accent-emerald)',
+                              border: '1px solid rgba(16,185,129,0.30)',
+                            }}
+                          >
+                            💰 {p.savings}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span
+                            style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                            className="text-3xl font-semibold tabular-nums"
+                          >
+                            {p.priceLabel}
+                          </span>
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {p.period}
+                          </span>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
+                      {p.description}
+                    </div>
+                    <ul className="space-y-1.5">
+                      {p.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          <Check size={12} style={{ color: accentColor, marginTop: 2 }} className="shrink-0" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace' }} className="text-3xl font-semibold tabular-nums">{p.priceLabel}</span>
-                    <span className="text-xs text-white/45">{p.period}</span>
-                  </div>
-                  <div className="text-xs text-white/55 mb-3">{p.description}</div>
-                  <ul className="space-y-1.5">
-                    {p.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-white/75">
-                        <Check size={12} style={{ color: accentColor, marginTop: 2 }} className="shrink-0" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
                 </button>
               )
             })}
@@ -456,13 +605,84 @@ export default function Assinar() {
           </div>
         )}
 
-        {/* Trust */}
+        {/* ============ TRUST BAR (garantias) ============ */}
         {!method && (
-          <div className="mt-6 text-center text-xs text-white/40 flex items-center justify-center gap-1.5">
-            <Lock size={11} /> Pagamento seguro · Processado por Asaas
+          <div className="mt-8 space-y-4">
+            <div
+              className="rounded-2xl p-5"
+              style={{
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.03))',
+                border: '1px solid rgba(16,185,129,0.25)',
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
+                  style={{ background: 'rgba(16,185,129,0.20)', color: 'var(--accent-emerald)' }}
+                >
+                  <ShieldCheck size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div
+                    style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }}
+                    className="text-base mb-1"
+                  >
+                    Sem risco — 7 dias de garantia
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    Se Domus não for pra você, devolvemos o valor integralmente em até 7 dias da contratação,
+                    sem perguntas. Garantia prevista pelo Código de Defesa do Consumidor (Art. 49).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Mini-trust grid */}
+            <div className="grid grid-cols-3 gap-2 text-center text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+              <TrustItem icon={<Lock size={12} />} label="Pagamento seguro" sub="via Asaas" />
+              <TrustItem icon={<X size={12} />} label="Cancele quando quiser" sub="sem fidelidade" />
+              <TrustItem icon={<Sparkles size={12} />} label="Atualizações grátis" sub="pra sempre" />
+            </div>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Mini-card de benefício no topo
+function BenefitCard({ icon, title, text, color }) {
+  return (
+    <div
+      className="rounded-xl p-3 text-center"
+      style={{
+        background: 'var(--bg-elev2)',
+        border: '1px solid var(--border-soft)',
+      }}
+    >
+      <div
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg mb-2"
+        style={{ background: `${color}22`, color }}
+      >
+        {icon}
+      </div>
+      <div className="text-xs font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
+        {title}
+      </div>
+      <div className="text-[10px] mt-0.5 leading-tight" style={{ color: 'var(--text-tertiary)' }}>
+        {text}
+      </div>
+    </div>
+  )
+}
+
+// Item da trust bar no fim
+function TrustItem({ icon, label, sub }) {
+  return (
+    <div className="flex flex-col items-center gap-1 py-2">
+      <div style={{ color: 'var(--text-secondary)' }}>{icon}</div>
+      <div className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+      <div style={{ color: 'var(--text-muted)' }}>{sub}</div>
     </div>
   )
 }

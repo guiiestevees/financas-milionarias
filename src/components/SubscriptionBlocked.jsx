@@ -1,12 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 import { Crown, LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { isNativeApp } from '../lib/platform'
+import NativeReaderNotice from './NativeReaderNotice'
 
 // Tela cheia que aparece quando trial expirou OU assinatura cancelada/expirada.
 // Bloqueia o uso do app até a pessoa assinar (ou fazer logout).
+//
+// MODO NATIVO (Reader App): substitui o botão "Ver planos e assinar" por
+// mensagem neutra "Acesse meudomus.com pelo navegador".
 export default function SubscriptionBlocked({ reason = 'expired' }) {
   const navigate = useNavigate()
   const { signOut } = useAuth()
+  const native = isNativeApp()
 
   const isTrialExpired = reason === 'trial_expired'
   const isCancelled = reason === 'cancelled'
@@ -51,17 +57,26 @@ export default function SubscriptionBlocked({ reason = 'expired' }) {
           {!isTrialExpired && !isCancelled && !isOverdueGrace && '🎩 Para continuar, escolha um plano. Estarei aguardando.'}
         </p>
 
-        <button
-          onClick={() => navigate('/assinar')}
-          className="w-full py-3.5 rounded-xl text-sm font-semibold transition mb-3"
-          style={{
-            background: 'linear-gradient(180deg, #c9a961, #a88a4a)',
-            color: '#070912',
-            boxShadow: '0 8px 24px rgba(201,169,97,0.3)',
-          }}
-        >
-          Ver planos e assinar
-        </button>
+        {native ? (
+          <div className="mb-3 text-left">
+            <NativeReaderNotice
+              action={isCancelled ? 'reativar sua assinatura' : 'escolher um plano'}
+              subtitle="Após confirmar, basta voltar ao app e fazer login — seu acesso retorna automaticamente."
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate('/assinar')}
+            className="w-full py-3.5 rounded-xl text-sm font-semibold transition mb-3"
+            style={{
+              background: 'linear-gradient(180deg, #c9a961, #a88a4a)',
+              color: '#070912',
+              boxShadow: '0 8px 24px rgba(201,169,97,0.3)',
+            }}
+          >
+            Ver planos e assinar
+          </button>
+        )}
 
         <button
           onClick={() => signOut()}

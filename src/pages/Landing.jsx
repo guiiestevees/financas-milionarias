@@ -1,18 +1,27 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import {
   Sparkles, MessageCircle, Mic, Wallet, Target, Users, ChevronRight,
   CheckCircle2, Check, Lock, Smartphone, Crown, Zap, ShieldCheck, AlertCircle,
   FileSpreadsheet, Clock, Inbox, BarChart3, ArrowRight,
   PiggyBank, CreditCard, Calendar, Heart,
 } from 'lucide-react'
+import { isNativeApp } from '../lib/platform'
 
 // ============================================================
 // Landing page — apresentação do produto pra visitantes não-logados
 // Estrutura persuasiva: Problema → Solução → Como Funciona → Prova
 // → Pricing → Garantia → FAQ → CTA
+//
+// MODO NATIVO: a Landing mostra preços (R$ 19, R$ 167) e CTAs pra checkout,
+// o que viola as regras Apple/Google pra Reader Apps. Redirecionamos pro login.
 // ============================================================
 export default function Landing() {
+  // No app nativo, não mostra landing — vai direto pro login
+  if (isNativeApp()) {
+    return <Navigate to="/login" replace />
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       {/* Background decorativo — fica sutil nos dois temas */}
