@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "cap:assets": "node scripts/generate-app-assets.mjs && npx capacitor-assets generate",
     "cap:sync": "vite build && npx cap sync",
     "cap:android": "vite build && npx cap sync android && npx cap open android",
     "cap:android:run": "vite build && npx cap sync android && npx cap run android",
@@ -30,6 +31,7 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
