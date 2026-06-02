@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import EmailInput from '../../components/EmailInput'
 import AddressFields, { isAddressValid } from '../../components/AddressFields'
 import CardPreview from '../../components/CardPreview'
+import WelcomeAfterPayment from '../../components/WelcomeAfterPayment'
 import PixCheckout from '../../components/PixCheckout'
 import {
   maskCardNumber, maskCardExpiry, maskCardCvv, detectCardBrand,
@@ -77,7 +78,10 @@ const inputStyle = {
 // ---------- Componente principal ----------
 export default function Comecar() {
   const navigate = useNavigate()
+  // step principal: 1 (plano) → 2 (dados) → 3 (pagamento)
+  // step 2 é dividido em sub-steps internos: 2a (conta) → 2b (endereço)
   const [step, setStep] = useState(1)
+  const [step2Sub, setStep2Sub] = useState('a')  // 'a' = conta · 'b' = endereço
 
   // ---- Plano ----
   const [planId, setPlanId] = useState('annual')
@@ -165,7 +169,12 @@ export default function Comecar() {
   // Por step
   const step1Valid = !!planId
   const noDuplicates = emailStatus !== 'taken' && cpfStatus !== 'taken'
-  const step2Valid = name.trim().length >= 3 && validEmail && validCpf && validPhone && validPassword && passwordsMatch && addressOk && noDuplicates
+  // Step 2a — só os dados de identidade/login (nome, email, CPF, celular, senha)
+  const step2aValid = name.trim().length >= 3 && validEmail && validCpf && validPhone && validPassword && passwordsMatch && noDuplicates
+  // Step 2b — apenas endereço
+  const step2bValid = addressOk
+  // Step 2 completo (pra final do submit)
+  const step2Valid = step2aValid && step2bValid
   const step3Valid = method && cardOk && acceptedPrivacy
 
   const availableMethods = METHODS_BY_PLAN[planId] || []
@@ -184,15 +193,28 @@ export default function Comecar() {
 
   const goNext = () => {
     setError('')
-    if (step === 1 && step1Valid) setStep(2)
-    else if (step === 2 && step2Valid) setStep(3)
+    if (step === 1 && step1Valid) {
+      setStep(2)
+      setStep2Sub('a')
+    } else if (step === 2 && step2Sub === 'a' && step2aValid) {
+      setStep2Sub('b')
+    } else if (step === 2 && step2Sub === 'b' && step2bValid) {
+      setStep(3)
+    }
     // step 3 = submit, vai pelo onClick do botão
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const goBack = () => {
     setError('')
-    setStep((s) => Math.max(1, s - 1))
+    if (step === 3) {
+      setStep(2)
+      setStep2Sub('b')  // volta pro último sub-step do step 2
+    } else if (step === 2 && step2Sub === 'b') {
+      setStep2Sub('a')  // volta dentro do step 2
+    } else {
+      setStep((s) => Math.max(1, s - 1))
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -295,7 +317,7 @@ export default function Comecar() {
       if (['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(status)) {
         setSuccess(true)
         playSuccess()
-        setTimeout(() => navigate('/app', { replace: true }), 1500)
+        // Não redireciona automático — o WelcomeAfterPayment cuida disso via onContinue
       } else if (status === 'AWAITING_RISK_ANALYSIS') {
         throw new Error('Pagamento em análise antifraude. Aguarde o email de confirmação ou tente outro cartão.')
       } else if (status === 'PENDING') {
@@ -312,24 +334,13 @@ export default function Comecar() {
     }
   }
 
-  // ===== TELA: sucesso =====
+  // ===== TELA: sucesso (boas-vindas com confete + Alfred) =====
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--bg-app)' }}>
-        <div className="text-center max-w-md">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-5"
-            style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>
-            <CheckCircle2 size={40} />
-          </div>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl mb-2">
-            Bem-vindo ao Domus
-          </h2>
-          <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
-            🎩 Excelente. Pagamento confirmado, liberando seu acesso completo...
-          </p>
-          <Loader2 size={20} className="animate-spin mx-auto mt-6 text-white/45" />
-        </div>
-      </div>
+      <WelcomeAfterPayment
+        userName={name}
+        onContinue={() => navigate('/app', { replace: true })}
+      />
     )
   }
 
@@ -353,7 +364,7 @@ export default function Comecar() {
               value={pixData.value}
               onSuccess={() => {
                 playSuccess()
-                setTimeout(() => navigate('/app', { replace: true }), 1500)
+                setSuccess(true)  // mostra a tela de boas-vindas (WelcomeAfterPayment)
               }}
               onFail={(err) => setError(err)}
             />
@@ -382,11 +393,18 @@ export default function Comecar() {
             <span className="text-xs uppercase tracking-widest" style={{ color: '#d4af37' }}>Domus</span>
           </div>
           <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }} className="text-3xl sm:text-4xl mb-2">
-            {step === 1 ? 'Escolha seu plano' : step === 2 ? 'Seus dados' : 'Finalizar pagamento'}
+            {step === 1
+              ? 'Escolha seu plano'
+              : step === 2 && step2Sub === 'a'
+                ? 'Sua conta'
+                : step === 2 && step2Sub === 'b'
+                  ? 'Endereço pra nota fiscal'
+                  : 'Finalizar pagamento'}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {step === 1 && '🎩 Comece sua experiência com Alfred.'}
-            {step === 2 && 'Precisamos de algumas informações pra criar sua conta.'}
+            {step === 2 && step2Sub === 'a' && 'Crie suas credenciais de acesso — leva 30 segundos.'}
+            {step === 2 && step2Sub === 'b' && 'Último passo antes do pagamento.'}
             {step === 3 && 'Escolha como pagar e seu acesso libera na hora.'}
           </p>
         </div>
@@ -447,8 +465,15 @@ export default function Comecar() {
           )}
 
           {/* ====================== STEP 2 — DADOS + ENDEREÇO ====================== */}
-          {step === 2 && (
+          {step === 2 && step2Sub === 'a' && (
             <div className="space-y-6 mb-6">
+
+              {/* Indicador 2-de-2 sub-steps */}
+              <div className="flex items-center gap-2 px-1 -mt-2">
+                <div className="flex-1 h-1 rounded-full" style={{ background: '#c9a961' }} />
+                <span className="text-[10px] font-semibold tracking-wider" style={{ color: '#c9a961' }}>1 / 2</span>
+                <div className="flex-1 h-1 rounded-full" style={{ background: 'var(--border-soft)' }} />
+              </div>
 
               {/* Dados pessoais */}
               <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
@@ -569,10 +594,27 @@ export default function Comecar() {
                   <span>CPF e celular ajudam você a recuperar acesso se um dia perder a senha ou o email.</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {step === 2 && step2Sub === 'b' && (
+            <div className="space-y-6 mb-6">
+
+              {/* Indicador 2-de-2 sub-steps */}
+              <div className="flex items-center gap-2 px-1 -mt-2">
+                <div className="flex-1 h-1 rounded-full" style={{ background: '#c9a961' }} />
+                <span className="text-[10px] font-semibold tracking-wider" style={{ color: '#c9a961' }}>2 / 2</span>
+                <div className="flex-1 h-1 rounded-full" style={{ background: '#c9a961' }} />
+              </div>
 
               {/* Endereço */}
               <div className="rounded-2xl p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-                <div className="text-xs uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Endereço</div>
+                <div className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Endereço
+                </div>
+                <div className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+                  🎩 Necessário pra emissão da nota fiscal pelo Asaas. Não usamos pra mais nada.
+                </div>
                 <AddressFields value={address} onChange={setAddress} />
               </div>
             </div>
@@ -770,7 +812,11 @@ export default function Comecar() {
           {/* Botões de navegação */}
           <NavButtons
             step={step}
-            canAdvance={step === 1 ? step1Valid : step === 2 ? step2Valid : step3Valid}
+            canAdvance={
+              step === 1 ? step1Valid
+                : step === 2 ? (step2Sub === 'a' ? step2aValid : step2bValid)
+                : step3Valid
+            }
             isLastStep={step === 3}
             onBack={goBack}
             onNext={goNext}

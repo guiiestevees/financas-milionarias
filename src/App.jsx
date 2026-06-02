@@ -20,6 +20,7 @@ import Landing from './pages/Landing'
 import Launcher from './pages/launcher/Launcher'
 import AgendaShell from './pages/agenda/AgendaShell'
 import NativeCheckoutBlock from './pages/NativeCheckoutBlock'
+import MobileAppBanner from './components/MobileAppBanner'
 import { isNativeApp } from './lib/platform'
 
 function FullscreenLoader() {
@@ -78,6 +79,8 @@ function StartRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Banner topo sugerindo baixar app nativo (só mobile web, com URLs configuradas) */}
+      <MobileAppBanner />
       <Routes>
         {/* Raiz: landing pra visitantes / redirect pro app pra logados */}
         <Route path="/" element={<RootRoute />} />

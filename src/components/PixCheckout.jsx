@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
-import { Copy, Check, Clock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Copy, Check, Clock, Loader2, CheckCircle2, AlertCircle, Eye } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { playSuccess } from '../lib/sounds'
+
+// Mensagens rotativas durante a espera do PIX — passa sensação de
+// "tô acompanhando seu pagamento em tempo real"
+const WAITING_MESSAGES = [
+  'Confira o app do seu banco e finalize o PIX',
+  'O PIX cai em segundos — tô de olho aqui',
+  'Assim que você pagar, libero seu acesso na hora',
+  'Pode levar 5-30 segundos pra confirmar depois do pagamento',
+  'Estou monitorando seu pagamento em tempo real',
+]
 
 // Mostra QR Code PIX + copia-cola + polling automático do status.
 // Quando paga, dispara onSuccess.
@@ -16,14 +26,27 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
   const [status, setStatus] = useState('pending')
   const [copied, setCopied] = useState(false)
   const [timeLeft, setTimeLeft] = useState(null)
+  const [msgIndex, setMsgIndex] = useState(0)
+  const [lastCheck, setLastCheck] = useState(Date.now())
   const pollRef = useRef(null)
   const timerRef = useRef(null)
+  const msgTimerRef = useRef(null)
+
+  // Rotaciona mensagens de espera a cada 4s
+  useEffect(() => {
+    if (status !== 'pending') return
+    msgTimerRef.current = setInterval(() => {
+      setMsgIndex((i) => (i + 1) % WAITING_MESSAGES.length)
+    }, 4000)
+    return () => clearInterval(msgTimerRef.current)
+  }, [status])
 
   // Polling do status a cada 3 segundos
   useEffect(() => {
     if (status !== 'pending') return
 
     const check = async () => {
+      setLastCheck(Date.now())
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const res = await fetch(`/api/checkout-status?paymentId=${paymentId}`, {
@@ -185,21 +208,56 @@ export default function PixCheckout({ qrCode, paymentId, value, onSuccess, onFai
         </button>
       </div>
 
-      {/* Status + countdown */}
-      <div className="flex items-center justify-between text-xs text-white/55 px-1">
-        <div className="flex items-center gap-1.5">
-          <Loader2 size={11} className="animate-spin" />
-          Aguardando pagamento...
-        </div>
-        {timeLeft && timeLeft !== 'expirado' && (
-          <div className="flex items-center gap-1">
-            <Clock size={11} /> {timeLeft}
+      {/* Status box vivo — mensagem rotativa + pulse animation */}
+      <div
+        className="rounded-2xl px-4 py-3.5"
+        style={{
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.06), rgba(6,182,212,0.06))',
+          border: '1px solid rgba(16,185,129,0.25)',
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {/* Olho com pulse — feedback de "tô olhando" */}
+          <div className="relative shrink-0 mt-0.5">
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: 'rgba(16,185,129,0.4)',
+                animation: 'pixPulse 1.6s ease-out infinite',
+              }}
+            />
+            <div
+              className="relative flex items-center justify-center w-7 h-7 rounded-full"
+              style={{ background: 'var(--accent-emerald)', color: '#fff' }}
+            >
+              <Eye size={13} />
+            </div>
           </div>
-        )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--accent-emerald)' }}>
+                Aguardando pagamento
+              </span>
+              {timeLeft && timeLeft !== 'expirado' && (
+                <span className="text-[10px] tabular-nums opacity-60 flex items-center gap-1 ml-auto" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                  <Clock size={10} /> expira em {timeLeft}
+                </span>
+              )}
+            </div>
+            <div
+              className="text-xs leading-relaxed transition-opacity duration-500"
+              style={{ color: 'var(--text-secondary)' }}
+              key={msgIndex}
+            >
+              {WAITING_MESSAGES[msgIndex]}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="text-xs text-white/35 text-center leading-relaxed pt-2">
-        🎩 Esta tela atualizará automaticamente quando confirmar o pagamento.
+      <div className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
+        🎩 Esta tela atualiza automaticamente — não precisa recarregar.
       </div>
     </div>
   )
