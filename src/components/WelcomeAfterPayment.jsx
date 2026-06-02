@@ -1,35 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Sparkles, MessageCircle, ArrowRight, Check } from 'lucide-react'
+import { Check, ArrowRight, Sparkles, MessageCircle, Wallet } from 'lucide-react'
 
-// Tela cheia mostrada DEPOIS de pagamento confirmado (Comecar.jsx submit success).
-// Substitui o redirect direto e dá uma pausa pra celebrar + apresentar o Alfred.
+// Tela cheia mostrada DEPOIS de pagamento confirmado (Comecar.jsx submit success
+// ou /assinar simulate-payment).
+//
+// Design: paleta light, boutique premium, sem festa exagerada.
+// Confete dourado discreto cai do topo enquanto a UI aparece.
 //
 // Props:
 //   userName?: string — primeiro nome pra cumprimento personalizado
-//   onContinue: () => void — chamado quando user clica "Começar" (redirect pra /app)
+//   onContinue: () => void — chamado quando user clica "Acessar Domus"
 export default function WelcomeAfterPayment({ userName, onContinue }) {
   const [show, setShow] = useState(false)
 
-  // Animação de entrada
   useEffect(() => {
-    const t = setTimeout(() => setShow(true), 50)
+    const t = setTimeout(() => setShow(true), 80)
     return () => clearTimeout(t)
   }, [])
 
-  // Confete celebratório (igual ao do agenda completion)
+  // Confete discreto e elegante — só tons dourados/champagne, devagar
   const confetti = useMemo(() => {
     const list = []
-    const colors = ['#c9a961', '#fbbf24', '#10b981', '#06b6d4', '#f43f5e', '#8b5cf6', '#fde047']
-    for (let i = 0; i < 60; i++) {
+    // Paleta refinada: dourado claro, dourado, champagne, marfim
+    const colors = ['#f4e4a8', '#d4af37', '#c9a961', '#e8d8a3', '#b8860b', '#f5e6c8']
+    for (let i = 0; i < 24; i++) {
       list.push({
         left: Math.random() * 100,
-        delay: Math.random() * 1200,
-        duration: 2000 + Math.random() * 2000,
+        delay: Math.random() * 1500,
+        duration: 3500 + Math.random() * 2500,  // mais lento
         color: colors[Math.floor(Math.random() * colors.length)],
-        rot: 360 + Math.random() * 720,
-        size: 4 + Math.random() * 7,
-        shape: Math.random() > 0.5 ? '50%' : '20%',
+        rot: 180 + Math.random() * 540,
+        size: 4 + Math.random() * 5,
+        shape: Math.random() > 0.6 ? '50%' : '15%',  // mais quadradinhos elegantes
       })
     }
     return list
@@ -39,14 +41,18 @@ export default function WelcomeAfterPayment({ userName, onContinue }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 sm:px-6 overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at top, rgba(212,175,55,0.20), rgba(7,9,18,0.98) 70%)',
+        background: `
+          radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212,175,55,0.10), transparent 70%),
+          radial-gradient(ellipse 60% 40% at 50% 100%, rgba(212,175,55,0.05), transparent 70%),
+          linear-gradient(180deg, #fafaf8 0%, #f5f2eb 100%)
+        `,
         opacity: show ? 1 : 0,
-        transition: 'opacity 0.4s ease',
+        transition: 'opacity 0.5s ease',
       }}
     >
-      {/* Confete caindo */}
+      {/* Confete dourado discreto caindo */}
       {confetti.map((c, i) => (
         <span
           key={i}
@@ -57,121 +63,260 @@ export default function WelcomeAfterPayment({ userName, onContinue }) {
             height: c.size,
             background: c.color,
             borderRadius: c.shape,
-            boxShadow: `0 0 6px ${c.color}`,
-            animation: `confettiFall ${c.duration}ms cubic-bezier(0.4, 0, 0.6, 1) forwards`,
+            opacity: 0.85,
+            boxShadow: `0 0 3px ${c.color}66`,
+            animation: `confettiFall ${c.duration}ms cubic-bezier(0.4, 0.05, 0.55, 0.95) forwards`,
             animationDelay: `${c.delay}ms`,
             ['--rot']: `${c.rot}deg`,
           }}
         />
       ))}
 
-      {/* Card central */}
+      {/* Linha decorativa dourada no topo (acento sutil) */}
       <div
-        className="relative max-w-md w-full rounded-3xl p-7 sm:p-9 text-center"
+        className="absolute top-0 left-0 right-0 h-px pointer-events-none"
         style={{
-          background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(168,138,74,0.05))',
-          border: '1px solid rgba(212,175,55,0.30)',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
-          animation: show ? 'welcomeBounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+          background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.4), transparent)',
+        }}
+      />
+
+      {/* Card central principal */}
+      <div
+        className="relative w-full max-w-lg"
+        style={{
+          animation: show ? 'welcomeBounceIn 0.8s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
         }}
       >
-        {/* Glow decorativo */}
-        <div
-          className="absolute -top-20 -left-20 w-60 h-60 rounded-full opacity-30 blur-3xl pointer-events-none"
-          style={{ background: '#c9a961' }}
-        />
-
-        <div className="relative">
-          {/* Selo "PAGAMENTO CONFIRMADO" no topo */}
+        {/* Selo "Pagamento confirmado" flutuando no topo */}
+        <div className="flex justify-center mb-6">
           <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-5"
-            style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)' }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full"
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e8e4dc',
+              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.12), 0 2px 6px rgba(0,0,0,0.04)',
+            }}
           >
-            <Check size={13} style={{ color: 'var(--accent-emerald)' }} />
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--accent-emerald)' }}>
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: 20, height: 20,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                boxShadow: '0 2px 6px rgba(16,185,129,0.40)',
+              }}
+            >
+              <Check size={12} color="#fff" strokeWidth={3.5} />
+            </div>
+            <span
+              className="text-[11px] font-bold uppercase tracking-[0.18em]"
+              style={{ color: '#0f766e' }}
+            >
               Pagamento confirmado
             </span>
           </div>
+        </div>
 
-          {/* Logo + título */}
-          <div className="flex justify-center mb-4">
-            <img
-              src="/domus-logo-512.png"
-              alt="Domus"
+        {/* Card principal */}
+        <div
+          className="rounded-[28px] px-7 sm:px-10 py-9 sm:py-11 text-center relative overflow-hidden"
+          style={{
+            background: '#ffffff',
+            border: '1px solid #ece8dd',
+            boxShadow: `
+              0 1px 2px rgba(0,0,0,0.02),
+              0 8px 24px rgba(0,0,0,0.04),
+              0 24px 64px rgba(212,175,55,0.08)
+            `,
+          }}
+        >
+          {/* Ornamento dourado de fundo (linhas finas decorativas no canto) */}
+          <div
+            className="absolute -top-20 -right-20 w-40 h-40 rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(212,175,55,0.08), transparent 70%)',
+            }}
+          />
+
+          <div className="relative">
+            {/* Logo Domus */}
+            <div className="flex justify-center mb-5">
+              <div
+                className="flex items-center justify-center rounded-2xl"
+                style={{
+                  width: 72, height: 72,
+                  background: 'linear-gradient(135deg, #fdfbf3, #f5efe0)',
+                  border: '1px solid #ebe3cf',
+                  boxShadow: '0 4px 12px rgba(212,175,55,0.10)',
+                }}
+              >
+                <img
+                  src="/domus-logo-512.png"
+                  alt="Domus"
+                  style={{ width: 48, height: 48, objectFit: 'contain' }}
+                />
+              </div>
+            </div>
+
+            {/* Tag "Domus" pequena */}
+            <div
+              className="text-[10px] font-bold uppercase tracking-[0.3em] mb-3"
+              style={{ color: '#a88a4a' }}
+            >
+              Domus · Alquimia Digital
+            </div>
+
+            {/* Headline */}
+            <h1
               style={{
-                width: 80,
-                height: 80,
-                filter: 'drop-shadow(0 8px 24px rgba(212,175,55,0.4))',
+                fontFamily: 'Fraunces, serif',
+                fontWeight: 400,
+                letterSpacing: '-0.025em',
+                color: '#1a1814',
+                lineHeight: 1.1,
+              }}
+              className="text-[34px] sm:text-[42px] mb-4"
+            >
+              {firstName ? `Bem-vindo, ` : 'Bem-vindo. '}
+              {firstName && (
+                <em style={{
+                  fontStyle: 'italic',
+                  fontWeight: 500,
+                  background: 'linear-gradient(135deg, #b8860b, #d4af37 50%, #8b6f2f)',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
+                }}>
+                  {firstName}.
+                </em>
+              )}
+            </h1>
+
+            {/* Sub headline serifada em itálico */}
+            <p
+              style={{
+                fontFamily: 'Fraunces, serif',
+                fontWeight: 300,
+                fontStyle: 'italic',
+                color: '#5a5648',
+                lineHeight: 1.5,
+              }}
+              className="text-[17px] sm:text-[19px] mb-7 max-w-md mx-auto"
+            >
+              "Permita-me servi-lo a partir de agora."
+            </p>
+
+            {/* Linha divisória dourada elegante */}
+            <div
+              className="mx-auto mb-7"
+              style={{
+                width: 60, height: 1,
+                background: 'linear-gradient(90deg, transparent, #d4af37, transparent)',
               }}
             />
-          </div>
 
-          <h1
-            style={{
-              fontFamily: 'Fraunces, serif',
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              color: 'var(--text-primary)',
-            }}
-            className="text-3xl sm:text-4xl mb-3 leading-tight"
-          >
-            Bem-vindo{firstName ? `, ${firstName}` : ''}.{' '}
-            <em style={{
-              fontStyle: 'italic',
-              background: 'linear-gradient(135deg, #f4e4a8, #c9a961 50%, #8b6f2f)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-            }}>
-              Permita-me servi-lo.
-            </em>
-          </h1>
+            {/* Mensagem do Alfred */}
+            <p
+              className="text-sm leading-relaxed mb-8 max-w-sm mx-auto"
+              style={{ color: '#3d3a32' }}
+            >
+              🎩 Sua assinatura está ativa e Alfred ao seu dispor — cuidando das suas finanças,
+              sua agenda e do que mais importar, com a discrição que merece.
+            </p>
 
-          <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
-            🎩 Sua conta está ativa e Alfred está ao seu dispor. Cuidaremos das suas
-            finanças, sua agenda e do que mais importar — com a discrição que merece.
-          </p>
-
-          {/* Próximos passos compactos */}
-          <div
-            className="text-left rounded-2xl p-4 mb-6"
-            style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(212,175,55,0.15)' }}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: '#c9a961' }}>
-              📋 Por onde começar
+            {/* Próximos passos — cards menores, mais elegantes */}
+            <div className="text-left space-y-2 mb-8">
+              <NextStep
+                icon={<Wallet size={14} />}
+                title="Primeiro lançamento"
+                text="Registre uma despesa ou receita pra começar"
+                iconBg="rgba(16,185,129,0.10)"
+                iconColor="#0d8a64"
+              />
+              <NextStep
+                icon={<MessageCircle size={14} />}
+                title="WhatsApp com Alfred"
+                text="Conecte seu número em Configurações"
+                iconBg="rgba(37,211,102,0.10)"
+                iconColor="#25D366"
+              />
+              <NextStep
+                icon={<Sparkles size={14} />}
+                title="Cofres e categorias"
+                text="Organize objetivos e personalize gastos"
+                iconBg="rgba(201,169,97,0.12)"
+                iconColor="#a88a4a"
+              />
             </div>
-            <ul className="space-y-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              <li className="flex items-start gap-2">
-                <Sparkles size={12} className="mt-0.5 shrink-0" style={{ color: '#c9a961' }} />
-                <span>Registre seu primeiro lançamento (despesa ou receita)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <MessageCircle size={12} className="mt-0.5 shrink-0" style={{ color: '#10b981' }} />
-                <span>Conecte o WhatsApp pra falar com o Alfred (em Configurações)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <ArrowRight size={12} className="mt-0.5 shrink-0" style={{ color: '#06b6d4' }} />
-                <span>Crie cofres de objetivos e categorias personalizadas</span>
-              </li>
-            </ul>
-          </div>
 
-          {/* CTA principal */}
-          <button
-            onClick={onContinue}
-            className="w-full py-3.5 rounded-2xl text-sm font-bold transition hover:opacity-95 active:scale-[0.98] flex items-center justify-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #d4af37, #b8860b)',
-              color: '#070912',
-              boxShadow: '0 12px 32px rgba(212,175,55,0.35)',
-            }}
-          >
-            <span>Acessar o Domus</span>
-            <ArrowRight size={16} strokeWidth={2.5} />
-          </button>
+            {/* CTA principal */}
+            <button
+              onClick={onContinue}
+              className="w-full py-4 rounded-2xl text-sm font-bold transition active:scale-[0.98] flex items-center justify-center gap-2 group"
+              style={{
+                background: 'linear-gradient(135deg, #1a1814 0%, #2a2620 100%)',
+                color: '#f4e4a8',
+                boxShadow: `
+                  0 1px 0 rgba(255,255,255,0.05) inset,
+                  0 12px 32px rgba(26,24,20,0.30),
+                  0 4px 12px rgba(212,175,55,0.15)
+                `,
+              }}
+            >
+              <span style={{ letterSpacing: '0.02em' }}>Acessar o Domus</span>
+              <ArrowRight size={15} strokeWidth={2.5} className="transition-transform group-hover:translate-x-0.5" />
+            </button>
 
-          <div className="text-[10px] mt-4" style={{ color: 'var(--text-tertiary)' }}>
-            🎩 Permita-me lembrá-lo: enviamos um e-mail de confirmação com os detalhes.
+            {/* Nota de rodapé */}
+            <div
+              className="text-[11px] mt-5 flex items-center justify-center gap-1.5"
+              style={{ color: '#8a8576' }}
+            >
+              <span>✉</span>
+              Enviamos um e-mail de confirmação com os detalhes
+            </div>
           </div>
+        </div>
+
+        {/* Selo dourado de garantia abaixo */}
+        <div
+          className="text-center text-[10px] uppercase tracking-[0.25em] mt-5 font-semibold"
+          style={{ color: '#a88a4a' }}
+        >
+          🎩 7 dias de garantia · reembolso integral
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Item de "Por onde começar"
+function NextStep({ icon, title, text, iconBg, iconColor }) {
+  return (
+    <div
+      className="flex items-start gap-3 px-4 py-3 rounded-xl transition"
+      style={{
+        background: '#fafaf6',
+        border: '1px solid #ece8dd',
+      }}
+    >
+      <div
+        className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 mt-0.5"
+        style={{ background: iconBg, color: iconColor }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div
+          className="text-[13px] font-semibold"
+          style={{ color: '#1a1814', lineHeight: 1.3 }}
+        >
+          {title}
+        </div>
+        <div
+          className="text-[11px] mt-0.5"
+          style={{ color: '#7a7565', lineHeight: 1.4 }}
+        >
+          {text}
         </div>
       </div>
     </div>
