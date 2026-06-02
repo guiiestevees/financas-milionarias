@@ -6,3 +6,31 @@ dist
 .claude/
 
 .vercel
+
+# Capacitor (mantém só os fontes do projeto nativo, ignora builds e libs baixadas)
+# ===== Android =====
+android/.gradle
+android/.idea
+android/build
+android/captures
+android/local.properties
+android/app/build
+android/app/release
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins
+*.iml
+
+# ===== iOS =====
+ios/.gradle
+ios/App/App/public
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/Pods
+ios/App/build
+ios/App/Podfile.lock
+ios/capacitor-cordova-ios-plugins
+ios/DerivedData
+ios/xcuserdata
+*.xcuserstate

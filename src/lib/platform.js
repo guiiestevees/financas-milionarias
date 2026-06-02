@@ -1,16 +1,16 @@
 // Detecção de plataforma — diferencia PWA/web do app nativo (Capacitor).
 //
-// Quando o app for empacotado com Capacitor.js, window.Capacitor.isNativePlatform()
-// retorna true. Antes disso (modo dev/PWA), retorna false.
+// Importa @capacitor/core dinamicamente pra detectar o app embarcado.
+// No web puro (Vite/PWA), o Capacitor.isNativePlatform() retorna false.
 //
 // IMPORTANTE — Reader App: quando isNativeApp() === true, escondemos
 // caminhos de pagamento (preços, botões de assinar, checkout, etc) pra
 // cumprir as regras da Apple/Google e não pagar comissão de 15-30%.
 //
-// PRA TESTAR no browser sem ter Capacitor instalado:
+// PRA TESTAR no browser sem ter Capacitor empacotado:
 // - adicione ?native=1 na URL OU
 // - cole no console: localStorage.setItem('domus:simulate-native', '1')
-// (use isso só pra desenvolvimento — em prod o flag manual é ignorado)
+// (em prod com Capacitor real, isso fica sempre ativo automaticamente)
 
 const SIMULATE_KEY = 'domus:simulate-native'
 

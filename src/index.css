@@ -344,3 +344,30 @@ input[type='date']::-webkit-calendar-picker-indicator {
   0% { transform: translate(-50%, -20px); opacity: 0; }
   100% { transform: translate(-50%, 0); opacity: 1; }
 }
+
+/* ============================================================
+   SAFE AREAS (iOS notch + Android gesture bar)
+   No app nativo, respeita a barra de notch/status e gesture bar
+   ============================================================ */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+body {
+  /* Padding pra não ficar embaixo da status bar nativa */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  /* Cor de fundo que aparece nas safe areas (combina com o app) */
+  background-color: #0a0e1a;
+}
+
+/* Quando o teclado abre no iOS, evita layout shift bizarro */
+body.keyboard-open {
+  position: fixed;
+  width: 100%;
+}
