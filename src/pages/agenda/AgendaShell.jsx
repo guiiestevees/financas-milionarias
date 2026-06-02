@@ -526,11 +526,16 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
     lastSnapRef.current = null
     document.body.style.userSelect = 'none'
     document.body.style.overflow = 'hidden'
+    // Bloqueia gesture nativo de scroll touch durante o drag
+    document.body.style.touchAction = 'none'
+    document.documentElement.style.overflow = 'hidden'
+    document.documentElement.style.touchAction = 'none'
   }
 
   const handlePointerMove = (e) => {
     if (!dragging) return
-    e.preventDefault()
+    // preventDefault só funciona se o listener for non-passive — adicionei { passive: false } abaixo
+    if (e.cancelable) e.preventDefault()
     const target = computeTargetMin(e.clientY)
     if (target == null) return
     if (lastSnapRef.current !== target && navigator.vibrate) navigator.vibrate(8)
@@ -542,6 +547,9 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
     if (!dragging) return
     document.body.style.userSelect = ''
     document.body.style.overflow = ''
+    document.body.style.touchAction = ''
+    document.documentElement.style.overflow = ''
+    document.documentElement.style.touchAction = ''
     lastSnapRef.current = null
     const target = computeTargetMin(e.clientY)
     setDragging(null)
@@ -564,11 +572,15 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
     if (!dragging) return
     const move = (e) => handlePointerMove(e)
     const up = (e) => handlePointerUp(e)
-    window.addEventListener('pointermove', move)
+    const touchBlocker = (e) => { if (e.cancelable) e.preventDefault() }
+    // passive: false permite chamar preventDefault — bloqueia scroll do navegador
+    window.addEventListener('pointermove', move, { passive: false })
+    window.addEventListener('touchmove', touchBlocker, { passive: false })
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', up)
     return () => {
       window.removeEventListener('pointermove', move)
+      window.removeEventListener('touchmove', touchBlocker)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
     }
@@ -941,12 +953,17 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
         {/* CHECK — integrado dentro do card, à direita, centralizado verticalmente */}
         <button
           onClick={handleCheck}
-          className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90 z-10"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          className="absolute top-0 right-0 bottom-0 flex items-center justify-center transition active:scale-90 z-20"
           style={{
             width: compact ? 36 : 44,
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
+            // Bloqueia long-press do parent quando dedo está no check
+            touchAction: 'manipulation',
           }}
           title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
         >
@@ -1757,14 +1774,17 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
       targetStartMin: null,
     })
     lastSnapRef.current = null
-    // Bloqueia scroll do body durante drag
+    // Bloqueia scroll do body/html e touch gestures durante o drag
     document.body.style.userSelect = 'none'
     document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+    document.documentElement.style.overflow = 'hidden'
+    document.documentElement.style.touchAction = 'none'
   }
 
   const handlePointerMove = (e) => {
     if (!dragging) return
-    e.preventDefault()
+    if (e.cancelable) e.preventDefault()
     const target = computeTarget(e.clientX, e.clientY)
     if (!target) return
 
@@ -1783,6 +1803,9 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
     if (!dragging) return
     document.body.style.userSelect = ''
     document.body.style.overflow = ''
+    document.body.style.touchAction = ''
+    document.documentElement.style.overflow = ''
+    document.documentElement.style.touchAction = ''
     lastSnapRef.current = null
     const finalTarget = computeTarget(e.clientX, e.clientY)
     setDragging(null)
@@ -1810,11 +1833,14 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
     if (!dragging) return
     const move = (e) => handlePointerMove(e)
     const up = (e) => handlePointerUp(e)
-    window.addEventListener('pointermove', move)
+    const touchBlocker = (e) => { if (e.cancelable) e.preventDefault() }
+    window.addEventListener('pointermove', move, { passive: false })
+    window.addEventListener('touchmove', touchBlocker, { passive: false })
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', up)
     return () => {
       window.removeEventListener('pointermove', move)
+      window.removeEventListener('touchmove', touchBlocker)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
     }
