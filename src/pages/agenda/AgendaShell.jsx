@@ -86,6 +86,26 @@ export default function AgendaShell() {
     setEditing(null)
   }
 
+  const handleDuplicate = async () => {
+    if (!editing) return
+    const { event } = editing
+    // Cria uma cópia idêntica (mesma data e hora). User pode mover depois.
+    await createEvent({
+      title: event.title,
+      date: event.date,
+      time: event.time,
+      end_time: event.end_time,
+      location: event.location,
+      notes: event.notes,
+      color: event.color,
+      recurring: event.recurring,
+      recurring_weekdays: event.recurring_weekdays,
+      ends_at: event.ends_at,
+      reminder_minutes_before: event.reminder_minutes_before,
+    })
+    setEditing(null)
+  }
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-app)' }}>
 
@@ -178,6 +198,12 @@ export default function AgendaShell() {
                 onCreate={(date, time) => setCreating({ initialDate: date, initialTime: time })}
                 date={refDate}
                 completionsHook={completionsHook}
+                onMoveEvent={async (eventId, newTime, newEndTime) => {
+                  await updateEvent(eventId, {
+                    time: newTime,
+                    end_time: newEndTime,
+                  })
+                }}
               />
             )}
             {tab === 'week' && (
@@ -233,6 +259,7 @@ export default function AgendaShell() {
           initialTime={creating?.initialTime}
           onSave={handleSave}
           onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
           onClose={() => { setCreating(null); setEditing(null) }}
         />
       )}
@@ -364,7 +391,7 @@ function DateNav({ view, refDate, setRefDate, onCreate }) {
 // ============================================================
 // DAY VIEW — Timeline vertical com horários e blocos posicionados
 // ============================================================
-function DayView({ events, onClickEvent, onCreate, date, completionsHook }) {
+function DayView({ events, onClickEvent, onCreate, date, completionsHook, onMoveEvent }) {
   const allDay = events.filter((e) => !e.time)
   const timed = events.filter((e) => !!e.time)
   const todayFlag = isToday(date)
@@ -447,18 +474,26 @@ function DayView({ events, onClickEvent, onCreate, date, completionsHook }) {
         onClickEvent={onClickEvent}
         onClickEmpty={(hour) => onCreate(date, hour)}
         completionsHook={completionsHook}
+        onMoveEvent={onMoveEvent}
       />
     </div>
   )
 }
 
 // Timeline do dia: coluna esquerda com horas + coluna direita com slots
-function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty, completionsHook }) {
+function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEmpty, completionsHook, onMoveEvent }) {
   // Default: 05h-23h (cobre quem acorda cedo). Expande automático se evento sai fora.
   // User pode forçar madrugada/fim-de-noite com os toggles.
   const [showEarly, setShowEarly] = useState(false)   // 00h-04h
   const [showLate, setShowLate] = useState(false)     // 23h-24h
   const PX_PER_HOUR = 60
+  const HOURS_COL_W = 48  // largura da coluna de horas
+
+  // Drag state — só Y (não muda dia)
+  const [dragging, setDragging] = useState(null)
+  // dragging = { event, durationMin, targetStartMin }
+  const timelineRef = useRef(null)
+  const lastSnapRef = useRef(null)
 
   let startHour = showEarly ? 0 : 5
   let endHour = showLate ? 24 : 23
@@ -474,6 +509,71 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
   // Auto-show se algum evento já tá nessa zona (pra botão não aparecer redundante)
   const hasEarlyEvent = startHour < 5
   const hasLateEvent = endHour > 23
+
+  // ===== Drag handlers =====
+  const computeTargetMin = (clientY) => {
+    if (!timelineRef.current) return null
+    const rect = timelineRef.current.getBoundingClientRect()
+    const yInGrid = clientY - rect.top
+    // Snap em 15min
+    const minutesInGrid = Math.max(0, Math.min(totalHours * 60 - SNAP_MIN, (yInGrid / PX_PER_HOUR) * 60))
+    const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
+    return startHour * 60 + snapped
+  }
+
+  const handleDragStart = (ev, durationMin) => {
+    setDragging({ event: ev, durationMin, targetStartMin: null })
+    lastSnapRef.current = null
+    document.body.style.userSelect = 'none'
+    document.body.style.overflow = 'hidden'
+  }
+
+  const handlePointerMove = (e) => {
+    if (!dragging) return
+    e.preventDefault()
+    const target = computeTargetMin(e.clientY)
+    if (target == null) return
+    if (lastSnapRef.current !== target && navigator.vibrate) navigator.vibrate(8)
+    lastSnapRef.current = target
+    setDragging((prev) => prev && { ...prev, targetStartMin: target })
+  }
+
+  const handlePointerUp = async (e) => {
+    if (!dragging) return
+    document.body.style.userSelect = ''
+    document.body.style.overflow = ''
+    lastSnapRef.current = null
+    const target = computeTargetMin(e.clientY)
+    setDragging(null)
+    if (target == null || !onMoveEvent) return
+    const newStartMin = target
+    const newEndMin = newStartMin + dragging.durationMin
+    const newTime = `${String(Math.floor(newStartMin / 60)).padStart(2, '0')}:${String(newStartMin % 60).padStart(2, '0')}`
+    const newEndTime = `${String(Math.floor(newEndMin / 60)).padStart(2, '0')}:${String(newEndMin % 60).padStart(2, '0')}`
+    const oldTime = dragging.event.time?.slice(0, 5)
+    if (newTime === oldTime) return
+    try {
+      await onMoveEvent(dragging.event.id, newTime, dragging.event.end_time ? newEndTime : null)
+      if (navigator.vibrate) navigator.vibrate(30)
+    } catch (err) {
+      console.error('Failed to move event:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    const move = (e) => handlePointerMove(e)
+    const up = (e) => handlePointerUp(e)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging])
 
   // Linha "agora" — só se é hoje
   let nowOffset = null
@@ -542,8 +642,18 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
         </button>
       )}
 
+      {/* Indicador flutuante no topo da tela durante drag (reaproveita do semanal) */}
+      {dragging && dragging.targetStartMin != null && (
+        <DragFloatingIndicator dragging={{
+          event: dragging.event,
+          durationMin: dragging.durationMin,
+          targetDate: date,
+          targetStartMin: dragging.targetStartMin,
+        }} />
+      )}
+
       {/* Timeline em si */}
-      <div className="relative" style={{ height: totalHeight }}>
+      <div ref={timelineRef} className="relative" style={{ height: totalHeight }}>
         {/* Linhas de hora + label */}
         {Array.from({ length: totalHours + 1 }).map((_, i) => {
           const hour = startHour + i
@@ -610,10 +720,11 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
         )}
 
         {/* Eventos posicionados */}
-        {eventsWithColumns.map(({ ev, top, height, colStart, colSpan, totalCols }) => {
-          const colWidth = `calc((100% - 48px) / ${totalCols})`
-          const left = `calc(48px + ${colStart} * ${colWidth} + 4px)`
+        {eventsWithColumns.map(({ ev, top, height, colStart, colSpan, totalCols, startMin, endMin }) => {
+          const colWidth = `calc((100% - ${HOURS_COL_W}px) / ${totalCols})`
+          const left = `calc(${HOURS_COL_W}px + ${colStart} * ${colWidth} + 4px)`
           const width = `calc(${colSpan} * ${colWidth} - 8px)`
+          const isDragging = dragging?.event?.id === ev.id
           return (
             <TimelineEvent
               key={`${ev.id}:${ev.occurrenceDate}`}
@@ -622,12 +733,25 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
               height={height}
               left={left}
               width={width}
+              durationMin={endMin - startMin}
               onClick={() => onClickEvent({ event: ev, occurrenceDate: ev.occurrenceDate })}
               completed={completionsHook?.isCompleted(ev.id, ev.occurrenceDate)}
               onToggleComplete={() => completionsHook?.toggleCompletion(ev.id, ev.occurrenceDate)}
+              onDragStart={() => handleDragStart(ev, endMin - startMin)}
+              isDragging={isDragging}
             />
           )
         })}
+
+        {/* Linha guia + ghost durante drag */}
+        {dragging && dragging.targetStartMin != null && (
+          <DayDragGuide
+            dragging={dragging}
+            startHour={startHour}
+            pxPerHour={PX_PER_HOUR}
+            hoursColWidth={HOURS_COL_W}
+          />
+        )}
       </div>
 
       {/* Toggle: mostrar fim da noite (23h-24h) */}
@@ -679,7 +803,7 @@ function layoutOverlappingEvents(positioned) {
   return result
 }
 
-function TimelineEvent({ event, top, height, left, width, onClick, completed, onToggleComplete }) {
+function TimelineEvent({ event, top, height, left, width, onClick, completed, onToggleComplete, onDragStart, isDragging, durationMin }) {
   const colorKey = event.color || 'cyan'
   const colorVar = `var(--accent-${colorKey})`
   const tintBg = getColorTint(colorKey, 'bg')
@@ -687,6 +811,54 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
   const compact = height < 50
   const [burst, setBurst] = useState(false)
   const [glow, setGlow] = useState(false)
+  const [pressing, setPressing] = useState(false)
+
+  const pressTimer = useRef(null)
+  const pressStarted = useRef(null)
+
+  const cleanupPress = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+    pressStarted.current = null
+    setPressing(false)
+  }
+
+  // Long-press na barra lateral (ou no conteúdo se não tiver onDragStart) → inicia drag
+  const handleEventPointerDown = (e) => {
+    if (!onDragStart) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.stopPropagation()
+    pressStarted.current = { x: e.clientX, y: e.clientY, time: Date.now() }
+    setPressing(true)
+    pressTimer.current = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(20)
+      onDragStart()
+      cleanupPress()
+    }, LONG_PRESS_MS)
+  }
+
+  const handleEventPointerMove = (e) => {
+    if (!pressStarted.current) return
+    const dx = Math.abs(e.clientX - pressStarted.current.x)
+    const dy = Math.abs(e.clientY - pressStarted.current.y)
+    if (dx > 8 || dy > 8) cleanupPress()
+  }
+
+  const handleEventPointerUp = (e) => {
+    const started = pressStarted.current
+    cleanupPress()
+    if (!started) return
+    const elapsed = Date.now() - started.time
+    const dx = Math.abs(e.clientX - started.x)
+    const dy = Math.abs(e.clientY - started.y)
+    // Click curto sem movimento → abre modal
+    if (elapsed < LONG_PRESS_MS && dx < 5 && dy < 5) {
+      e.stopPropagation()
+      onClick?.()
+    }
+  }
 
   const handleCheck = (e) => {
     e.stopPropagation()
@@ -706,26 +878,40 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
   return (
     <div
       className="absolute"
-      style={{ top, height, left, width, transition: 'opacity 0.3s' }}
+      style={{
+        top, height, left, width,
+        transition: 'opacity 0.3s, transform 0.15s',
+        opacity: isDragging ? 0.35 : 1,
+        transform: pressing ? 'scale(1.03)' : 'scale(1)',
+        zIndex: pressing ? 25 : 'auto',
+      }}
     >
-      {/* CARD — clique abre detalhes */}
+      {/* CARD */}
       <div
-        className="absolute inset-0 rounded-lg overflow-hidden flex"
+        onPointerDown={handleEventPointerDown}
+        onPointerMove={handleEventPointerMove}
+        onPointerUp={handleEventPointerUp}
+        onPointerCancel={cleanupPress}
+        className="absolute inset-0 rounded-lg overflow-hidden flex select-none"
         style={{
           background: tintBg,
           border: `1px solid ${tintBorder}`,
           opacity: completed ? 0.55 : 1,
-          transition: 'opacity 0.4s ease',
+          transition: 'opacity 0.4s ease, box-shadow 0.15s',
           animation: glow ? 'cardGlow 0.7s ease-out' : 'none',
+          boxShadow: pressing
+            ? `0 6px 20px ${tintBorder}, 0 0 0 2px ${colorVar}`
+            : 'none',
+          touchAction: onDragStart ? 'none' : 'auto',
+          cursor: onDragStart ? 'grab' : 'pointer',
         }}
       >
         {/* Barra colorida lateral */}
         <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
 
-        {/* Conteúdo (clique abre modal) */}
-        <button
-          onClick={onClick}
-          className="flex-1 min-w-0 px-2 py-1 text-left transition active:scale-[0.99]"
+        {/* Conteúdo (clique abre modal via handler do parent) */}
+        <div
+          className="flex-1 min-w-0 px-2 py-1 text-left"
           style={{ paddingRight: compact ? 36 : 44 }}
         >
           <div
@@ -748,7 +934,7 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
               )}
             </div>
           )}
-        </button>
+        </div>
 
         {/* CHECK — integrado dentro do card, à direita, centralizado verticalmente */}
         <button
@@ -1745,11 +1931,11 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                 />
               </div>
 
-              {/* Container dos eventos + linhas */}
+              {/* Container dos eventos + linhas — alinhado ao header (que tem gap-1 entre placeholder e 1º dia) */}
               <div
                 className="absolute top-1"
                 style={{
-                  left: HOURS_COL_WIDTH + 8,
+                  left: HOURS_COL_WIDTH + 8 + COL_GAP,  // +4 pra bater com gap-1 do header
                   right: 8,
                   height: gridHeight,
                 }}
@@ -2131,8 +2317,80 @@ function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
 }
 
 // ============================================================
+// DayDragGuide — versão da DragGuideLine pra timeline do Dia
+// (offset pela coluna de horas, com ghost block embaixo)
+// ============================================================
+function DayDragGuide({ dragging, startHour, pxPerHour, hoursColWidth }) {
+  const { event, targetStartMin, durationMin } = dragging
+  if (targetStartMin == null) return null
+  const colorVar = `var(--accent-${event.color || 'cyan'})`
+  const top = ((targetStartMin / 60) - startHour) * pxPerHour
+  const height = Math.max(28, (durationMin / 60) * pxPerHour)
+  return (
+    <>
+      {/* Ghost do bloco no slot alvo */}
+      <div
+        className="absolute pointer-events-none rounded-lg z-30"
+        style={{
+          top: top + 1,
+          left: hoursColWidth + 4,
+          right: 4,
+          height: height - 2,
+          background: getColorTint(event.color || 'cyan', 'bg'),
+          border: `2px solid ${colorVar}`,
+          boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+          animation: 'dragGhostPulse 1.2s ease-in-out infinite',
+        }}
+      >
+        <div className="flex items-stretch h-full">
+          <div style={{ width: 4, background: colorVar, flexShrink: 0 }} />
+          <div className="flex-1 min-w-0 p-2">
+            <div
+              className="text-[11px] font-bold tabular-nums leading-none"
+              style={{ color: colorVar, fontFamily: 'JetBrains Mono, monospace' }}
+            >
+              {String(Math.floor(targetStartMin / 60)).padStart(2, '0')}:{String(targetStartMin % 60).padStart(2, '0')}
+            </div>
+            <div className="text-xs mt-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+              {event.title}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Linha guia horizontal tracejada */}
+      <div
+        className="absolute pointer-events-none z-30"
+        style={{ top, left: hoursColWidth, right: 0, height: 2 }}
+      >
+        <div
+          className="h-full w-full"
+          style={{
+            backgroundImage: `repeating-linear-gradient(90deg, ${colorVar} 0 8px, transparent 8px 14px)`,
+            opacity: 0.85,
+          }}
+        />
+        {/* Label de hora na coluna de horas */}
+        <div
+          className="absolute -top-2 text-[10px] tabular-nums font-bold px-1.5 py-0.5 rounded shadow"
+          style={{
+            right: `calc(100% + 4px)`,
+            background: colorVar,
+            color: '#fff',
+            fontFamily: 'JetBrains Mono, monospace',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {String(Math.floor(targetStartMin / 60)).padStart(2, '0')}:{String(targetStartMin % 60).padStart(2, '0')}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ============================================================
 // DragGuideLine — linha horizontal grossa atravessando toda a grade
-// no horário alvo (visual de "onde vai cair")
+// no horário alvo (visual de "onde vai cair") — usado no semanal
 // ============================================================
 function DragGuideLine({ dragging, pxPerHour }) {
   const { event, targetStartMin } = dragging

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Calendar, Clock, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle, Bell, MessageCircle } from 'lucide-react'
+import { X, Calendar, Clock, FileText, Repeat, Check, Loader2, Trash2, AlertTriangle, Bell, MessageCircle, Copy } from 'lucide-react'
 import { AGENDA_COLORS, RECURRENCE_OPTIONS, WEEKDAY_LABELS, WEEKDAY_PRESETS, todayISO } from '../../lib/agendaUtils'
 
 // Modal pra criar OU editar um compromisso.
@@ -11,8 +11,9 @@ import { AGENDA_COLORS, RECURRENCE_OPTIONS, WEEKDAY_LABELS, WEEKDAY_PRESETS, tod
 //   initialTime? — pré-preenche a hora (usado quando clica num slot do timeline)
 //   onSave    — async (payload) => void
 //   onDelete  — async (mode: 'single' | 'forever') => void
+//   onDuplicate? — async () => void (cria cópia idêntica e fecha)
 //   onClose   — () => void
-export default function EventForm({ event, initialDate, initialTitle, initialTime, occurrenceDate, onSave, onDelete, onClose }) {
+export default function EventForm({ event, initialDate, initialTitle, initialTime, occurrenceDate, onSave, onDelete, onDuplicate, onClose }) {
   const isEditing = !!event
   const isRecurringEdit = isEditing && event.recurring !== 'none'
 
@@ -565,14 +566,33 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
         {!confirmingDelete && (
           <div className="flex items-center justify-between gap-2 p-4 border-t" style={{ borderColor: 'var(--border-soft)' }}>
             {isEditing ? (
-              <button
-                onClick={() => setConfirmingDelete(true)}
-                disabled={saving}
-                className="text-sm px-3 py-2 rounded-lg flex items-center gap-1.5 transition hover:opacity-80 disabled:opacity-50"
-                style={{ color: 'var(--accent-rose)' }}
-              >
-                <Trash2 size={14} /> Excluir
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={saving}
+                  className="text-sm px-2.5 py-2 rounded-lg flex items-center gap-1.5 transition hover:opacity-80 disabled:opacity-50"
+                  style={{ color: 'var(--accent-rose)' }}
+                  title="Excluir compromisso"
+                >
+                  <Trash2 size={14} /> <span className="hidden sm:inline">Excluir</span>
+                </button>
+                {onDuplicate && (
+                  <button
+                    onClick={async () => {
+                      if (saving) return
+                      setSaving(true)
+                      try { await onDuplicate() } catch (err) { console.error(err) }
+                      finally { setSaving(false) }
+                    }}
+                    disabled={saving}
+                    className="text-sm px-2.5 py-2 rounded-lg flex items-center gap-1.5 transition hover:opacity-80 disabled:opacity-50"
+                    style={{ color: '#06b6d4' }}
+                    title="Criar uma cópia idêntica deste compromisso"
+                  >
+                    <Copy size={14} /> <span className="hidden sm:inline">Duplicar</span>
+                  </button>
+                )}
+              </div>
             ) : <div />}
 
             <div className="flex items-center gap-2">
