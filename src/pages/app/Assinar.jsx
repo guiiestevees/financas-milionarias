@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, ArrowLeft, Loader2, Lock, CreditCard, QrCode, AlertCircle, Crown, ShieldCheck, Zap, Sparkles, MessageCircle, X } from 'lucide-react'
+import { Check, ArrowLeft, Loader2, Lock, CreditCard, QrCode, AlertCircle, Crown, ShieldCheck, Zap, Sparkles, MessageCircle, X, Shield } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSubscription } from '../../hooks/useSubscription'
+import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { supabase } from '../../lib/supabase'
 import PixCheckout from '../../components/PixCheckout'
 import CardCheckout from '../../components/CardCheckout'
 import AddressFields, { isAddressValid } from '../../components/AddressFields'
+import WelcomeAfterPayment from '../../components/WelcomeAfterPayment'
 
 // ---------- Máscaras BR ----------
 function maskCpfCnpj(input) {
@@ -137,6 +139,38 @@ export default function Assinar() {
   // Auto-scroll pra área de pagamento quando método for escolhido
   const paymentRef = useRef(null)
 
+  // Admin: botão "simular pagamento" pra testar UX pós-pagamento sem cobrar
+  const { isAdmin } = useIsAdmin()
+  const [simulating, setSimulating] = useState(false)
+  const [simulateSuccess, setSimulateSuccess] = useState(false)
+
+  const handleSimulatePayment = async () => {
+    if (simulating) return
+    setSimulating(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada')
+      const res = await fetch('/api/admin?resource=simulate-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ planId: selectedPlan }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao simular pagamento')
+      // Mostra a tela de boas-vindas (mesma do checkout real)
+      setSimulateSuccess(true)
+    } catch (err) {
+      console.error('simulate payment error:', err)
+      setError(err.message)
+    } finally {
+      setSimulating(false)
+    }
+  }
+
   const plan = PLANS.find((p) => p.id === selectedPlan)
   // Métodos de pagamento disponíveis pra esse plano
   const availableMethods = METHODS_BY_PLAN[selectedPlan] || []
@@ -222,6 +256,19 @@ export default function Assinar() {
       subscription.refresh?.()
       navigate(backUrl)
     }, 2500)
+  }
+
+  // ===== Tela de boas-vindas após simular pagamento (admin) =====
+  if (simulateSuccess) {
+    return (
+      <WelcomeAfterPayment
+        userName={user?.user_metadata?.name || user?.email?.split('@')[0]}
+        onContinue={() => {
+          subscription.refresh?.()
+          navigate(backUrl)
+        }}
+      />
+    )
   }
 
   return (
@@ -437,6 +484,54 @@ export default function Assinar() {
             })}
           </div>
         </div>
+
+        {/* ============ ADMIN: SIMULAR PAGAMENTO (teste sem cobrar) ============ */}
+        {isAdmin && (
+          <div className="mb-8">
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: 'linear-gradient(135deg, rgba(139,92,246,0.10), rgba(139,92,246,0.05))',
+                border: '1.5px dashed rgba(139,92,246,0.40)',
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+                  style={{ background: 'rgba(139,92,246,0.20)', color: '#a78bfa' }}
+                >
+                  <Shield size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#a78bfa' }}>
+                    Modo Admin · Teste sem cobrança
+                  </div>
+                  <div className="text-[11px] mt-1 mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                    Ativa o plano {selectedPlan === 'annual' ? 'Anual' : 'Mensal'} sem passar pelo Asaas.
+                    Útil pra testar a UX pós-pagamento (boas-vindas, redirect, banner, etc).
+                    Nenhuma cobrança real é feita.
+                  </div>
+                  <button
+                    onClick={handleSimulatePayment}
+                    disabled={simulating}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold transition hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
+                    style={{
+                      background: '#8b5cf6',
+                      color: '#fff',
+                      boxShadow: '0 4px 12px rgba(139,92,246,0.30)',
+                    }}
+                  >
+                    {simulating ? (
+                      <><Loader2 size={13} className="animate-spin" /> Simulando…</>
+                    ) : (
+                      <><Shield size={13} /> Simular pagamento aprovado</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ============ SECTION: DADOS PESSOAIS ============ */}
         <div className="mb-8">

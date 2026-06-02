@@ -8,6 +8,8 @@
 //   GET  /api/admin?resource=user&id=<userId>                   → detalhe de usuário
 //   POST /api/admin?resource=user&id=<userId>&action=<action>   → ação no usuário
 //     actions: update | cancel-subscription | grant-access | mark-verified | delete
+//   POST /api/admin?resource=simulate-payment                   → ativa assinatura do PRÓPRIO admin (testes)
+//     body: { planId: 'monthly' | 'annual' }
 //
 // Auth: Bearer <Supabase JWT> + email em ADMIN_EMAILS env var
 
@@ -27,7 +29,8 @@ export default async function handler(req, res) {
     if (resource === 'stats') return await handleStats(req, res)
     if (resource === 'users') return await handleUsers(req, res)
     if (resource === 'user') return await handleUser(req, res)
-    return res.status(400).json({ error: 'resource inválido (use stats, users ou user)' })
+    if (resource === 'simulate-payment') return await handleSimulatePayment(req, res, auth)
+    return res.status(400).json({ error: 'resource inválido (use stats, users, user ou simulate-payment)' })
   } catch (err) {
     console.error(`admin resource=${resource} error:`, err)
     return res.status(500).json({ error: err.message || 'Erro interno' })
@@ -447,5 +450,52 @@ function formatDateBR(iso) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric',
+  })
+}
+
+// ========== SIMULATE-PAYMENT (admin testando UX pós-pagamento) ==========
+// Ativa a assinatura do PRÓPRIO admin sem passar pelo Asaas.
+// Útil pra ver telas de boas-vindas, onboarding, etc sem cobrar nada.
+async function handleSimulatePayment(req, res, auth) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const planId = (req.body?.planId || 'monthly').toLowerCase()
+  if (!['monthly', 'annual'].includes(planId)) {
+    return res.status(400).json({ error: 'planId deve ser monthly ou annual' })
+  }
+
+  const userId = auth.user.id
+  const a = admin()
+
+  // Calcula data de expiração (mensal = +30d, anual = +365d)
+  const now = new Date()
+  const until = new Date(now)
+  until.setDate(now.getDate() + (planId === 'annual' ? 365 : 30))
+
+  const { error } = await a
+    .from('user_profiles')
+    .update({
+      subscription_status: 'active',
+      subscription_plan: planId,
+      subscription_until: until.toISOString(),
+      subscription_cancelled_at: null,
+      updated_at: now.toISOString(),
+    })
+    .eq('user_id', userId)
+
+  if (error) {
+    console.error('simulate-payment error:', error)
+    return res.status(500).json({ error: error.message })
+  }
+
+  console.log(`🧪 Admin ${auth.user.email} simulou pagamento (${planId}) — válido até ${until.toISOString()}`)
+
+  return res.status(200).json({
+    ok: true,
+    test: true,
+    planId,
+    subscription_status: 'active',
+    subscription_until: until.toISOString(),
+    message: 'Assinatura simulada ativada (modo teste — sem cobrança real).',
   })
 }
