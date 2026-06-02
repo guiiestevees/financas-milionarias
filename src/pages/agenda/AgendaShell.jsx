@@ -902,7 +902,9 @@ function TimelineEvent({ event, top, height, left, width, onClick, completed, on
           boxShadow: pressing
             ? `0 6px 20px ${tintBorder}, 0 0 0 2px ${colorVar}`
             : 'none',
-          touchAction: onDragStart ? 'none' : 'auto',
+          // pan-y permite scroll vertical do navegador, mas long-press (sem mov) ainda funciona
+          // Se começar a scrollar, pointercancel dispara e cleanupPress aborta o timer
+          touchAction: onDragStart ? 'pan-y' : 'auto',
           cursor: onDragStart ? 'grab' : 'pointer',
         }}
       >
@@ -2216,7 +2218,8 @@ function DraggableEventBlock({ ev, top, height, durationMin, isDragging, origina
         opacity: isDragging ? 0.35 : 1,
         transition: 'transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease',
         cursor: 'grab',
-        touchAction: 'none',  // bloqueia gesture nativo pra capturar long-press
+        // manipulation = pan-x + pan-y + pinch (sem tap delay), permite scroll mas captura long-press parado
+        touchAction: 'manipulation',
       }}
       title={`${ev.title} · ${ev.time?.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''} · segure pra mover`}
     >
