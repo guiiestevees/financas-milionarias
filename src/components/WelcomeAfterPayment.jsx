@@ -41,7 +41,7 @@ export default function WelcomeAfterPayment({ userName, onContinue }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 sm:px-6 overflow-hidden"
+      className="fixed inset-0 z-50 overflow-y-auto"
       style={{
         background: `
           radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212,175,55,0.10), transparent 70%),
@@ -50,8 +50,16 @@ export default function WelcomeAfterPayment({ userName, onContinue }) {
         `,
         opacity: show ? 1 : 0,
         transition: 'opacity 0.5s ease',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
+      <div
+        className="min-h-full flex items-center justify-center px-4 sm:px-6"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 32px)',
+        }}
+      >
       {/* Confete dourado discreto caindo */}
       {confetti.map((c, i) => (
         <span
@@ -284,6 +292,7 @@ export default function WelcomeAfterPayment({ userName, onContinue }) {
         >
           🎩 7 dias de garantia · reembolso integral
         </div>
+      </div>
       </div>
     </div>
   )
