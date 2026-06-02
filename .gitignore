@@ -7,6 +7,12 @@ dist
 
 .vercel
 
+# Chave de assinatura do Android — JAMAIS commitar
+# Se perder, NUNCA MAIS conseguirá publicar updates do app na Play Store
+android/keystore/
+android/key.properties
+BACKUP-KEYSTORE-DOMUS.txt
+
 # Capacitor (mantém só os fontes do projeto nativo, ignora builds e libs baixadas)
 # ===== Android =====
 android/.gradle
