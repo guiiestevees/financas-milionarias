@@ -168,9 +168,12 @@ export default function Comecar() {
 
   // Por step
   const step1Valid = !!planId
-  const noDuplicates = emailStatus !== 'taken' && cpfStatus !== 'taken'
+  // Email duplicado bloqueia (Supabase não permite 2 contas com mesmo email mesmo).
+  // CPF duplicado NÃO bloqueia — apenas mostra aviso. Mesma pessoa pode ter mais
+  // de uma conta (família compartilhando CPF, ou múltiplas contas pra testar).
+  const noBlockingDuplicates = emailStatus !== 'taken'
   // Step 2a — só os dados de identidade/login (nome, email, CPF, celular, senha)
-  const step2aValid = name.trim().length >= 3 && validEmail && validCpf && validPhone && validPassword && passwordsMatch && noDuplicates
+  const step2aValid = name.trim().length >= 3 && validEmail && validCpf && validPhone && validPassword && passwordsMatch && noBlockingDuplicates
   // Step 2b — apenas endereço
   const step2bValid = addressOk
   // Step 2 completo (pra final do submit)
@@ -530,7 +533,6 @@ export default function Comecar() {
                         style={{
                           ...inputStyle,
                           fontFamily: 'JetBrains Mono, monospace',
-                          border: `1px solid ${cpfStatus === 'taken' ? 'rgba(244,63,94,0.45)' : 'var(--border-medium)'}`,
                         }}
                         className="placeholder:text-white/25 focus:border-amber-400"
                       />
@@ -538,9 +540,9 @@ export default function Comecar() {
                         <div className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>verificando…</div>
                       )}
                       {cpfStatus === 'taken' && (
-                        <div className="text-[11px] mt-1.5 text-rose-300/85 flex items-center gap-2 flex-wrap">
-                          <span>⚠ Este CPF já tem conta.</span>
-                          <Link to="/login" className="underline underline-offset-2 hover:opacity-80">Entrar</Link>
+                        <div className="text-[11px] mt-1.5 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                          <span>💡 Já existe conta com esse CPF — você pode criar outra ou</span>
+                          <Link to="/login" className="underline underline-offset-2 hover:opacity-80" style={{ color: '#c9a961' }}>fazer login</Link>
                         </div>
                       )}
                     </Field>
