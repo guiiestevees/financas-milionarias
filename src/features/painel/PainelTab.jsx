@@ -308,31 +308,37 @@ function AttributedPanel({ list, total }) {
 }
 
 // ---------- BudgetTransferModal ----------
-function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, onClose }) {
-  const [mode, setMode] = useState('outro')  // 'outro' | 'caixa'
+// Modal multi-uso pra ajustar orçamento de uma categoria SÓ NESSE MÊS:
+//   - 'outro'  → transfere sobra desta categoria pra outra
+//   - 'caixa'  → libera sobra desta categoria de volta pro disponível
+//   - 'reforco' → adiciona dinheiro NOVO ao orçamento desta categoria (sem tirar de outra)
+function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, onBoost, onClose }) {
+  const [mode, setMode] = useState('outro')  // 'outro' | 'caixa' | 'reforco'
   const [destName, setDestName] = useState(() => {
     const others = allCategories.filter((c) => c.name !== fromCat.name && c.budget && c.budget > 0)
     return others[0]?.name || ''
   })
   const [amount, setAmount] = useState('')
 
-  // Arredonda pra centavos pra evitar bug de ponto flutuante
-  // Ex: 100 - 99.99 dá 0.010000000000005116 em vez de 0.01, e aí
-  // o usuário tenta transferir R$ 0,01 e é bloqueado.
+  // Sobra disponível desta categoria (apenas relevante pros modos 'outro' e 'caixa')
   const sobraDisp = Math.max(0, Math.round(((Number(fromCat.budget) || 0) - (Number(fromCat.spent) || 0)) * 100) / 100)
   const v = Number(amount) || 0
-  // Comparação em centavos (inteiros) pra evitar comparação de floats
   const vCents = Math.round(v * 100)
   const sobraCents = Math.round(sobraDisp * 100)
-  const exceeds = vCents > sobraCents
+  // exceeds só aplica em transfer/release (boost não tem limite)
+  const exceeds = (mode !== 'reforco') && vCents > sobraCents
   const others = allCategories.filter((c) => c.name !== fromCat.name && c.budget && c.budget > 0)
   const a = accents[fromCat.accent] || accents.rose
 
   const submit = () => {
-    if (!v || v <= 0 || exceeds) return
+    if (!v || v <= 0) return
+    if (mode === 'reforco') {
+      onBoost?.(fromCat.name, v)
+      onClose()
+      return
+    }
+    if (exceeds) return
     // Garante que se for "tudo", passa exatamente o sobraDisp (não o input do user)
-    // pra eliminar resíduo de centavos. Ex: usuário tenta R$ 0,01 e sobraDisp é 0,01:
-    // transfere 0,01 exato e zera o orçamento, sem deixar 0,000001 sobrando.
     const finalAmount = vCents >= sobraCents ? sobraDisp : v
     if (mode === 'outro') {
       if (!destName) return
@@ -343,43 +349,73 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
     onClose()
   }
 
+  // Texto do título e do botão dinâmico por modo
+  const titulo = mode === 'reforco' ? `Reforçar ${fromCat.name}` : `Mover de ${fromCat.name}`
+  const subtitulo = mode === 'reforco' ? 'adicionando dinheiro novo neste mês' : `sobra disponível: ${fmtBRL(sobraDisp)}`
+  const submitLabel = mode === 'reforco' ? 'Adicionar' : 'Mover'
+
   return (
     <div onClick={onClose} style={{ background: 'rgba(7,9,18,0.7)', backdropFilter: 'blur(8px)' }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)', borderRadius: 16, maxWidth: 460, width: '100%', color: 'var(--text-primary)' }} className="p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div style={{ background: a.soft, color: a.hex }} className="p-2 rounded-lg shrink-0"><ArrowLeftRight size={16} /></div>
+            <div style={{ background: a.soft, color: a.hex }} className="p-2 rounded-lg shrink-0">
+              {mode === 'reforco' ? <Plus size={16} /> : <ArrowLeftRight size={16} />}
+            </div>
             <div className="min-w-0">
-              <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg truncate">Mover de {fromCat.name}</div>
-              <div className="text-xs text-white/45">sobra disponível: {fmtBRL(sobraDisp)}</div>
+              <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg truncate">{titulo}</div>
+              <div className="text-xs text-white/45">{subtitulo}</div>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded text-white/55 hover:text-white hover:bg-white/5"><X size={16} /></button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        {/* Abas (3 modos) */}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setMode('reforco')}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition"
+            style={mode === 'reforco'
+              ? { background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}50` }
+              : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
+            }
+            title="Adiciona dinheiro novo nesta categoria, só pra este mês"
+          >
+            <Plus size={12} /> Reforçar
+          </button>
           <button
             onClick={() => setMode('outro')}
-            disabled={others.length === 0}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-30"
+            disabled={others.length === 0 || sobraDisp <= 0}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition disabled:opacity-30"
             style={mode === 'outro'
               ? { background: accents.rose.soft, color: accents.rose.hex, border: `1px solid ${accents.rose.hex}50` }
               : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
+            title={sobraDisp <= 0 ? 'Sem sobra pra transferir' : 'Transfere a sobra desta categoria pra outra'}
           >
-            <ArrowLeftRight size={13} /> Outra categoria
+            <ArrowLeftRight size={12} /> Mover
           </button>
           <button
             onClick={() => setMode('caixa')}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
+            disabled={sobraDisp <= 0}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition disabled:opacity-30"
             style={mode === 'caixa'
               ? { background: accents.gold.soft, color: accents.gold.hex, border: `1px solid ${accents.gold.hex}50` }
               : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
+            title={sobraDisp <= 0 ? 'Sem sobra pra liberar' : 'Devolve a sobra desta categoria pro disponível'}
           >
-            <Wallet size={13} /> Pro caixa
+            <Wallet size={12} /> Devolver
           </button>
         </div>
+
+        {/* Mensagem explicativa por modo */}
+        {mode === 'reforco' && (
+          <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.emerald.soft, border: `1px solid ${accents.emerald.hex}25` }}>
+            💰 Aumenta o orçamento de <strong className="text-white/85">{fromCat.name}</strong> sem mexer em outras categorias.
+            Use quando você quiser destinar mais dinheiro do seu caixa pra esta categoria neste mês (ex: viajou, mês de festa, etc).
+          </div>
+        )}
 
         {mode === 'outro' && (
           others.length === 0 ? (
@@ -395,11 +431,11 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
 
         {mode === 'caixa' && (
           <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid ${accents.gold.hex}25` }}>
-            Ao liberar pro caixa, o orçamento de <strong className="text-white/85">{fromCat.name}</strong> diminui só nesse mês e o valor entra no <strong className="text-white/85">disponível pra gastar</strong>. Não cria receita nem mexe nos gastos.
+            Ao devolver pro caixa, o orçamento de <strong className="text-white/85">{fromCat.name}</strong> diminui só nesse mês e o valor entra no <strong className="text-white/85">disponível pra gastar</strong>. Não cria receita nem mexe nos gastos.
           </div>
         )}
 
-        <Field label="Valor">
+        <Field label={mode === 'reforco' ? 'Quanto adicionar' : 'Valor'}>
           <MoneyInput value={amount} onChange={setAmount} autoFocus />
         </Field>
 
@@ -408,12 +444,13 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
         )}
 
         <div className="text-xs text-white/45 leading-relaxed">
-          Ajuste vale só pra esse mês. No mês seguinte, os orçamentos voltam ao original.
+          🎩 Ajuste vale só pra esse mês. No mês seguinte, o orçamento volta ao original.
+          Pra alterar pra sempre, vá em Configurações → Categorias.
         </div>
 
         <div className="flex gap-2 justify-end pt-3 border-t border-white/5">
           <Btn variant="ghost" onClick={onClose} icon={X}>Cancelar</Btn>
-          <Btn onClick={submit} icon={Check} disabled={!v || exceeds || (mode === 'outro' && (!destName || others.length === 0))}>Mover</Btn>
+          <Btn onClick={submit} icon={Check} disabled={!v || exceeds || (mode === 'outro' && (!destName || others.length === 0))}>{submitLabel}</Btn>
         </div>
       </div>
     </div>
@@ -617,7 +654,7 @@ function CategoryPieChart({ categories, totalGeral }) {
 //   - "Com limite" (destaque, em cima): card cheio com progresso, sobra/estouro, transferir
 //   - "Sem limite" (embaixo): card simples — só nome, quanto gastou e botão pra adicionar
 // Mantém toda a lógica de transferir/quickAdd/expand das categorias com limite.
-function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease, setTab }) {
+function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTransfer, onRelease, onBoost, setTab }) {
   const [quickName, setQuickName] = useState(null)
   const [quickAmount, setQuickAmount] = useState('')
   const [quickDesc, setQuickDesc] = useState('')
@@ -717,7 +754,7 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
                   </button>
                   <button
                     onClick={() => setTransferFrom(c)}
-                    title="Transferir saldo pra outra categoria ou pro caixa"
+                    title="Reforçar com dinheiro novo, mover sobra pra outra categoria, ou devolver pro caixa"
                     className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition"
                     style={{
                       background: 'var(--bg-elev1)',
@@ -725,7 +762,7 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
                       border: '1px solid var(--border-medium)',
                     }}
                   >
-                    <ArrowLeftRight size={15} /> Transferir
+                    <ArrowLeftRight size={15} /> Ajustar
                   </button>
                 </div>
                 {quickOpen && (
@@ -927,6 +964,7 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
           allCategories={categories.filter((c) => (Number(c.budget) || 0) > 0)}
           onTransfer={onTransfer}
           onRelease={onRelease}
+          onBoost={onBoost}
           onClose={() => setTransferFrom(null)}
         />
       )}
@@ -1191,6 +1229,22 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
     })
   }
 
+  // Boost budget — aumenta o orçamento de uma categoria nesse mês (dinheiro NOVO).
+  // Diferente do transfer (que tira de outra cat) e do release (que devolve pro caixa).
+  // Ex: viajou e quer dar +R$ 500 pra Saídas só esse mês.
+  const boostBudget = (toCat, amount) => {
+    setMonth((m) => {
+      const cfg = m.config || {}
+      const cats = Array.isArray(cfg.categories) ? cfg.categories : []
+      const overrides = (m.budgetOverrides && typeof m.budgetOverrides === 'object') ? { ...m.budgetOverrides } : {}
+      const get = (name) => Object.prototype.hasOwnProperty.call(overrides, name)
+        ? Number(overrides[name]) || 0
+        : Number(cats.find((c) => c.name === name)?.budget) || 0
+      overrides[toCat] = round2(get(toCat) + amount)
+      return { ...m, budgetOverrides: overrides }
+    })
+  }
+
   const addQuickDespesa = ({ category, amount, description }) => {
     setMonth((m) => {
       const myAttrs = m.config.attributedTo.filter((a) => a.isMine !== false)
@@ -1254,7 +1308,7 @@ export default function PainelTab({ month, setMonth, setTab, activeMonth, expand
       {(showCards || showCategories || showAReceber || month.despesas.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BillsReminderPanel month={month} setMonth={setMonth} activeMonth={activeMonth} onEdit={setEditing} onRemove={removeDespesa} togglePaidDespesa={togglePaid} />
-          {showCategories && <CategoriesPanel categories={agg.categoryList} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} setTab={setTab} />}
+          {showCategories && <CategoriesPanel categories={agg.categoryList} addQuickDespesa={addQuickDespesa} onEdit={setEditing} onRemove={removeDespesa} onTransfer={transferBudget} onRelease={releaseBudget} onBoost={boostBudget} setTab={setTab} />}
           {showCards && <CardsPanel cards={agg.byCard} setMonth={setMonth} activeMonth={activeMonth} setPaidBulk={setPaidBulk} />}
           {showAReceber && <AReceberPanel list={agg.aReceberList} total={agg.totalAReceber} setMonth={setMonth} onEdit={setEditing} onRemove={removeDespesa} />}
         </div>
