@@ -13,9 +13,11 @@ import { AGENDA_COLORS, RECURRENCE_OPTIONS, WEEKDAY_LABELS, WEEKDAY_PRESETS, tod
 //   onDelete  — async (mode: 'single' | 'forever') => void
 //   onDuplicate? — async () => void (cria cópia idêntica e fecha)
 //   onClose   — () => void
-export default function EventForm({ event, initialDate, initialTitle, initialTime, occurrenceDate, onSave, onDelete, onDuplicate, onClose }) {
+export default function EventForm({ event, initialDate, initialTitle, initialTime, occurrenceDate, onSave, onSaveOccurrence, onDelete, onDuplicate, onClose }) {
   const isEditing = !!event
   const isRecurringEdit = isEditing && event.recurring !== 'none'
+  // Quando edita recorrente, abre dialog perguntando "só essa ou todas"
+  const [scopeDialog, setScopeDialog] = useState(false)
 
   // Campo único — substitui título + descrição
   const [text, setText] = useState(event?.title || initialTitle || '')
@@ -116,6 +118,20 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
     }
   }
 
+  // Quando muda direto o horário de término — calcula duração automática
+  const onEndTimeChange = (val) => {
+    setEndTime(val)
+    setCustomDurInput('')
+    if (!val || !val.includes(':')) { setDuration(null); return }
+    const [sh, sm] = time.split(':').map(Number)
+    const [eh, em] = val.split(':').map(Number)
+    if (isNaN(eh) || isNaN(em)) { setDuration(null); return }
+    const startMin = sh * 60 + sm
+    let endMin = eh * 60 + em
+    if (endMin < startMin) endMin += 24 * 60  // se passar da meia-noite
+    setDuration(endMin - startMin)
+  }
+
   // Toggle dia da semana selecionado
   const toggleWeekday = (id) => {
     setWeekdays((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].sort())
@@ -138,24 +154,49 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
     }
   }
 
+  // Payload do form (compartilhado entre submit normal e submit "só essa ocorrência")
+  const buildPayload = (overrides = {}) => ({
+    title: text.trim(),
+    date,
+    time,
+    end_time: endTime || null,
+    location: null,
+    notes: notes.trim() || null,
+    color,
+    recurring,
+    recurring_weekdays: recurring === 'weekdays' ? weekdays : null,
+    ends_at: recurring !== 'none' && endsAt ? endsAt : null,
+    reminder_minutes_before: wantReminder ? reminderMins : null,
+    ...overrides,
+  })
+
   const submit = async () => {
     if (!canSubmit) return
+    // Editando evento recorrente? Abre dialog de escopo
+    if (isRecurringEdit && onSaveOccurrence) {
+      setScopeDialog(true)
+      return
+    }
+    await doSave(buildPayload())
+  }
+
+  const doSave = async (payload) => {
     setError('')
     setSaving(true)
     try {
-      await onSave({
-        title: text.trim(),
-        date,
-        time,
-        end_time: endTime || null,
-        location: null,
-        notes: notes.trim() || null,
-        color,
-        recurring,
-        recurring_weekdays: recurring === 'weekdays' ? weekdays : null,
-        ends_at: recurring !== 'none' && endsAt ? endsAt : null,
-        reminder_minutes_before: wantReminder ? reminderMins : null,
-      })
+      await onSave(payload)
+    } catch (e) {
+      setError(e.message || 'Erro ao salvar')
+      setSaving(false)
+    }
+  }
+
+  // Salva SÓ essa ocorrência (vira evento single na data específica)
+  const doSaveOccurrence = async () => {
+    setError('')
+    setSaving(true)
+    try {
+      await onSaveOccurrence(buildPayload({ recurring: 'none', recurring_weekdays: null, ends_at: null }))
     } catch (e) {
       setError(e.message || 'Erro ao salvar')
       setSaving(false)
@@ -325,11 +366,33 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
                 )}
               </div>
 
-              {endTime && (
-                <div className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                  🕐 Termina às <strong style={{ color: 'var(--text-primary)' }}>{endTime}</strong>
+              {/* OU termina às — alternativa: define hora de fim direto */}
+              <div className="flex items-center gap-2 mt-3">
+                <div className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  ou termina às
                 </div>
-              )}
+                <input
+                  type="time"
+                  value={endTime || ''}
+                  onChange={(e) => onEndTimeChange(e.target.value)}
+                  style={{
+                    background: 'var(--bg-elev1)',
+                    border: '1px solid var(--border-medium)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    borderRadius: 8,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontFamily: 'JetBrains Mono, monospace',
+                    width: 100,
+                  }}
+                />
+                {endTime && (
+                  <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
+                    = {duration ? `${Math.floor(duration / 60)}h${duration % 60 ? String(duration % 60).padStart(2, '0') : ''}` : ''}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Cor */}
@@ -617,6 +680,84 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                 {saving ? 'Salvando…' : isEditing ? 'Salvar' : 'Criar'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ===== DIALOG: aplicar mudança só nessa ocorrência ou em todas ===== */}
+        {scopeDialog && (
+          <div
+            onClick={() => !saving && setScopeDialog(false)}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            style={{ background: 'rgba(7,9,18,0.75)', backdropFilter: 'blur(8px)' }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="rounded-2xl p-5 max-w-sm w-full"
+              style={{
+                background: 'var(--bg-app-soft)',
+                border: '1px solid var(--border-medium)',
+              }}
+            >
+              <h3
+                style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }}
+                className="text-lg mb-2"
+              >
+                Esta é uma alteração…
+              </h3>
+              <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
+                🎩 Esse é um compromisso recorrente. Aplico a mudança em todas as ocorrências
+                ou só nessa data específica?
+              </p>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => { setScopeDialog(false); doSaveOccurrence() }}
+                  disabled={saving}
+                  className="w-full text-left px-4 py-3 rounded-xl transition hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    background: 'rgba(6,182,212,0.10)',
+                    border: '1px solid rgba(6,182,212,0.30)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <div className="text-sm font-semibold" style={{ color: '#06b6d4' }}>
+                    Só nesta ocorrência
+                  </div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                    As próximas continuam com os valores originais
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setScopeDialog(false); doSave(buildPayload()) }}
+                  disabled={saving}
+                  className="w-full text-left px-4 py-3 rounded-xl transition hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    background: 'rgba(212,175,55,0.10)',
+                    border: '1px solid rgba(212,175,55,0.30)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <div className="text-sm font-semibold" style={{ color: 'var(--accent-gold)' }}>
+                    Em todas as ocorrências
+                  </div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                    Vale pra essa, as próximas e as passadas
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={() => setScopeDialog(false)}
+                  disabled={saving}
+                  className="text-sm px-3 py-2 rounded-lg transition hover:opacity-80"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         )}

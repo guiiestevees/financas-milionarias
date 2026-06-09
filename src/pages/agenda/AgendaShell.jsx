@@ -74,6 +74,31 @@ export default function AgendaShell() {
     }
   }
 
+  // Edita SÓ esta ocorrência de um evento recorrente:
+  //  1. Adiciona a data ao skipped_dates do original (pula essa ocorrência)
+  //  2. Cria um evento single (recurring='none') com os dados editados
+  const handleSaveOccurrence = async (payload) => {
+    if (!editing) return
+    const { event, occurrenceDate } = editing
+    const skipDate = occurrenceDate || event.date
+    try {
+      // Marca aquela ocorrência como pulada no evento original
+      await deleteOccurrence(event.id, skipDate)
+      // Cria um evento independente com os novos dados (sem recorrência)
+      await createEvent({
+        ...payload,
+        date: payload.date || skipDate,
+        recurring: 'none',
+        recurring_weekdays: null,
+        ends_at: null,
+      })
+    } catch (err) {
+      console.error('handleSaveOccurrence error:', err)
+      throw err
+    }
+    setEditing(null)
+  }
+
   const handleDelete = async (mode) => {
     if (!editing) return
     const { event, occurrenceDate } = editing
@@ -258,6 +283,7 @@ export default function AgendaShell() {
           initialTitle={creating?.initialTitle}
           initialTime={creating?.initialTime}
           onSave={handleSave}
+          onSaveOccurrence={handleSaveOccurrence}
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
           onClose={() => { setCreating(null); setEditing(null) }}
@@ -697,6 +723,7 @@ function DayTimeline({ events, date, isToday: todayFlag, onClickEvent, onClickEm
               {/* Slot clicável vazio */}
               <button
                 onClick={() => onClickEmpty?.(`${String(hour).padStart(2, '0')}:00`)}
+                /* Botão de slot inteiro = hora cheia, snap natural já em 1h */
                 className="flex-1 transition hover:bg-white/5 group"
                 style={{
                   borderBottom: i < totalHours ? '1px solid var(--border-soft)' : 'none',
@@ -1353,6 +1380,121 @@ function DailyReflection({ date }) {
 }
 
 // ============================================================
+// WeeklyReflection — perguntas focadas em direção e enriquecimento
+// pra usar na aba Semana. Mesma estrutura visual da DailyReflection.
+// ============================================================
+const WEEKLY_REFLECTIONS = [
+  'Qual a tarefa principal dessa semana que vai me aproximar mais da realidade que eu quero viver?',
+  'Que ação consistente, repetida nos próximos 7 dias, mudaria meu jogo financeiro?',
+  'Se essa semana fosse a primeira de uma nova versão minha, o que ela faria diferente?',
+  'Qual decisão estou adiando há semanas que precisa ser tomada agora?',
+  'Que oportunidade de crescimento eu estou ignorando por estar ocupado com o trivial?',
+  'Como eu posso multiplicar o resultado dessa semana — em vez de só somar?',
+  'Qual hábito eu vou construir essa semana que meu eu de 1 ano à frente vai me agradecer?',
+  'Qual conversa importante (com cliente, sócio, mentor, parceiro) eu preciso ter essa semana?',
+  'Se eu pudesse aplicar dinheiro em UMA coisa que multiplicaria meus retornos, qual seria?',
+  'Que medo está me impedindo de cobrar mais caro, propor mais ou pedir o que mereço?',
+  'O que eu posso aprender essa semana que me posiciona pra ganhar mais nos próximos anos?',
+  'Qual conexão estratégica (networking) eu vou priorizar nos próximos 7 dias?',
+  'O que estou fazendo por hábito que não me serve mais e devia parar?',
+  'Se eu fosse cobrar de mim mesmo o nível de performance que cobro dos outros, o que mudaria?',
+  'Qual movimento financeiro inteligente eu poderia fazer essa semana — investir, renegociar, cortar, ou pedir aumento?',
+]
+
+function WeeklyReflection({ weekSeed }) {
+  const ordered = useMemo(() => seedShuffle(WEEKLY_REFLECTIONS, weekSeed), [weekSeed])
+  const [idx, setIdx] = useState(0)
+  const [transitioning, setTransitioning] = useState(false)
+
+  const next = () => {
+    setTransitioning(true)
+    setTimeout(() => {
+      setIdx((i) => (i + 1) % ordered.length)
+      setTransitioning(false)
+    }, 180)
+  }
+
+  return (
+    <div
+      className="relative rounded-3xl p-5 overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(6,182,212,0.08) 60%, rgba(139,92,246,0.10))',
+        border: '1px solid rgba(212,175,55,0.25)',
+      }}
+    >
+      <div
+        className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-30 blur-3xl pointer-events-none"
+        style={{ background: 'var(--accent-gold)' }}
+      />
+      <div
+        className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full opacity-20 blur-3xl pointer-events-none"
+        style={{ background: AGENDA_ACCENT }}
+      />
+
+      <div className="relative">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center justify-center w-7 h-7 rounded-lg"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent-gold), #b8860b)',
+                color: '#fff',
+                boxShadow: '0 4px 8px rgba(212,175,55,0.30)',
+              }}
+            >
+              <Sparkles size={14} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: 'var(--accent-gold)' }}>
+                Direção da semana
+              </div>
+              <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                pergunta {idx + 1} de {ordered.length} · pra crescer e enriquecer
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={next}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-full transition hover:scale-105 active:scale-95"
+            style={{
+              background: 'rgba(212,175,55,0.15)',
+              color: 'var(--accent-gold)',
+              border: '1px solid rgba(212,175,55,0.30)',
+            }}
+            title="Próxima reflexão"
+          >
+            outra <ChevronRight size={11} />
+          </button>
+        </div>
+
+        <p
+          style={{
+            fontFamily: 'Fraunces, serif',
+            fontWeight: 400,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.35,
+            fontStyle: 'italic',
+            opacity: transitioning ? 0 : 1,
+            transform: transitioning ? 'translateY(6px)' : 'translateY(0)',
+            transition: 'opacity 0.18s ease, transform 0.18s ease',
+          }}
+          className="text-lg sm:text-xl"
+        >
+          {ordered[idx]}
+        </p>
+
+        <div className="flex items-center justify-between gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(212,175,55,0.15)' }}>
+          <div className="text-[10px] italic" style={{ color: 'var(--text-tertiary)' }}>
+            🎩 Use isso pra decidir onde colocar foco nos próximos 7 dias.
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
 // ProgressStrip — barra de progresso satisfatória no topo do Dia
 // ============================================================
 function ProgressStrip({ done, total, allDone }) {
@@ -1415,19 +1557,16 @@ const WEEK_DAY_END_H = 23
 const WEEK_DAILY_AVAILABLE_MIN = (WEEK_DAY_END_H - WEEK_DAY_START_H) * 60  // 1020 min
 
 function WeekView({ weekDates, weekEvents, onClickEvent, onCreate, onJumpToDay, onMoveEvent }) {
-  // Calcula janelas livres e estatísticas por dia
+  // Calcula janelas livres e estatísticas por dia (ainda usado pela grade)
   const weekAnalysis = useMemo(() => analyzeWeek(weekDates, weekEvents), [weekDates, weekEvents])
+
+  // Identificador da semana pra seedar a ordem das reflexões
+  const weekSeed = weekDates[0] || ''
 
   return (
     <div className="space-y-4">
-      {/* HERO: tempo livre em destaque */}
-      <WeekFreeTimeHero analysis={weekAnalysis} />
-
-      {/* MELHORES JANELAS LIVRES */}
-      <WeekBestSlots
-        slots={weekAnalysis.bestSlots}
-        onCreate={(date, time) => onCreate(date, time)}
-      />
+      {/* Reflexão semanal — direção pra foco e enriquecimento */}
+      <WeeklyReflection weekSeed={weekSeed} />
 
       {/* GRADE PANORÂMICA — 7 colunas verticais (drag & drop) */}
       <WeekPanoramicGrid
@@ -1729,14 +1868,21 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
   const allHours = []
   for (let h = WEEK_DAY_START_H; h <= WEEK_DAY_END_H; h++) allHours.push(h)
 
-  // Calcula target date+time baseado em posição do pointer
+  // Calcula target date+time baseado em posição do pointer.
+  // O columnsContainerRef agora aponta pro GRID inteiro (inclui col de horas).
+  // Precisa descontar: padding-left (8) + HOURS_COL_WIDTH (44) + COL_GAP (4) = 56
+  // pra chegar no início da PRIMEIRA coluna de dia.
+  const GRID_PADDING_LEFT = 8  // px-2
+  const GRID_PADDING_TOP = 4   // pt-1
+  const COLS_OFFSET_X = GRID_PADDING_LEFT + HOURS_COL_WIDTH + COL_GAP
+
   const computeTarget = (clientX, clientY) => {
     if (!columnsContainerRef.current) return null
     const rect = columnsContainerRef.current.getBoundingClientRect()
-    const xInGrid = clientX - rect.left
-    const yInGrid = clientY - rect.top
+    const xInCols = clientX - rect.left - COLS_OFFSET_X
+    const yInGrid = clientY - rect.top - GRID_PADDING_TOP
     // Detecta coluna pelo X
-    const colIdx = Math.max(0, Math.min(6, Math.floor((xInGrid + COL_GAP / 2) / (COL_WIDTH + COL_GAP))))
+    const colIdx = Math.max(0, Math.min(6, Math.floor((xInCols + COL_GAP / 2) / (COL_WIDTH + COL_GAP))))
     // Detecta hora pelo Y (snap em SNAP_MIN)
     const minutesInGrid = Math.max(0, Math.min(totalHours * 60 - SNAP_MIN, (yInGrid / PX_PER_HOUR) * 60))
     const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
@@ -1875,13 +2021,19 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
           className="overflow-x-auto overflow-y-hidden"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          <div style={{ minWidth: HOURS_COL_WIDTH + (COL_WIDTH * 7) + 8 }}>
-            {/* Headers dos dias — sticky no topo durante scroll vertical interno */}
+          <div style={{ minWidth: HOURS_COL_WIDTH + (COL_WIDTH * 7) + (COL_GAP * 7) + 16 }}>
+            {/* Headers dos dias — CSS Grid pra garantir alinhamento perfeito com a grade abaixo */}
             <div
-              className="flex gap-1 px-2 pt-2 pb-2 sticky top-0 z-30"
-              style={{ background: 'var(--bg-elev2)', borderBottom: '1px solid var(--border-soft)' }}
+              className="sticky top-0 z-30 px-2 pt-2 pb-2"
+              style={{
+                background: 'var(--bg-elev2)',
+                borderBottom: '1px solid var(--border-soft)',
+                display: 'grid',
+                gridTemplateColumns: `${HOURS_COL_WIDTH}px repeat(7, ${COL_WIDTH}px)`,
+                gap: COL_GAP,
+              }}
             >
-              <div style={{ width: HOURS_COL_WIDTH }} />
+              <div /> {/* placeholder da coluna de horas */}
               {weekDates.map((date) => {
                 const d = parseISODate(date)
                 const todayFlag = isToday(date)
@@ -1894,9 +2046,8 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                   <button
                     key={date}
                     onClick={() => onJumpToDay?.(date)}
-                    className="flex flex-col items-center justify-center rounded-xl py-2 px-1 transition hover:opacity-90 shrink-0"
+                    className="flex flex-col items-center justify-center rounded-xl py-2 px-1 transition hover:opacity-90"
                     style={{
-                      width: COL_WIDTH,
                       background: todayFlag ? AGENDA_ACCENT : 'var(--bg-elev1)',
                       color: todayFlag ? '#fff' : 'var(--text-primary)',
                       border: todayFlag ? 'none' : '1px solid var(--border-soft)',
@@ -1924,18 +2075,19 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
               })}
             </div>
 
-            {/* Grid timeline */}
-            <div className="relative px-2 pb-2 pt-1" style={{ height: gridHeight + 8 }}>
-              {/* Coluna de horas (esquerda) — sticky horizontal */}
-              <div
-                className="absolute left-2 top-1 sticky-left"
-                style={{
-                  width: HOURS_COL_WIDTH,
-                  height: gridHeight,
-                  position: 'absolute',
-                  zIndex: 5,
-                }}
-              >
+            {/* Grid timeline — usa MESMO CSS Grid do header pra alinhamento perfeito */}
+            <div
+              ref={columnsContainerRef}
+              className="px-2 pb-2 pt-1 relative"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `${HOURS_COL_WIDTH}px repeat(7, ${COL_WIDTH}px)`,
+                gap: COL_GAP,
+                height: gridHeight + 8,
+              }}
+            >
+              {/* Coluna de horas (col 1) */}
+              <div className="relative" style={{ height: gridHeight }}>
                 {allHours.map((h) => {
                   const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
                   return (
@@ -1952,31 +2104,25 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                     </div>
                   )
                 })}
-                {/* Linha divisória vertical */}
                 <div
                   className="absolute top-0 bottom-0 right-0"
                   style={{ width: 1, background: 'var(--border-soft)' }}
                 />
               </div>
 
-              {/* Container dos eventos + linhas — alinhado ao header (que tem gap-1 entre placeholder e 1º dia) */}
+              {/* Linhas horizontais — overlay sobre cols 2-8 */}
               <div
-                className="absolute top-1"
-                style={{
-                  left: HOURS_COL_WIDTH + 8 + COL_GAP,  // +4 pra bater com gap-1 do header
-                  right: 8,
-                  height: gridHeight,
-                }}
+                className="pointer-events-none relative"
+                style={{ gridColumn: '2 / -1', gridRow: 1, zIndex: 0, height: gridHeight }}
               >
-                {/* Linhas de referência horizontais a cada 1h */}
                 {allHours.map((h, idx) => {
                   if (idx === 0) return null
                   const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
-                  const isMajor = h % 4 === 2  // 06, 10, 14, 18, 22
+                  const isMajor = h % 4 === 2
                   return (
                     <div
                       key={h}
-                      className="absolute left-0 right-0 pointer-events-none"
+                      className="absolute left-0 right-0"
                       style={{
                         top,
                         height: 1,
@@ -1985,49 +2131,49 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                     />
                   )
                 })}
-
-                {/* Colunas dos 7 dias */}
-                <div ref={columnsContainerRef} className="flex h-full" style={{ gap: COL_GAP }}>
-                  {weekDates.map((date) => {
-                    const dayStats = analysis.days.find((dd) => dd.date === date)
-                    const todayFlag = isToday(date)
-                    return (
-                      <DayColumn
-                        key={date}
-                        date={date}
-                        dayStats={dayStats}
-                        todayFlag={todayFlag}
-                        gridHeight={gridHeight}
-                        pxPerHour={PX_PER_HOUR}
-                        colWidth={COL_WIDTH}
-                        onClickEvent={onClickEvent}
-                        onClickEmpty={(time) => onCreate?.(date, time)}
-                        onDragStart={handleDragStart}
-                        draggingEventId={dragging?.event?.id}
-                        isDropTarget={dragging?.targetDate === date}
-                      />
-                    )
-                  })}
-                </div>
-
-                {/* GHOST do evento sendo arrastado */}
-                {dragging && dragging.targetStartMin != null && (
-                  <>
-                    <DragGhost
-                      dragging={dragging}
-                      pxPerHour={PX_PER_HOUR}
-                      colWidth={COL_WIDTH}
-                      colGap={COL_GAP}
-                      weekDates={weekDates}
-                    />
-                    {/* Linha guia horizontal atravessando toda a grade no horário alvo */}
-                    <DragGuideLine
-                      dragging={dragging}
-                      pxPerHour={PX_PER_HOUR}
-                    />
-                  </>
-                )}
               </div>
+
+              {/* Colunas dos 7 dias — filhos diretos do grid (cada um ocupa 1 célula da grid) */}
+              {weekDates.map((date) => {
+                const dayStats = analysis.days.find((dd) => dd.date === date)
+                const todayFlag = isToday(date)
+                return (
+                  <DayColumn
+                    key={date}
+                    date={date}
+                    dayStats={dayStats}
+                    todayFlag={todayFlag}
+                    gridHeight={gridHeight}
+                    pxPerHour={PX_PER_HOUR}
+                    colWidth={COL_WIDTH}
+                    onClickEvent={onClickEvent}
+                    onClickEmpty={(time) => onCreate?.(date, time)}
+                    onDragStart={handleDragStart}
+                    draggingEventId={dragging?.event?.id}
+                    isDropTarget={dragging?.targetDate === date}
+                  />
+                )
+              })}
+
+              {/* Drag ghost + guide line — overlay absoluto sobre cols 2-8 */}
+              {dragging && dragging.targetStartMin != null && (
+                <div
+                  className="pointer-events-none"
+                  style={{ gridColumn: '2 / -1', gridRow: 1, zIndex: 25, position: 'relative', height: gridHeight }}
+                >
+                  <DragGhost
+                    dragging={dragging}
+                    pxPerHour={PX_PER_HOUR}
+                    colWidth={COL_WIDTH}
+                    colGap={COL_GAP}
+                    weekDates={weekDates}
+                  />
+                  <DragGuideLine
+                    dragging={dragging}
+                    pxPerHour={PX_PER_HOUR}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2052,21 +2198,23 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
   }
 
   // Handler de click em área vazia — calcula hora baseado no Y e dispara onClickEmpty
+  // SNAP de 1h (60min) pra criação rápida — user clica "perto" das 15h e cai em 15:00
+  // Drag continua com snap fino (15min) pra precisão ao reposicionar.
+  const SNAP_CREATE_MIN = 60
   const handleColumnClick = (e) => {
     if (!colRef.current || !onClickEmpty) return
     const rect = colRef.current.getBoundingClientRect()
     const yInCol = e.clientY - rect.top
     if (yInCol < 0 || yInCol > gridHeight) return
-    // Snap em 15min pra ser consistente com o drag
     const minutesInGrid = Math.max(0, Math.min(gridHeight - 1, yInCol) / pxPerHour * 60)
-    const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
+    const snapped = Math.round(minutesInGrid / SNAP_CREATE_MIN) * SNAP_CREATE_MIN
     const totalMin = WEEK_DAY_START_H * 60 + snapped
     const hh = String(Math.floor(totalMin / 60)).padStart(2, '0')
     const mm = String(totalMin % 60).padStart(2, '0')
     onClickEmpty(`${hh}:${mm}`)
   }
 
-  // Hover preview (desktop)
+  // Hover preview (desktop) — também snap em hora cheia pra refletir onde vai cair
   const handleColumnMouseMove = (e) => {
     if (!colRef.current) return
     const rect = colRef.current.getBoundingClientRect()
@@ -2076,7 +2224,7 @@ function DayColumn({ date, dayStats, todayFlag, gridHeight, pxPerHour, colWidth,
       return
     }
     const minutesInGrid = (yInCol / pxPerHour) * 60
-    const snapped = Math.round(minutesInGrid / SNAP_MIN) * SNAP_MIN
+    const snapped = Math.round(minutesInGrid / SNAP_CREATE_MIN) * SNAP_CREATE_MIN
     setHoverY((snapped / 60) * pxPerHour)
   }
 
