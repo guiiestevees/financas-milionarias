@@ -154,62 +154,80 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   const hasName = !!brand?.name?.trim()
 
   return (
-    <header className="mb-8">
-      {/* Linha 1: AppSwitcher alinhado à direita (sem sobrepor o resto) */}
-      <div className="flex justify-end mb-5">
+    <header className="mb-10">
+      {/* Linha 1: AppSwitcher alinhado à direita */}
+      <div className="flex justify-end mb-7">
         <AppSwitcher currentApp="financas" />
       </div>
 
-      {/* Bloco central — brand + título + controles, todos centralizados */}
+      {/* HERO central — visual harmônico tipo capa */}
       <div className="flex flex-col items-center text-center">
-        {/* Brand (nome do usuário editável) */}
+        {/* Brand (nome do usuário) — discreto, com logo */}
         {editingName ? (
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              autoFocus
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') saveName()
-                if (e.key === 'Escape') { setEditingName(false); setDraftName(brand?.name || '') }
-              }}
-              placeholder="Seu nome"
-              style={{
-                background: 'rgba(212,175,55,0.08)',
-                border: '1px solid rgba(212,175,55,0.4)',
-                color: '#d4af37',
-                letterSpacing: '0.25em',
-                fontSize: '12px',
-              }}
-              className="px-3 py-1 rounded-full uppercase tracking-widest focus:outline-none placeholder:text-white/30"
-            />
-          </div>
+          <input
+            autoFocus
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveName()
+              if (e.key === 'Escape') { setEditingName(false); setDraftName(brand?.name || '') }
+            }}
+            placeholder="Seu nome"
+            style={{
+              background: 'rgba(212,175,55,0.08)',
+              border: '1px solid rgba(212,175,55,0.4)',
+              color: '#d4af37',
+              letterSpacing: '0.25em',
+              fontSize: '11px',
+            }}
+            className="px-3 py-1.5 rounded-full uppercase tracking-widest focus:outline-none placeholder:text-white/30 mb-4"
+          />
         ) : (
           <button
             onClick={() => { setEditingName(true); setDraftName(brand?.name || '') }}
-            style={{ letterSpacing: '0.25em', color: '#d4af37' }}
-            className={`group flex items-center gap-2 text-xs uppercase mb-3 hover:opacity-80 transition ${!hasName ? 'opacity-60' : ''}`}
+            style={{ letterSpacing: '0.32em', color: 'rgba(212,175,55,0.8)' }}
+            className={`group flex items-center gap-2.5 text-[11px] uppercase font-semibold mb-4 hover:opacity-90 transition ${!hasName ? 'opacity-50' : ''}`}
           >
-            <img src="/domus-logo-512.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+            <img src="/domus-logo-512.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain', opacity: 0.85 }} />
             <span className="truncate max-w-[60vw]">{displayName}</span>
-            <Pencil size={10} className="opacity-0 group-hover:opacity-60 transition shrink-0" />
+            <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition shrink-0" />
           </button>
         )}
 
-        {/* Título grande "Domus App." */}
+        {/* Título dominante */}
         <h1
-          style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-          className="text-4xl sm:text-5xl"
+          style={{
+            fontFamily: 'Fraunces, serif',
+            fontWeight: 500,
+            letterSpacing: '-0.025em',
+            lineHeight: 1,
+          }}
+          className="text-5xl sm:text-6xl mb-1"
         >
           Domus{' '}
-          <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
+          <em style={{
+            fontStyle: 'italic',
+            background: 'linear-gradient(135deg,#f4e4a8,#d4af37 45%,#8b6f2f)',
+            WebkitBackgroundClip: 'text',
+            color: 'transparent',
+          }}>
             App.
           </em>
         </h1>
 
-        {/* Controles secundários (saving / admin / seletor de mês) — centralizados */}
-        <div className="flex items-center justify-center flex-wrap gap-3 mt-5">
+        {/* Divisor fino dourado */}
+        <div
+          className="my-5"
+          style={{
+            width: 72,
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.6), transparent)',
+          }}
+        />
+
+        {/* Mês picker — elemento de controle principal, centralizado e grande */}
+        <div className="flex items-center justify-center gap-3 flex-wrap">
         {saving && (
           <div className="flex items-center gap-1.5 text-xs text-white/40">
             <Loader2 size={12} className="animate-spin" style={{ color: '#d4af37' }} />
@@ -222,7 +240,7 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
           <button
             onClick={() => navigate('/admin')}
             title="Painel administrativo"
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition"
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition hover:opacity-90"
             style={{
               background: 'rgba(212,175,55,0.08)',
               border: '1px solid rgba(212,175,55,0.28)',
