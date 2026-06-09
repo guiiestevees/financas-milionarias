@@ -254,15 +254,15 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                   <button
                     onClick={() => markAll(c.items, !isPaid)}
                     className="flex items-center gap-2 group transition active:scale-95"
-                    title={isPaid ? 'Desmarcar como paga' : 'Marcar fatura como paga'}
+                    title={isPaid ? 'Desmarcar' : 'Marcar fatura como paga'}
                   >
                     <span
-                      className="text-[11px] font-medium transition"
+                      className="text-[11px] font-semibold transition"
                       style={{
-                        color: isPaid ? 'rgba(255,255,255,0.4)' : accents.emerald.hex,
+                        color: isPaid ? accents.emerald.hex : 'var(--text-secondary)',
                       }}
                     >
-                      {isPaid ? 'desmarcar' : 'paga?'}
+                      Fatura paga
                     </span>
                     <span
                       className="flex items-center justify-center transition-all"
@@ -270,11 +270,11 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                         width: 22,
                         height: 22,
                         borderRadius: '50%',
-                        border: `2px solid ${isPaid ? accents.emerald.hex : 'rgba(255,255,255,0.35)'}`,
-                        background: isPaid ? accents.emerald.hex : 'transparent',
+                        border: `2px solid ${isPaid ? accents.emerald.hex : 'var(--text-tertiary)'}`,
+                        background: isPaid ? accents.emerald.hex : 'var(--bg-elev1)',
                         boxShadow: isPaid
                           ? `0 0 0 3px ${accents.emerald.hex}25, 0 2px 8px ${accents.emerald.hex}55`
-                          : 'none',
+                          : '0 1px 3px rgba(0,0,0,0.10)',
                       }}
                     >
                       {isPaid && <Check size={13} color="#fff" strokeWidth={3.5} />}
