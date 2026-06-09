@@ -152,12 +152,6 @@ export default function AgendaShell() {
               </div>
               <div className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
                 {TABS.find((t) => t.id === tab)?.label}
-                {tab !== 'settings' && tab !== 'tasks' && events.length > 0 && (
-                  <span> · {events.length} {events.length === 1 ? 'compromisso' : 'compromissos'} cadastrado{events.length === 1 ? '' : 's'}</span>
-                )}
-                {tab === 'tasks' && tasksHook.pending.length > 0 && (
-                  <span> · {tasksHook.pending.length} pendente{tasksHook.pending.length === 1 ? '' : 's'}</span>
-                )}
               </div>
             </div>
           </div>
