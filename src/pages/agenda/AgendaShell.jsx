@@ -150,9 +150,6 @@ export default function AgendaShell() {
               <div style={{ letterSpacing: '0.2em', fontSize: '10px', fontWeight: 600, color: AGENDA_ACCENT }} className="uppercase">
                 Domus · Agenda
               </div>
-              <div className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
-                {TABS.find((t) => t.id === tab)?.label}
-              </div>
             </div>
           </div>
 
