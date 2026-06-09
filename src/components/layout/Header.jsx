@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck, Wallet } from 'lucide-react'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import AppSwitcher from '../AppSwitcher'
 
@@ -154,105 +154,83 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   const hasName = !!brand?.name?.trim()
 
   return (
-    <header className="mb-10">
-      {/* Linha 1: AppSwitcher alinhado à direita */}
-      <div className="flex justify-end mb-7">
+    <header className="w-full max-w-4xl mx-auto pb-4 mb-4">
+      {/* ===== LINHA 1: brand à esquerda + AppSwitcher à direita ===== */}
+      <div className="flex items-center justify-between gap-3 mb-5">
+        {/* Brand: ícone dourado + tag UPPERCASE + nome do usuário editável */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
+            style={{ background: 'rgba(212,175,55,0.15)', color: '#d4af37' }}
+          >
+            <Wallet size={20} />
+          </div>
+
+          <div className="min-w-0">
+            <div
+              style={{ letterSpacing: '0.2em', fontSize: '10px', fontWeight: 600, color: '#d4af37' }}
+              className="uppercase"
+            >
+              Domus · Finanças
+            </div>
+
+            {/* Nome do usuário editável — vai como "subtítulo" do brand */}
+            {editingName ? (
+              <input
+                autoFocus
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onBlur={saveName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveName()
+                  if (e.key === 'Escape') { setEditingName(false); setDraftName(brand?.name || '') }
+                }}
+                placeholder="Seu nome"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid rgba(212,175,55,0.4)',
+                  color: 'var(--text-tertiary)',
+                  fontSize: '12px',
+                  outline: 'none',
+                }}
+                className="block max-w-full placeholder:text-white/30"
+              />
+            ) : (
+              <button
+                onClick={() => { setEditingName(true); setDraftName(brand?.name || '') }}
+                className={`group flex items-center gap-1.5 text-xs hover:opacity-80 transition truncate ${!hasName ? 'opacity-60' : ''}`}
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                <span className="truncate">{displayName}</span>
+                <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition shrink-0" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <AppSwitcher currentApp="financas" />
       </div>
 
-      {/* HERO central — visual harmônico tipo capa */}
-      <div className="flex flex-col items-center text-center">
-        {/* Brand (nome do usuário) — discreto, com logo */}
-        {editingName ? (
-          <input
-            autoFocus
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            onBlur={saveName}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') saveName()
-              if (e.key === 'Escape') { setEditingName(false); setDraftName(brand?.name || '') }
-            }}
-            placeholder="Seu nome"
-            style={{
-              background: 'rgba(212,175,55,0.08)',
-              border: '1px solid rgba(212,175,55,0.4)',
-              color: '#d4af37',
-              letterSpacing: '0.25em',
-              fontSize: '11px',
-            }}
-            className="px-3 py-1.5 rounded-full uppercase tracking-widest focus:outline-none placeholder:text-white/30 mb-4"
-          />
-        ) : (
-          <button
-            onClick={() => { setEditingName(true); setDraftName(brand?.name || '') }}
-            style={{ letterSpacing: '0.32em', color: 'rgba(212,175,55,0.8)' }}
-            className={`group flex items-center gap-2.5 text-[11px] uppercase font-semibold mb-4 hover:opacity-90 transition ${!hasName ? 'opacity-50' : ''}`}
-          >
-            <img src="/domus-logo-512.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain', opacity: 0.85 }} />
-            <span className="truncate max-w-[60vw]">{displayName}</span>
-            <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition shrink-0" />
-          </button>
-        )}
+      {/* ===== LINHA 2: título grande (igual ao 'O dia de hoje.' da Agenda) ===== */}
+      <h1
+        style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
+        className="text-4xl sm:text-5xl"
+      >
+        Domus{' '}
+        <em style={{
+          fontStyle: 'italic',
+          background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent',
+        }}>
+          App.
+        </em>
+      </h1>
 
-        {/* Título dominante */}
-        <h1
-          style={{
-            fontFamily: 'Fraunces, serif',
-            fontWeight: 500,
-            letterSpacing: '-0.025em',
-            lineHeight: 1,
-          }}
-          className="text-5xl sm:text-6xl mb-1"
-        >
-          Domus{' '}
-          <em style={{
-            fontStyle: 'italic',
-            background: 'linear-gradient(135deg,#f4e4a8,#d4af37 45%,#8b6f2f)',
-            WebkitBackgroundClip: 'text',
-            color: 'transparent',
-          }}>
-            App.
-          </em>
-        </h1>
-
-        {/* Divisor fino dourado */}
-        <div
-          className="my-5"
-          style={{
-            width: 72,
-            height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.6), transparent)',
-          }}
-        />
-
-        {/* Mês picker — elemento de controle principal, centralizado e grande */}
-        <div className="flex items-center justify-center gap-3 flex-wrap">
-        {saving && (
-          <div className="flex items-center gap-1.5 text-xs text-white/40">
-            <Loader2 size={12} className="animate-spin" style={{ color: '#d4af37' }} />
-            <span>salvando</span>
-          </div>
-        )}
-
-        {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
-        {isAdmin && (
-          <button
-            onClick={() => navigate('/admin')}
-            title="Painel administrativo"
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition hover:opacity-90"
-            style={{
-              background: 'rgba(212,175,55,0.08)',
-              border: '1px solid rgba(212,175,55,0.28)',
-              color: '#d4af37',
-            }}
-          >
-            <ShieldCheck size={14} />
-            <span className="text-xs font-medium hidden sm:inline">Admin</span>
-          </button>
-        )}
-
-        {/* Seletor de mês */}
+      {/* ===== LINHA 3: controles (mês + admin + saving) — alinhados à esquerda, abaixo do título ===== */}
+      <div className="flex items-center justify-start flex-wrap gap-3 mt-5">
+        {/* Seletor de mês — controle principal, mais à esquerda */}
         <div className="relative">
           <div
             className="flex items-center gap-0.5 rounded-2xl p-1 backdrop-blur"
@@ -303,7 +281,31 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
             />
           )}
         </div>
-        </div>
+
+        {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/admin')}
+            title="Painel administrativo"
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition hover:opacity-90"
+            style={{
+              background: 'rgba(212,175,55,0.08)',
+              border: '1px solid rgba(212,175,55,0.28)',
+              color: '#d4af37',
+            }}
+          >
+            <ShieldCheck size={14} />
+            <span className="text-xs font-medium hidden sm:inline">Admin</span>
+          </button>
+        )}
+
+        {/* Saving indicator */}
+        {saving && (
+          <div className="flex items-center gap-1.5 text-xs text-white/40">
+            <Loader2 size={12} className="animate-spin" style={{ color: '#d4af37' }} />
+            <span>salvando</span>
+          </div>
+        )}
       </div>
     </header>
   )
