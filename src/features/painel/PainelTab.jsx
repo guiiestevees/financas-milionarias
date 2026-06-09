@@ -249,25 +249,37 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                         ? `${fmtBRL(c.aPagar)} ainda em aberto`
                         : `${c.count} compra${c.count !== 1 ? 's' : ''} no mês`}
                   </span>
-                  {isPaid
-                    ? (
-                      <button
-                        onClick={() => markAll(c.items, false)}
-                        className="text-white/40 hover:text-white/70 transition"
-                        title="Reverter — marca a fatura como ainda em aberto"
-                      >
-                        desfazer
-                      </button>
-                    )
-                    : (
-                      <button
-                        onClick={() => markAll(c.items, true)}
-                        className="px-2.5 py-1 rounded-md text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition flex items-center gap-1 font-medium"
-                        title="Marca todas as compras desta fatura como pagas"
-                      >
-                        <Check size={11} /> Marcar paga
-                      </button>
-                    )}
+
+                  {/* Checkbox redondo: clica pra marcar como paga, clica de novo pra desfazer */}
+                  <button
+                    onClick={() => markAll(c.items, !isPaid)}
+                    className="flex items-center gap-2 group transition active:scale-95"
+                    title={isPaid ? 'Desmarcar como paga' : 'Marcar fatura como paga'}
+                  >
+                    <span
+                      className="text-[11px] font-medium transition"
+                      style={{
+                        color: isPaid ? 'rgba(255,255,255,0.4)' : accents.emerald.hex,
+                      }}
+                    >
+                      {isPaid ? 'desmarcar' : 'paga?'}
+                    </span>
+                    <span
+                      className="flex items-center justify-center transition-all"
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        border: `2px solid ${isPaid ? accents.emerald.hex : 'rgba(255,255,255,0.35)'}`,
+                        background: isPaid ? accents.emerald.hex : 'transparent',
+                        boxShadow: isPaid
+                          ? `0 0 0 3px ${accents.emerald.hex}25, 0 2px 8px ${accents.emerald.hex}55`
+                          : 'none',
+                      }}
+                    >
+                      {isPaid && <Check size={13} color="#fff" strokeWidth={3.5} />}
+                    </span>
+                  </button>
                 </div>
               </div>
             )
