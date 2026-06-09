@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck, LayoutGrid } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Pencil, Loader2, ShieldCheck } from 'lucide-react'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import AppSwitcher from '../AppSwitcher'
 
 const MONTH_LABELS_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
@@ -208,20 +209,8 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
           </div>
         )}
 
-        {/* Menu de apps — destaque dourado pra ficar óbvio */}
-        <button
-          onClick={() => navigate('/launcher')}
-          title="Voltar ao menu de apps"
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl transition hover:opacity-90"
-          style={{
-            background: 'rgba(212,175,55,0.12)',
-            border: '1px solid rgba(212,175,55,0.35)',
-            color: 'var(--accent-gold)',
-          }}
-        >
-          <LayoutGrid size={15} />
-          <span className="text-xs font-semibold hidden sm:inline">Menu</span>
-        </button>
+        {/* Switcher de apps — Finanças destacado + clique pra ir pra Agenda + botão Menu */}
+        <AppSwitcher currentApp="financas" />
 
         {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
         {isAdmin && (

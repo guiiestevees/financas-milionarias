@@ -11,6 +11,7 @@ import { useAgendaTasks } from '../../hooks/useAgendaTasks'
 import { useAgendaProjects } from '../../hooks/useAgendaProjects'
 import { useAgendaCompletions } from '../../hooks/useAgendaCompletions'
 import { useTheme } from '../../hooks/useTheme'
+import AppSwitcher from '../../components/AppSwitcher'
 import EventForm from './EventForm'
 import {
   AGENDA_COLORS, todayISO, parseISODate, toISODate, formatDateLong,
@@ -161,20 +162,8 @@ export default function AgendaShell() {
             </div>
           </div>
 
-          {/* Botão "Menu Domus" (volta pro launcher) — destaque ciano pra ficar óbvio */}
-          <button
-            onClick={() => navigate('/launcher')}
-            title="Voltar ao menu de apps"
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl transition hover:opacity-90 shrink-0"
-            style={{
-              background: 'rgba(6,182,212,0.12)',
-              border: '1px solid rgba(6,182,212,0.35)',
-              color: AGENDA_ACCENT,
-            }}
-          >
-            <LayoutGrid size={15} />
-            <span className="text-xs sm:text-sm font-semibold">Menu</span>
-          </button>
+          {/* Switcher de apps — Agenda destacada + clique pra ir pra Finanças + botão Menu */}
+          <AppSwitcher currentApp="agenda" />
         </div>
 
         {/* Título grande estilo Finanças, mas em ciano */}
@@ -3527,40 +3516,6 @@ function SettingsView() {
 
   return (
     <div className="space-y-4">
-      {/* Navegação rápida entre apps */}
-      <div className="rounded-2xl p-4 sm:p-5"
-        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
-          Trocar de app
-        </div>
-        <div className="grid sm:grid-cols-2 gap-2">
-          <button
-            onClick={() => navigate('/launcher')}
-            className="flex items-center gap-3 p-3 rounded-xl text-left transition hover:opacity-90"
-            style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
-          >
-            <div className="p-2 rounded-lg shrink-0" style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--accent-gold)' }}>
-              <LayoutGrid size={16} />
-            </div>
-            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              Menu de apps
-            </div>
-          </button>
-          <button
-            onClick={() => navigate('/app')}
-            className="flex items-center gap-3 p-3 rounded-xl text-left transition hover:opacity-90"
-            style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)' }}
-          >
-            <div className="p-2 rounded-lg shrink-0" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)' }}>
-              <ArrowLeft size={16} />
-            </div>
-            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              Ir para Finanças
-            </div>
-          </button>
-        </div>
-      </div>
-
       {/* Tema */}
       <div className="rounded-2xl p-4 sm:p-5"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
