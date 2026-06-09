@@ -1,14 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 import { Wallet, CalendarDays, LayoutGrid } from 'lucide-react'
 
-// Switcher compacto entre apps do Domus. Aparece em ambos os headers
-// (Finanças e Agenda) pra ser visualmente consistente e óbvio.
+// Switcher compacto entre apps — usado no header de TODOS os apps do Domus.
 //
-// Estrutura visual:
-//   ┌──────────────────────┐   ┌─────────┐
-//   │ [Atual] | [outro]    │   │ ⋮ Menu  │
-//   └──────────────────────┘   └─────────┘
-//        ↑ pill com 2 ícones      botão pra ver todos os apps (launcher)
+// Visual:
+//   ┌────┐ ┌────┐ ┌────┐
+//   │ 💰 │ │ 📅 │ │ ⊞  │
+//   │Fin.│ │Age.│ │Menu│
+//   └────┘ └────┘ └────┘
+//   atual  trocar  todos
+//
+// Cada chip é compacto e tem ícone em cima + label embaixo (sempre visível,
+// pra ser intuitivo). Largura fixa pra não causar overflow horizontal.
 //
 // Props:
 //   currentApp: 'financas' | 'agenda'
@@ -18,21 +21,19 @@ export default function AppSwitcher({ currentApp = 'financas' }) {
   const APPS = {
     financas: {
       label: 'Finanças',
-      shortLabel: 'Finanças',
       route: '/app',
       icon: Wallet,
-      color: '#c9a961',           // dourado
+      color: '#c9a961',
       colorSoft: 'rgba(201,169,97,0.18)',
-      colorBorder: 'rgba(201,169,97,0.40)',
+      colorBorder: 'rgba(201,169,97,0.45)',
     },
     agenda: {
       label: 'Agenda',
-      shortLabel: 'Agenda',
       route: '/agenda',
       icon: CalendarDays,
-      color: '#06b6d4',           // ciano
+      color: '#06b6d4',
       colorSoft: 'rgba(6,182,212,0.18)',
-      colorBorder: 'rgba(6,182,212,0.40)',
+      colorBorder: 'rgba(6,182,212,0.45)',
     },
   }
 
@@ -40,67 +41,94 @@ export default function AppSwitcher({ currentApp = 'financas' }) {
   const other = currentApp === 'financas' ? APPS.agenda : APPS.financas
 
   return (
-    <div className="flex items-center gap-2">
-      {/* PILL: app atual à esquerda (destacado) + outro à direita (clicável) */}
-      <div
-        className="flex items-center gap-1 p-1 rounded-2xl"
-        style={{
-          background: 'var(--bg-elev2)',
-          border: '1px solid var(--border-soft)',
-        }}
-      >
-        {/* App atual (não clicável, só visual) */}
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
-          style={{
-            background: current.colorSoft,
-            color: current.color,
-            border: `1px solid ${current.colorBorder}`,
-          }}
-        >
-          <current.icon size={14} strokeWidth={2.4} />
-          <span className="text-xs font-bold hidden sm:inline">{current.shortLabel}</span>
-        </div>
-
-        {/* Outro app (clicável) */}
-        <button
-          onClick={() => navigate(other.route)}
-          title={`Trocar pra ${other.label}`}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition hover:opacity-90 active:scale-95"
-          style={{
-            background: 'transparent',
-            color: 'var(--text-tertiary)',
-            border: '1px solid transparent',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = other.colorSoft
-            e.currentTarget.style.color = other.color
-            e.currentTarget.style.borderColor = other.colorBorder
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.color = 'var(--text-tertiary)'
-            e.currentTarget.style.borderColor = 'transparent'
-          }}
-        >
-          <other.icon size={14} strokeWidth={2.2} />
-          <span className="text-xs font-medium hidden sm:inline">{other.shortLabel}</span>
-        </button>
-      </div>
-
-      {/* Botão Menu — pequeno, pra ver todos os apps no launcher (Mercado virá depois) */}
-      <button
+    <div className="flex items-center gap-1.5 shrink-0">
+      <AppChip
+        icon={<current.icon size={16} strokeWidth={2.3} />}
+        label={current.label}
+        active
+        color={current.color}
+        bg={current.colorSoft}
+        borderColor={current.colorBorder}
+      />
+      <AppChip
+        icon={<other.icon size={16} strokeWidth={2.1} />}
+        label={other.label}
+        onClick={() => navigate(other.route)}
+        color={other.color}
+        hoverBg={other.colorSoft}
+        hoverBorder={other.colorBorder}
+      />
+      <AppChip
+        icon={<LayoutGrid size={16} strokeWidth={2.1} />}
+        label="Menu"
         onClick={() => navigate('/launcher')}
-        title="Ver todos os apps"
-        className="flex items-center justify-center w-9 h-9 rounded-xl transition hover:opacity-90 active:scale-95 shrink-0"
-        style={{
-          background: 'var(--bg-elev2)',
-          border: '1px solid var(--border-soft)',
-          color: 'var(--text-secondary)',
-        }}
+        color="var(--text-secondary)"
+        hoverBg="var(--bg-elev1)"
+      />
+    </div>
+  )
+}
+
+// Chip vertical: ícone em cima + label pequeno embaixo
+function AppChip({ icon, label, active, onClick, color, bg, borderColor, hoverBg, hoverBorder }) {
+  const isButton = !!onClick
+  const baseStyle = {
+    width: 54,
+    minHeight: 44,
+    background: active ? bg : 'var(--bg-elev2)',
+    border: `1px solid ${active ? borderColor : 'var(--border-soft)'}`,
+    color: active ? color : 'var(--text-secondary)',
+    transition: 'all 0.15s',
+    padding: '5px 4px 4px',
+  }
+
+  const handleMouseEnter = (e) => {
+    if (!isButton || active) return
+    e.currentTarget.style.background = hoverBg || 'var(--bg-elev1)'
+    if (hoverBorder) e.currentTarget.style.borderColor = hoverBorder
+    e.currentTarget.style.color = color
+  }
+  const handleMouseLeave = (e) => {
+    if (!isButton || active) return
+    e.currentTarget.style.background = 'var(--bg-elev2)'
+    e.currentTarget.style.borderColor = 'var(--border-soft)'
+    e.currentTarget.style.color = 'var(--text-secondary)'
+  }
+
+  const Inner = (
+    <>
+      {icon}
+      <span
+        className="text-[10px] font-semibold mt-0.5 leading-none whitespace-nowrap"
+        style={{ letterSpacing: '0.01em' }}
       >
-        <LayoutGrid size={15} strokeWidth={2.2} />
+        {label}
+      </span>
+    </>
+  )
+
+  if (isButton) {
+    return (
+      <button
+        onClick={onClick}
+        title={`Trocar pra ${label}`}
+        className="flex flex-col items-center justify-center rounded-xl active:scale-95"
+        style={{ ...baseStyle, cursor: 'pointer' }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {Inner}
       </button>
+    )
+  }
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center rounded-xl"
+      style={baseStyle}
+      title={label}
+    >
+      {Inner}
     </div>
   )
 }

@@ -154,63 +154,68 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   const hasName = !!brand?.name?.trim()
 
   return (
-    <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
-      <div className="min-w-0">
-        {editingName ? (
-          <div className="flex items-center gap-2 mb-2">
-            <input
-              autoFocus
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') saveName()
-                if (e.key === 'Escape') { setEditingName(false); setDraftName(brand?.name || '') }
-              }}
-              placeholder="Seu nome"
-              style={{
-                background: 'rgba(212,175,55,0.08)',
-                border: '1px solid rgba(212,175,55,0.4)',
-                color: '#d4af37',
-                letterSpacing: '0.25em',
-                fontSize: '12px',
-              }}
-              className="px-3 py-1 rounded-full uppercase tracking-widest focus:outline-none placeholder:text-white/30"
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => { setEditingName(true); setDraftName(brand?.name || '') }}
-            style={{ letterSpacing: '0.25em', color: '#d4af37' }}
-            className={`group flex items-center gap-2 text-xs uppercase mb-2 hover:opacity-80 transition ${!hasName ? 'opacity-60' : ''}`}
-          >
-            <img src="/domus-logo-512.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
-            <span>{displayName}</span>
-            <Pencil size={10} className="opacity-0 group-hover:opacity-60 transition" />
-          </button>
-        )}
+    <header className="mb-8">
+      {/* Linha 1: brand à esquerda + AppSwitcher à direita (igual à Agenda) */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onBlur={saveName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveName()
+                  if (e.key === 'Escape') { setEditingName(false); setDraftName(brand?.name || '') }
+                }}
+                placeholder="Seu nome"
+                style={{
+                  background: 'rgba(212,175,55,0.08)',
+                  border: '1px solid rgba(212,175,55,0.4)',
+                  color: '#d4af37',
+                  letterSpacing: '0.25em',
+                  fontSize: '12px',
+                }}
+                className="px-3 py-1 rounded-full uppercase tracking-widest focus:outline-none placeholder:text-white/30"
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => { setEditingName(true); setDraftName(brand?.name || '') }}
+              style={{ letterSpacing: '0.25em', color: '#d4af37' }}
+              className={`group flex items-center gap-2 text-xs uppercase hover:opacity-80 transition ${!hasName ? 'opacity-60' : ''}`}
+            >
+              <img src="/domus-logo-512.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+              <span className="truncate">{displayName}</span>
+              <Pencil size={10} className="opacity-0 group-hover:opacity-60 transition shrink-0" />
+            </button>
+          )}
+        </div>
 
-        <h1
-          style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-          className="text-4xl sm:text-5xl"
-        >
-          Domus{' '}
-          <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
-            App.
-          </em>
-        </h1>
+        {/* AppSwitcher no canto direito — SEMPRE visível, mesmo em mobile (igual à Agenda) */}
+        <AppSwitcher currentApp="financas" />
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Linha 2: título grande "Domus App." */}
+      <h1
+        style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
+        className="text-4xl sm:text-5xl"
+      >
+        Domus{' '}
+        <em style={{ fontStyle: 'italic', background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
+          App.
+        </em>
+      </h1>
+
+      {/* Linha 3: controles secundários (saving / admin / seletor de mês) */}
+      <div className="flex items-center justify-end flex-wrap gap-3 mt-4">
         {saving && (
           <div className="flex items-center gap-1.5 text-xs text-white/40">
             <Loader2 size={12} className="animate-spin" style={{ color: '#d4af37' }} />
             <span>salvando</span>
           </div>
         )}
-
-        {/* Switcher de apps — Finanças destacado + clique pra ir pra Agenda + botão Menu */}
-        <AppSwitcher currentApp="financas" />
 
         {/* Botão Admin — só pra emails listados em VITE_ADMIN_EMAILS */}
         {isAdmin && (
@@ -229,8 +234,7 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
           </button>
         )}
 
-        {/* Seletor de mês — maior, mais óbvio. Ocupa o lugar onde antes
-            ficava o botão "sair" (removido pra evitar logout acidental) */}
+        {/* Seletor de mês */}
         <div className="relative">
           <div
             className="flex items-center gap-0.5 rounded-2xl p-1 backdrop-blur"
