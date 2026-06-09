@@ -1,19 +1,22 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { supabase } from '../lib/supabase'
 
-// Hook pra gerenciar tema light/dark, com SUPORTE A TEMA POR APP.
-// - Cada app (finanças, agenda) pode ter seu próprio tema salvo
-// - Existe também um tema 'global' como fallback
-// - Aplicado via data-theme no <html>, CSS responde via variáveis
+// Hook pra gerenciar tema light/dark, com:
+//   - Suporte a tema POR APP (financas, agenda)
+//   - Persistência DUPLA: localStorage (cache rápido) + Supabase (entre dispositivos)
+//
+// Estratégia de leitura:
+//   1) localStorage primeiro (síncrono, sem flicker no boot)
+//   2) Supabase em background (atualiza se for diferente)
+//
+// Estratégia de escrita:
+//   - localStorage IMEDIATO (UI responde na hora)
+//   - Supabase ASYNC (best-effort, não bloqueia)
 //
 // Uso:
 //   const { theme, setTheme, toggle } = useTheme()           // global
-//   const { theme, setTheme, toggle } = useTheme('financas') // específico do app
+//   const { theme, setTheme, toggle } = useTheme('financas') // específico
 //   const { theme, setTheme, toggle } = useTheme('agenda')
-//
-// Lógica de leitura:
-//   - Se appKey passado E tem valor salvo pra ele → usa esse
-//   - Senão, cai no global
-//   - Senão, usa default 'light'
 
 const GLOBAL_KEY = 'domus:theme'
 const APP_KEY_PREFIX = 'domus:theme:'
@@ -38,35 +41,102 @@ function readInitial(appKey) {
 function applyTheme(theme) {
   if (typeof document === 'undefined') return
   document.documentElement.setAttribute('data-theme', theme)
-  // Atualiza a meta theme-color pra barra do navegador combinar
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) {
     meta.setAttribute('content', theme === 'light' ? '#f5f4ef' : '#070912')
   }
 }
 
+// ---- Persistência no Supabase ----
+async function loadThemeFromSupabase(appKey) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('theme_prefs')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (error || !data?.theme_prefs) return null
+    const prefs = data.theme_prefs
+    if (appKey && (prefs[appKey] === 'light' || prefs[appKey] === 'dark')) {
+      return prefs[appKey]
+    }
+    if (prefs.global === 'light' || prefs.global === 'dark') {
+      return prefs.global
+    }
+  } catch (err) {
+    console.warn('loadThemeFromSupabase:', err)
+  }
+  return null
+}
+
+async function saveThemeToSupabase(appKey, theme) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    // Lê o jsonb atual pra não sobrescrever as outras chaves
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('theme_prefs')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    const prefs = (profile?.theme_prefs && typeof profile.theme_prefs === 'object') ? { ...profile.theme_prefs } : {}
+    prefs[appKey || 'global'] = theme
+    await supabase
+      .from('user_profiles')
+      .update({ theme_prefs: prefs })
+      .eq('user_id', user.id)
+  } catch (err) {
+    console.warn('saveThemeToSupabase:', err)
+  }
+}
+
 export function useTheme(appKey = null) {
   const [theme, setThemeState] = useState(() => readInitial(appKey))
+  const skipNextSync = useRef(false)  // evita re-save quando carrega do Supabase
 
-  // Re-lê quando o appKey muda (ex: usuário navega entre Finanças e Agenda)
+  // Re-lê localStorage quando appKey muda (navegação entre apps)
   useEffect(() => {
     const next = readInitial(appKey)
     setThemeState(next)
     applyTheme(next)
   }, [appKey])
 
-  // Aplica + persiste sempre que tema muda
+  // Sincroniza com Supabase no mount (background, sem bloquear UI)
+  useEffect(() => {
+    let cancelled = false
+    loadThemeFromSupabase(appKey).then((serverTheme) => {
+      if (cancelled || !serverTheme) return
+      // Só atualiza se for diferente do que tá em memória
+      if (serverTheme !== theme) {
+        skipNextSync.current = true
+        setThemeState(serverTheme)
+      }
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appKey])
+
+  // Aplica + persiste local + sync com servidor sempre que tema muda
   useEffect(() => {
     applyTheme(theme)
+
+    // localStorage imediato
     try {
       if (appKey) {
-        // Salva o tema desse app específico
         localStorage.setItem(APP_KEY_PREFIX + appKey, theme)
       } else {
-        // Sem appKey: atualiza o global
         localStorage.setItem(GLOBAL_KEY, theme)
       }
     } catch {}
+
+    // Supabase async — pula se foi setado pelo próprio load do servidor
+    if (skipNextSync.current) {
+      skipNextSync.current = false
+      return
+    }
+    saveThemeToSupabase(appKey, theme)
   }, [theme, appKey])
 
   const setTheme = useCallback((next) => {
@@ -81,7 +151,7 @@ export function useTheme(appKey = null) {
 }
 
 // Inicializa o tema antes do React montar — evita "flash" do tema errado.
-// No boot, usa o GLOBAL (app específico é aplicado depois quando o componente monta).
+// No boot, usa o GLOBAL local (Supabase é carregado depois pelo hook).
 export function bootstrapTheme() {
   applyTheme(readInitial(null))
 }
