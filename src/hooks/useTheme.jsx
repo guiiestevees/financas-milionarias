@@ -1,23 +1,38 @@
 import { useEffect, useState, useCallback } from 'react'
 
-// Hook simples pra gerenciar tema light/dark.
-// - Persistência: localStorage (sem trip pro Supabase pra ficar instantâneo)
-// - Default: 'dark' (preserva o look original do app)
-// - Aplicação: seta data-theme no <html>, o CSS faz o resto via variáveis
+// Hook pra gerenciar tema light/dark, com SUPORTE A TEMA POR APP.
+// - Cada app (finanças, agenda) pode ter seu próprio tema salvo
+// - Existe também um tema 'global' como fallback
+// - Aplicado via data-theme no <html>, CSS responde via variáveis
 //
 // Uso:
-//   const { theme, setTheme, toggle } = useTheme()
-//   <button onClick={toggle}>Trocar tema</button>
+//   const { theme, setTheme, toggle } = useTheme()           // global
+//   const { theme, setTheme, toggle } = useTheme('financas') // específico do app
+//   const { theme, setTheme, toggle } = useTheme('agenda')
+//
+// Lógica de leitura:
+//   - Se appKey passado E tem valor salvo pra ele → usa esse
+//   - Senão, cai no global
+//   - Senão, usa default 'light'
 
-const STORAGE_KEY = 'domus:theme'
+const GLOBAL_KEY = 'domus:theme'
+const APP_KEY_PREFIX = 'domus:theme:'
 
-function readInitial() {
-  if (typeof window === 'undefined') return 'light'
+function readStored(appKey) {
+  if (typeof window === 'undefined') return null
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'light' || stored === 'dark') return stored
+    if (appKey) {
+      const v = localStorage.getItem(APP_KEY_PREFIX + appKey)
+      if (v === 'light' || v === 'dark') return v
+    }
+    const g = localStorage.getItem(GLOBAL_KEY)
+    if (g === 'light' || g === 'dark') return g
   } catch {}
-  return 'light'  // default
+  return null
+}
+
+function readInitial(appKey) {
+  return readStored(appKey) || 'light'
 }
 
 function applyTheme(theme) {
@@ -30,14 +45,29 @@ function applyTheme(theme) {
   }
 }
 
-export function useTheme() {
-  const [theme, setThemeState] = useState(readInitial)
+export function useTheme(appKey = null) {
+  const [theme, setThemeState] = useState(() => readInitial(appKey))
 
-  // Aplica na montagem e quando muda
+  // Re-lê quando o appKey muda (ex: usuário navega entre Finanças e Agenda)
+  useEffect(() => {
+    const next = readInitial(appKey)
+    setThemeState(next)
+    applyTheme(next)
+  }, [appKey])
+
+  // Aplica + persiste sempre que tema muda
   useEffect(() => {
     applyTheme(theme)
-    try { localStorage.setItem(STORAGE_KEY, theme) } catch {}
-  }, [theme])
+    try {
+      if (appKey) {
+        // Salva o tema desse app específico
+        localStorage.setItem(APP_KEY_PREFIX + appKey, theme)
+      } else {
+        // Sem appKey: atualiza o global
+        localStorage.setItem(GLOBAL_KEY, theme)
+      }
+    } catch {}
+  }, [theme, appKey])
 
   const setTheme = useCallback((next) => {
     if (next === 'light' || next === 'dark') setThemeState(next)
@@ -50,8 +80,8 @@ export function useTheme() {
   return { theme, setTheme, toggle, isLight: theme === 'light', isDark: theme === 'dark' }
 }
 
-// Inicializa o tema antes do React montar — evita "flash" do tema errado
-// quando a página carrega. Chame isso no main.jsx antes de renderizar o app.
+// Inicializa o tema antes do React montar — evita "flash" do tema errado.
+// No boot, usa o GLOBAL (app específico é aplicado depois quando o componente monta).
 export function bootstrapTheme() {
-  applyTheme(readInitial())
+  applyTheme(readInitial(null))
 }

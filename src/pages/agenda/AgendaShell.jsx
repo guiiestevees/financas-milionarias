@@ -52,6 +52,10 @@ export default function AgendaShell() {
   const projectsHook = useAgendaProjects()
   const completionsHook = useAgendaCompletions()
 
+  // Aplica o tema específico da Agenda (lê 'domus:theme:agenda' do localStorage)
+  // Quando o user troca em Ajustes, vale só pra Agenda; Finanças mantém o seu tema.
+  useTheme('agenda')
+
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
   const weekDates = useMemo(() => getWeekDates(refDate), [refDate])
@@ -3503,15 +3507,18 @@ function ProjectForm({ project, onSave, onDelete, onClose }) {
 // ============================================================
 function SettingsView() {
   const navigate = useNavigate()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme('agenda')
 
   return (
     <div className="space-y-4">
       {/* Tema */}
       <div className="rounded-2xl p-4 sm:p-5"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
           Aparência
+        </div>
+        <div className="text-[11px] mb-3" style={{ color: 'var(--text-tertiary)' }}>
+          🎩 Tema específico da Agenda — pode ser diferente do app de Finanças.
         </div>
         <div className="flex gap-3">
           <ThemeOption current={theme} value="light" icon={Sun} label="Claro" onSelect={() => setTheme('light')} />

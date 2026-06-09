@@ -193,12 +193,41 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
             const dueMsg = !c.dueDay ? 'sem vencimento cadastrado' : isToday ? `vence HOJE (dia ${c.dueDay})` : `vence dia ${c.dueDay}`
             const dueColor = isToday ? 'text-amber-300' : 'text-white/55'
             return (
-              <div key={c.name} className="p-3 rounded-lg" style={{ background: 'var(--bg-elev2)' }}>
+              <div
+                key={c.name}
+                className="p-3 rounded-lg relative overflow-hidden"
+                style={{
+                  background: isPaid ? `${accents.emerald.hex}10` : 'var(--bg-elev2)',
+                  border: `1px solid ${isPaid ? `${accents.emerald.hex}40` : 'transparent'}`,
+                }}
+              >
+                {/* Barra lateral verde quando paga (cue visual forte) */}
+                {isPaid && (
+                  <div
+                    className="absolute top-0 left-0 bottom-0"
+                    style={{ width: 3, background: accents.emerald.hex }}
+                  />
+                )}
+
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><CreditCard size={14} /></div>
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{c.name}</div>
+                      <div className="font-medium truncate flex items-center gap-2">
+                        {c.name}
+                        {isPaid && (
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                            style={{
+                              background: accents.emerald.hex,
+                              color: '#fff',
+                              boxShadow: `0 2px 6px ${accents.emerald.hex}60`,
+                            }}
+                          >
+                            <Check size={9} strokeWidth={3.5} /> Paga
+                          </span>
+                        )}
+                      </div>
                       <div className={`text-xs flex items-center gap-1 ${dueColor}`}><Calendar size={10} />{dueMsg}</div>
                     </div>
                   </div>
@@ -213,10 +242,32 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                   </div>
                 )}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/45">{isPaid ? 'fatura paga ✓' : c.aPagar < c.total ? `${fmtBRL(c.aPagar)} ainda em aberto` : `${c.count} compra${c.count !== 1 ? 's' : ''} no mês`}</span>
+                  <span className={isPaid ? 'text-emerald-300/80 font-medium' : 'text-white/55'}>
+                    {isPaid
+                      ? `Quitada — ${c.count} compra${c.count !== 1 ? 's' : ''}`
+                      : c.aPagar < c.total
+                        ? `${fmtBRL(c.aPagar)} ainda em aberto`
+                        : `${c.count} compra${c.count !== 1 ? 's' : ''} no mês`}
+                  </span>
                   {isPaid
-                    ? <button onClick={() => markAll(c.items, false)} className="text-white/45 hover:text-white/70 transition">desfazer</button>
-                    : <button onClick={() => markAll(c.items, true)} className="px-2.5 py-1 rounded-md text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition flex items-center gap-1"><Check size={11} /> Fatura paga</button>}
+                    ? (
+                      <button
+                        onClick={() => markAll(c.items, false)}
+                        className="text-white/40 hover:text-white/70 transition"
+                        title="Reverter — marca a fatura como ainda em aberto"
+                      >
+                        desfazer
+                      </button>
+                    )
+                    : (
+                      <button
+                        onClick={() => markAll(c.items, true)}
+                        className="px-2.5 py-1 rounded-md text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition flex items-center gap-1 font-medium"
+                        title="Marca todas as compras desta fatura como pagas"
+                      >
+                        <Check size={11} /> Marcar paga
+                      </button>
+                    )}
                 </div>
               </div>
             )
@@ -719,11 +770,22 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
                 </div>
 
                 {/* ===== PROGRESSO ===== */}
-                <div className="h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--bg-elev3)' }}>
+                {/* Fundo escurinho próprio (ignora bg-elev3 que confunde em dark mode)
+                    + borda fina + altura maior = contraste claro com a barra colorida */}
+                <div
+                  className="h-3 rounded-full overflow-hidden mb-2 relative"
+                  style={{
+                    background: 'rgba(0,0,0,0.18)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.15)',
+                  }}
+                >
                   <div className="h-full transition-all duration-500" style={{
                     width: `${Math.min(100, pct)}%`,
-                    background: over ? `linear-gradient(90deg, ${accents.rose.hex}, ${accents.amber.hex})` : `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`,
-                    boxShadow: `0 0 12px ${a.glow}`,
+                    background: over
+                      ? `linear-gradient(90deg, ${accents.rose.hex}, ${accents.amber.hex})`
+                      : `linear-gradient(90deg, ${a.hex}, ${a.hex})`,
+                    boxShadow: `0 0 12px ${a.glow}, inset 0 1px 0 rgba(255,255,255,0.20)`,
                   }} />
                 </div>
 

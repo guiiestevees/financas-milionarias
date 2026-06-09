@@ -545,7 +545,8 @@ function HelpSection() {
 }
 
 function AppearanceSection() {
-  const { theme, setTheme } = useTheme()
+  // Tema específico do app de Finanças — separado da Agenda
+  const { theme, setTheme } = useTheme('financas')
 
   const Option = ({ value, label, icon: Icon, description }) => {
     const isActive = theme === value
@@ -582,7 +583,7 @@ function AppearanceSection() {
 
   return (
     <Card className="p-4 sm:p-6">
-      <SectionTitle icon={Palette} title="Aparência" subtitle="Escolha como o app deve parecer." accent="gold" />
+      <SectionTitle icon={Palette} title="Aparência" subtitle="Tema específico do app de Finanças." accent="gold" />
       <div className="flex flex-col sm:flex-row gap-3">
         <Option
           value="dark"
@@ -598,7 +599,7 @@ function AppearanceSection() {
         />
       </div>
       <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-        Sua preferência é salva neste dispositivo.
+        🎩 Vale apenas pra Finanças — a Agenda pode ter um tema próprio (configure lá).
       </div>
     </Card>
   )

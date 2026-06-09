@@ -19,6 +19,7 @@ import VerificationBanner from '../../components/VerificationBanner'
 import SubscriptionBlocked from '../../components/SubscriptionBlocked'
 // import WelcomeTour from '../../components/WelcomeTour'  // removido — agora usamos a página /tutorial acessível pelo painel
 import { useSubscription } from '../../hooks/useSubscription'
+import { useTheme } from '../../hooks/useTheme'
 
 // Chave do localStorage pra marcar que o tour foi dispensado
 const TOUR_DISMISSED_KEY = 'fm_welcome_tour_dismissed_v1'
@@ -31,6 +32,9 @@ export default function AppShell() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const subscription = useSubscription()
+
+  // Aplica o tema específico do app de Finanças (separado da Agenda)
+  useTheme('financas')
   const [data, setData] = useState(null)
   const [activeMonth, setActiveMonth] = useState(getCurrentMonth())
 
