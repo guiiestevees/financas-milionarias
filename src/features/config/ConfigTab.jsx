@@ -71,54 +71,110 @@ function BrandConfig({ brand, updateBrand }) {
 
 
 // ---------- CardsConfig ----------
+// Aceita 2 tipos: 'card' (cartão de crédito) ou 'person' (pessoa a quem devo).
+// Os 2 funcionam igual no painel (fatura, dueDay, check de pago) — mas têm
+// ícones e labels diferentes pra ficar claro o que é o que.
 function CardsConfig({ config, setConfig }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [dueDay, setDueDay] = useState('')
+  const [kind, setKind] = useState('card')  // 'card' | 'person'
 
-  const reset = () => { setName(''); setDueDay(''); setAdding(false) }
+  const reset = () => { setName(''); setDueDay(''); setKind('card'); setAdding(false) }
   const submit = () => {
     const n = name.trim(); if (!n || config.cards.find((c) => c.name === n)) { reset(); return }
     const accent = accentKeys[config.cards.length % accentKeys.length]
-    setConfig({ cards: [...config.cards, { name: n, accent, dueDay: dueDay === '' ? null : Number(dueDay) }], paymentMethods: config.paymentMethods.includes(n) ? config.paymentMethods : [...config.paymentMethods, n] })
+    setConfig({
+      cards: [...config.cards, { name: n, accent, dueDay: dueDay === '' ? null : Number(dueDay), kind }],
+      paymentMethods: config.paymentMethods.includes(n) ? config.paymentMethods : [...config.paymentMethods, n],
+    })
     reset()
   }
 
+  // Helpers visuais por tipo
+  const iconFor = (k) => k === 'person' ? Users : CreditCard
+  const labelFor = (k) => k === 'person' ? 'pessoa' : 'cartão'
+
   return (
     <Card className="p-4 sm:p-6">
-      <SectionTitle icon={CreditCard} title="Cartões" subtitle="Cadastre o dia de vencimento da fatura" accent="cyan" action={<AdderToggle open={adding} onToggle={setAdding} />} />
+      <SectionTitle
+        icon={CreditCard}
+        title="Cartões e pessoas que devo"
+        subtitle="Cadastre cartões com vencimento OU pessoas a quem você deve"
+        accent="cyan"
+        action={<AdderToggle open={adding} onToggle={setAdding} />}
+      />
       {adding && (
-        <AdderShell accent="cyan" title="Novo cartão">
-          <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cartão (ex: Safra, Nubank)"
+        <AdderShell accent="cyan" title={`Novo ${labelFor(kind)}`}>
+          {/* Toggle tipo: cartão ou pessoa */}
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-medium)' }}>
+            <button
+              onClick={() => setKind('card')}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition"
+              style={{
+                background: kind === 'card' ? accents.cyan.soft : 'transparent',
+                color: kind === 'card' ? accents.cyan.hex : 'var(--text-tertiary)',
+                border: `1px solid ${kind === 'card' ? accents.cyan.hex + '50' : 'transparent'}`,
+              }}
+            >
+              <CreditCard size={13} /> Cartão
+            </button>
+            <button
+              onClick={() => setKind('person')}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition"
+              style={{
+                background: kind === 'person' ? accents.amber.soft : 'transparent',
+                color: kind === 'person' ? accents.amber.hex : 'var(--text-tertiary)',
+                border: `1px solid ${kind === 'person' ? accents.amber.hex + '50' : 'transparent'}`,
+              }}
+            >
+              <Users size={13} /> Pessoa
+            </button>
+          </div>
+
+          <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)}
+            placeholder={kind === 'person' ? 'Nome da pessoa (ex: João, Mãe, Pedro)' : 'Nome do cartão (ex: Safra, Nubank)'}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') reset() }}
             style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
             className="placeholder:text-white/30 focus:border-cyan-400" />
           <div>
-            <div className="text-xs text-white/45 mb-1">Vence dia</div>
+            <div className="text-xs text-white/45 mb-1">
+              {kind === 'person' ? 'Pagar até dia (opcional)' : 'Vence dia'}
+            </div>
             <input type="number" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="ex: 5"
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') reset() }}
               style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', minWidth: 0, borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
               className="placeholder:text-white/30 tabular-nums focus:border-cyan-400" />
           </div>
-          <button onClick={submit} disabled={!name.trim()} style={{ opacity: name.trim() ? 1 : 0.4 }} className="w-full px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition flex items-center justify-center gap-1.5"><Check size={14} /><span className="text-sm">Salvar cartão</span></button>
+          <button onClick={submit} disabled={!name.trim()} style={{ opacity: name.trim() ? 1 : 0.4 }} className="w-full px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition flex items-center justify-center gap-1.5">
+            <Check size={14} /><span className="text-sm">Salvar {labelFor(kind)}</span>
+          </button>
         </AdderShell>
       )}
       <div className="space-y-2">
-        {config.cards.length === 0 && !adding && <Empty text="Nenhum cartão cadastrado" />}
+        {config.cards.length === 0 && !adding && <Empty text="Nenhum cartão ou pessoa cadastrado" />}
         {config.cards.map((c) => {
           const a = accents[c.accent] || accents.cyan
+          const Icon = iconFor(c.kind)
+          const isPerson = c.kind === 'person'
           return (
             <div key={c.name} className="p-3 rounded-lg bg-white/5">
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><CreditCard size={14} /></div>
+                  <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Icon size={14} /></div>
                   <span className="font-medium truncate">{c.name}</span>
+                  {isPerson && (
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full"
+                      style={{ background: 'rgba(245,158,11,0.15)', color: accents.amber.hex }}>
+                      Pessoa
+                    </span>
+                  )}
                 </div>
                 <DeleteIconBtn onClick={() => setConfig({ cards: config.cards.filter((x) => x.name !== c.name), paymentMethods: config.paymentMethods.filter((p) => p !== c.name) })} />
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-white/45">Vence dia</span>
+                  <span className="text-xs text-white/45">{isPerson ? 'Pagar até dia' : 'Vence dia'}</span>
                   <MiniInput type="number" value={c.dueDay ?? ''} onChange={(e) => setConfig({ cards: config.cards.map((x) => x.name === c.name ? { ...x, dueDay: e.target.value === '' ? null : Number(e.target.value) } : x) })} placeholder="—" width={48} />
                 </div>
                 <div className="flex gap-1 shrink-0">

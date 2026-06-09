@@ -43,7 +43,7 @@ function useMonthAggregates(month) {
       const items = minhas.filter((d) => d.paymentMethod === c.name)
       const total = items.reduce((s, d) => s + Number(d.amount || 0), 0)
       const aPagar = items.filter((d) => !d.paid).reduce((s, d) => s + Number(d.amount || 0), 0)
-      return { name: c.name, accent: c.accent, dueDay: c.dueDay ? Number(c.dueDay) : null, total, aPagar, count: items.length, items }
+      return { name: c.name, accent: c.accent, dueDay: c.dueDay ? Number(c.dueDay) : null, kind: c.kind || 'card', total, aPagar, count: items.length, items }
     }).filter((c) => c.count > 0 || c.total > 0)
     const totalCards = byCard.reduce((s, c) => s + c.total, 0)
 
@@ -180,9 +180,13 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
     else setMonth((m) => ({ ...m, despesas: m.despesas.map((d) => ids.includes(d.id) ? { ...d, paid } : d) }))
   }
 
+  // Detecta se tem pelo menos uma pessoa entre os cards
+  const hasPerson = cards.some((c) => c.kind === 'person')
+  const title = hasPerson ? 'Faturas e dívidas pessoais' : 'Faturas dos cartões'
+
   return (
     <Card className="p-4 sm:p-6" accent="violet">
-      <SectionTitle icon={CreditCard} title="Faturas dos cartões" subtitle={totalAPagar > 0 ? `${fmtBRL(totalAPagar)} a pagar` : 'tudo quitado'} accent="violet" />
+      <SectionTitle icon={CreditCard} title={title} subtitle={totalAPagar > 0 ? `${fmtBRL(totalAPagar)} a pagar` : 'tudo quitado'} accent="violet" />
       {cards.length === 0 ? <Empty text="Nenhuma despesa em cartão neste mês" /> : (
         <div className="space-y-3">
           {sorted.map((c) => {
@@ -190,7 +194,12 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
             const isToday = isCurrentMonth && c.dueDay === today && c.aPagar > 0
             const pct = c.total > 0 ? ((c.total - c.aPagar) / c.total) * 100 : 0
             const isPaid = c.aPagar === 0 && c.total > 0
-            const dueMsg = !c.dueDay ? 'sem vencimento cadastrado' : isToday ? `vence HOJE (dia ${c.dueDay})` : `vence dia ${c.dueDay}`
+            const isPerson = c.kind === 'person'
+            const dueMsg = !c.dueDay
+              ? (isPerson ? 'sem prazo definido' : 'sem vencimento cadastrado')
+              : isToday
+                ? (isPerson ? `pagar HOJE (dia ${c.dueDay})` : `vence HOJE (dia ${c.dueDay})`)
+                : (isPerson ? `pagar até dia ${c.dueDay}` : `vence dia ${c.dueDay}`)
             const dueColor = isToday ? 'text-amber-300' : 'text-white/55'
             return (
               <div
@@ -211,10 +220,20 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
 
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><CreditCard size={14} /></div>
+                    <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0">
+                      {c.kind === 'person' ? <Users size={14} /> : <CreditCard size={14} />}
+                    </div>
                     <div className="min-w-0">
                       <div className="font-medium truncate flex items-center gap-2">
                         {c.name}
+                        {c.kind === 'person' && !isPaid && (
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(245,158,11,0.15)', color: accents.amber.hex }}
+                          >
+                            Pessoa
+                          </span>
+                        )}
                         {isPaid && (
                           <span
                             className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
