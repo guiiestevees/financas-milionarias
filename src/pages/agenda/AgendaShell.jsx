@@ -2086,8 +2086,8 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                 height: gridHeight + 8,
               }}
             >
-              {/* Coluna de horas (col 1) */}
-              <div className="relative" style={{ height: gridHeight }}>
+              {/* Coluna de horas (col 1, linha 1) */}
+              <div className="relative" style={{ height: gridHeight, gridRow: 1, gridColumn: 1 }}>
                 {allHours.map((h) => {
                   const top = (h - WEEK_DAY_START_H) * PX_PER_HOUR
                   return (
@@ -2133,25 +2133,26 @@ function WeekPanoramicGrid({ weekDates, weekEvents, analysis, onClickEvent, onJu
                 })}
               </div>
 
-              {/* Colunas dos 7 dias — filhos diretos do grid (cada um ocupa 1 célula da grid) */}
-              {weekDates.map((date) => {
+              {/* Colunas dos 7 dias — filhos diretos do grid (cada um em col 2-8, linha 1) */}
+              {weekDates.map((date, dayIdx) => {
                 const dayStats = analysis.days.find((dd) => dd.date === date)
                 const todayFlag = isToday(date)
                 return (
-                  <DayColumn
-                    key={date}
-                    date={date}
-                    dayStats={dayStats}
-                    todayFlag={todayFlag}
-                    gridHeight={gridHeight}
-                    pxPerHour={PX_PER_HOUR}
-                    colWidth={COL_WIDTH}
-                    onClickEvent={onClickEvent}
-                    onClickEmpty={(time) => onCreate?.(date, time)}
-                    onDragStart={handleDragStart}
-                    draggingEventId={dragging?.event?.id}
-                    isDropTarget={dragging?.targetDate === date}
-                  />
+                  <div key={date} style={{ gridRow: 1, gridColumn: dayIdx + 2, position: 'relative', zIndex: 1 }}>
+                    <DayColumn
+                      date={date}
+                      dayStats={dayStats}
+                      todayFlag={todayFlag}
+                      gridHeight={gridHeight}
+                      pxPerHour={PX_PER_HOUR}
+                      colWidth={COL_WIDTH}
+                      onClickEvent={onClickEvent}
+                      onClickEmpty={(time) => onCreate?.(date, time)}
+                      onDragStart={handleDragStart}
+                      draggingEventId={dragging?.event?.id}
+                      isDropTarget={dragging?.targetDate === date}
+                    />
+                  </div>
                 )
               })}
 
