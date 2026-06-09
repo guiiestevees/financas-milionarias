@@ -154,9 +154,9 @@ export function Header({ brand, updateBrand, monthLabel, activeMonth, onPrev, on
   const hasName = !!brand?.name?.trim()
 
   return (
-    <header className="relative mb-8">
-      {/* AppSwitcher fixo no canto superior direito (não afeta centralização do resto) */}
-      <div className="absolute top-0 right-0 z-10">
+    <header className="mb-8">
+      {/* Linha 1: AppSwitcher alinhado à direita (sem sobrepor o resto) */}
+      <div className="flex justify-end mb-5">
         <AppSwitcher currentApp="financas" />
       </div>
 
