@@ -2813,59 +2813,76 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
         </div>
       </div>
 
-      {/* Form rápido de tarefa avulsa — textarea pra aceitar texto longo */}
+      {/* Form rápido de tarefa avulsa — destacado, label clara */}
       <form
         onSubmit={handleAdd}
-        className="rounded-2xl p-3"
-        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
+        className="rounded-2xl p-3.5"
+        style={{
+          background: 'var(--bg-elev2)',
+          border: `1.5px solid ${newTitle.trim() ? AGENDA_ACCENT + '60' : 'var(--border-soft)'}`,
+          transition: 'border-color 0.15s',
+        }}
       >
-        <div className="flex items-start gap-2">
-          <textarea
-            ref={newTitleRef}
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleAdd(e)
-              }
-            }}
-            placeholder="Ex: Ligar pro contador sobre o IR, comprar café da Lavazza, levar carro pra revisão…"
-            rows={1}
-            className="flex-1 bg-transparent text-sm outline-none px-2 py-2 resize-none"
-            style={{
-              color: 'var(--text-primary)',
-              lineHeight: 1.4,
-              minHeight: 38,
-              maxHeight: 140,
-            }}
-            maxLength={500}
-            onInput={(e) => {
-              // Auto-resize baseado no conteúdo
-              e.target.style.height = 'auto'
-              e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'
-            }}
-          />
+        <label className="text-[10px] uppercase tracking-widest mb-2 block flex items-center gap-1.5"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <span style={{ fontSize: 13 }}>💭</span>
+          Anote uma tarefa
+        </label>
+        <textarea
+          ref={newTitleRef}
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleAdd(e)
+            }
+          }}
+          placeholder="Ex: Ligar pro contador sobre o IR, comprar café da Lavazza…"
+          rows={1}
+          className="w-full bg-transparent outline-none px-1 py-1 resize-none"
+          style={{
+            color: 'var(--text-primary)',
+            lineHeight: 1.45,
+            minHeight: 32,
+            maxHeight: 140,
+            fontSize: 15,
+          }}
+          maxLength={500}
+          onInput={(e) => {
+            e.target.style.height = 'auto'
+            e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'
+          }}
+        />
+
+        {/* Linha de ações: importante toggle + botão Adicionar */}
+        <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
           <button
             type="button"
             onClick={() => setImportant((v) => !v)}
-            title={important ? 'Importante (vai pro topo)' : 'Marcar como importante'}
-            className="p-2 rounded-lg transition shrink-0"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
             style={{
-              background: important ? 'rgba(245,158,11,0.15)' : 'var(--bg-elev1)',
+              background: important ? 'rgba(245,158,11,0.15)' : 'transparent',
               color: important ? 'var(--accent-amber)' : 'var(--text-muted)',
+              border: `1px solid ${important ? 'rgba(245,158,11,0.4)' : 'var(--border-soft)'}`,
             }}
           >
-            <Star size={16} fill={important ? 'currentColor' : 'none'} />
+            <Star size={13} fill={important ? 'currentColor' : 'none'} />
+            {important ? 'Importante' : 'Marcar importante'}
           </button>
           <button
             type="submit"
             disabled={!newTitle.trim() || adding}
-            className="px-3 py-2 rounded-lg text-sm font-semibold transition shrink-0 disabled:opacity-50"
-            style={{ background: AGENDA_ACCENT, color: '#fff' }}
-            title="Enter pra adicionar, Shift+Enter pra quebrar linha"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-40"
+            style={{
+              background: newTitle.trim() ? AGENDA_ACCENT : 'var(--bg-elev1)',
+              color: newTitle.trim() ? '#fff' : 'var(--text-muted)',
+              boxShadow: newTitle.trim() ? '0 4px 12px rgba(6,182,212,0.25)' : 'none',
+            }}
           >
             {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            Adicionar
           </button>
         </div>
       </form>
@@ -3571,88 +3588,135 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
         </div>
 
         {!done && !expanded && (
-          <div className="flex items-center gap-0 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Favoritar — fundo amber quando ativo */}
             {onTogglePriority && (
               <button
                 onClick={onTogglePriority}
-                className="p-1.5 rounded-lg transition hover:opacity-70"
-                title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
-                style={{ color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)' }}
+                title={isImportant ? 'Tirar destaque' : 'Favoritar'}
+                className="flex items-center justify-center transition rounded-lg"
+                style={{
+                  width: 34, height: 34,
+                  background: isImportant ? 'rgba(245,158,11,0.18)' : 'transparent',
+                  color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)',
+                  border: `1px solid ${isImportant ? 'rgba(245,158,11,0.35)' : 'transparent'}`,
+                }}
               >
-                <Star size={14} fill={isImportant ? 'currentColor' : 'none'} />
+                <Star size={15} fill={isImportant ? 'currentColor' : 'none'} />
               </button>
             )}
+
+            {/* Agendar — cor da agenda (cyan) sempre visível */}
             {onSchedule && (
               <button
                 onClick={onSchedule}
-                className="p-1.5 rounded-lg transition hover:opacity-70"
                 title="Agendar pra um dia"
-                style={{ color: AGENDA_ACCENT }}
+                className="flex items-center justify-center transition rounded-lg"
+                style={{
+                  width: 34, height: 34,
+                  background: 'rgba(6,182,212,0.12)',
+                  color: AGENDA_ACCENT,
+                  border: '1px solid rgba(6,182,212,0.25)',
+                }}
               >
                 <CalendarPlus size={15} />
               </button>
             )}
-            {((projects && projects.length > 0) || onMoveOut) && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowMove((v) => !v)}
-                  className="p-1.5 rounded-lg transition hover:opacity-70"
-                  title="Mover"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  <Folder size={14} />
-                </button>
-                {showMove && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
-                    <div
-                      className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg overflow-hidden min-w-[180px]"
-                      style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+
+            {/* Menu de mais ações */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMove((v) => !v)}
+                title="Mais opções"
+                className="flex items-center justify-center transition rounded-lg"
+                style={{
+                  width: 34, height: 34,
+                  background: showMove ? 'var(--bg-elev3)' : 'transparent',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <MoreVertical size={15} />
+              </button>
+              {showMove && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
+                  <div
+                    className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[220px]"
+                    style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+                  >
+                    {/* Editar notas */}
+                    {onUpdate && (
+                      <button
+                        onClick={() => { setShowMove(false); setExpanded(true) }}
+                        className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <span className="text-base">📝</span>
+                        <span>Editar / Adicionar notas</span>
+                      </button>
+                    )}
+
+                    {/* Tirar do projeto */}
+                    {onMoveOut && (
+                      <button
+                        onClick={() => { onMoveOut(); setShowMove(false) }}
+                        className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
+                        style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--border-soft)' }}
+                      >
+                        <span className="text-base">📤</span>
+                        <span>Tirar do projeto</span>
+                      </button>
+                    )}
+
+                    {/* Mover pra outro projeto */}
+                    {projects && projects.length > 0 && (
+                      <>
+                        <div className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider"
+                          style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border-soft)' }}>
+                          Mover pra projeto
+                        </div>
+                        {projects.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
+                            className="w-full text-left px-3 py-2 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            <Folder size={13} style={{ color: `var(--accent-${p.color})` }} />
+                            {p.icon && <span>{p.icon}</span>}
+                            <span className="truncate">{p.name}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Apagar */}
+                    <button
+                      onClick={() => { setShowMove(false); onDelete?.() }}
+                      className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-rose-500/10 flex items-center gap-2.5"
+                      style={{ color: 'var(--accent-rose)', borderTop: '1px solid var(--border-soft)' }}
                     >
-                      {onMoveOut && (
-                        <button
-                          onClick={() => { onMoveOut(); setShowMove(false) }}
-                          className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
-                          style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-soft)' }}
-                        >
-                          <span>📤</span> Tirar do projeto
-                        </button>
-                      )}
-                      {projects && projects.length > 0 && (
-                        <>
-                          <div className="px-3 py-1.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                            Mover para:
-                          </div>
-                          {projects.map((p) => (
-                            <button
-                              key={p.id}
-                              onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
-                              className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
-                              style={{ color: 'var(--text-primary)' }}
-                            >
-                              <Folder size={11} style={{ color: `var(--accent-${p.color})` }} />
-                              {p.icon && <span>{p.icon}</span>}
-                              <span className="truncate">{p.name}</span>
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                      <Trash2 size={13} />
+                      <span>Apagar tarefa</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
-        <button
-          onClick={onDelete}
-          className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
-          title="Apagar"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <Trash2 size={14} />
-        </button>
+        {/* Quando feita ou expandida: só apagar */}
+        {(done || expanded) && (
+          <button
+            onClick={onDelete}
+            className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+            title="Apagar"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
 
       {/* ===== Modo expandido: editar título + notas ===== */}
