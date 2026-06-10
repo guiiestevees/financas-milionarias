@@ -2759,6 +2759,7 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
   const [newTitle, setNewTitle] = useState('')
   const [important, setImportant] = useState(false)
   const [newTagIds, setNewTagIds] = useState([])  // tags marcadas no form de criar tarefa
+  const [newProjectId, setNewProjectId] = useState(null)  // projeto selecionado (null = avulsa)
   const [adding, setAdding] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [showProjectForm, setShowProjectForm] = useState(false)
@@ -2801,10 +2802,16 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
     if (!title) return
     setAdding(true)
     try {
-      await createTask({ title, priority: important, tags: newTagIds })
+      await createTask({
+        title,
+        priority: important,
+        tags: newTagIds,
+        project_id: newProjectId,
+      })
       setNewTitle('')
       setImportant(false)
       setNewTagIds([])
+      setNewProjectId(null)
       // Reseta altura do textarea (escapa do auto-resize)
       if (newTitleRef.current) newTitleRef.current.style.height = 'auto'
     } catch (err) {
@@ -2875,27 +2882,101 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
           }}
         />
 
-        {/* Etiquetas marcadas no form atual — mostra só as selecionadas como preview */}
-        {tags && tags.length > 0 && newTagIds.length > 0 && (
-          <div className="mt-2.5 pt-2.5 border-t flex flex-wrap items-center gap-1.5" style={{ borderColor: 'var(--border-soft)' }}>
-            <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              Marcadas:
-            </span>
-            {newTagIds.map((id) => {
-              const tg = tags.find((t) => t.id === id)
-              if (!tg) return null
-              return (
-                <span key={id}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                  style={{
-                    background: `var(--accent-${tg.color || 'cyan'})20`,
-                    color: `var(--accent-${tg.color || 'cyan'})`,
-                  }}
-                >
-                  {tg.name}
+        {/* Etiquetas disponíveis pra marcar nessa tarefa */}
+        {tags && tags.length > 0 && (
+          <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+            <div className="text-[10px] uppercase tracking-widest mb-1.5 flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
+              <span>🏷️ Etiquetas</span>
+              {newTagIds.length > 0 && (
+                <span className="normal-case tracking-normal" style={{ color: 'var(--text-tertiary)' }}>
+                  {newTagIds.length} marcada{newTagIds.length > 1 ? 's' : ''}
                 </span>
-              )
-            })}
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tg) => {
+                const checked = newTagIds.includes(tg.id)
+                return (
+                  <button
+                    key={tg.id}
+                    type="button"
+                    onClick={() => setNewTagIds((ids) => checked ? ids.filter((x) => x !== tg.id) : [...ids, tg.id])}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition"
+                    style={{
+                      fontSize: 12,
+                      background: checked ? `var(--accent-${tg.color || 'cyan'})20` : 'var(--bg-elev1)',
+                      color: checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--text-secondary)',
+                      border: `1px solid ${checked ? `var(--accent-${tg.color || 'cyan'})60` : 'var(--border-soft)'}`,
+                      fontWeight: checked ? 600 : 400,
+                    }}
+                  >
+                    <span
+                      className="flex items-center justify-center rounded"
+                      style={{
+                        width: 13, height: 13,
+                        background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
+                        border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
+                      }}
+                    >
+                      {checked && <Check size={8} color="#fff" strokeWidth={3} />}
+                    </span>
+                    {tg.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Onde a tarefa vai: avulsa ou dentro de um projeto */}
+        {projects && projects.length > 0 && (
+          <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+            <div className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              📂 Onde colocar?
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {/* Avulsa (sem projeto) */}
+              <button
+                type="button"
+                onClick={() => setNewProjectId(null)}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition"
+                style={{
+                  fontSize: 12,
+                  background: newProjectId === null ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
+                  color: newProjectId === null ? AGENDA_ACCENT : 'var(--text-secondary)',
+                  border: `1px solid ${newProjectId === null ? 'rgba(6,182,212,0.5)' : 'var(--border-soft)'}`,
+                  fontWeight: newProjectId === null ? 600 : 400,
+                }}
+              >
+                <span style={{ fontSize: 11 }}>📋</span>
+                Avulsa
+              </button>
+              {projects.map((p) => {
+                const selected = newProjectId === p.id
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setNewProjectId(p.id)}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition"
+                    style={{
+                      fontSize: 12,
+                      background: selected ? `var(--accent-${p.color || 'cyan'})20` : 'var(--bg-elev1)',
+                      color: selected ? `var(--accent-${p.color || 'cyan'})` : 'var(--text-secondary)',
+                      border: `1px solid ${selected ? `var(--accent-${p.color || 'cyan'})60` : 'var(--border-soft)'}`,
+                      fontWeight: selected ? 600 : 400,
+                    }}
+                  >
+                    {p.icon ? (
+                      <span style={{ fontSize: 11 }}>{p.icon}</span>
+                    ) : (
+                      <Folder size={11} style={{ color: `var(--accent-${p.color || 'cyan'})` }} />
+                    )}
+                    {p.name}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 
