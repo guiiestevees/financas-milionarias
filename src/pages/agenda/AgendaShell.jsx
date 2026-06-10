@@ -4090,14 +4090,14 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
               </div>
             )}
             <div
-              className="text-sm"
               style={{
                 color: 'var(--text-primary)',
                 textDecoration: done ? 'line-through' : 'none',
-                fontWeight: 400,
+                fontWeight: 500,
+                fontSize: 16,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
-                lineHeight: 1.4,
+                lineHeight: 1.35,
               }}
             >
               {task.title}
@@ -4136,8 +4136,9 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
       </div>
 
       {/* ===== Barra de ações: 3 botões — Etiqueta / Agendar / Excluir ===== */}
+      {/* Tamanho discreto pra o título dominar visualmente */}
       {!done && !expanded && (
-        <div className="grid grid-cols-3 gap-2 px-3 pb-3 -mt-0.5">
+        <div className="grid grid-cols-3 gap-1.5 px-3 pb-2.5 -mt-0.5">
           {/* Etiqueta — popover com checkboxes */}
           <div className="relative">
             <button
@@ -4146,15 +4147,17 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
                 setShowTagPicker((v) => !v)
               }}
               disabled={!onUpdate || !allTags || allTags.length === 0}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition text-sm font-medium disabled:opacity-40"
+              className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg transition font-medium disabled:opacity-40"
               style={{
+                fontSize: 12,
+                minHeight: 32,
                 background: taskTags.length > 0 ? 'rgba(139,92,246,0.15)' : 'var(--bg-elev1)',
                 color: taskTags.length > 0 ? 'var(--accent-violet)' : 'var(--text-secondary)',
                 border: `1px solid ${taskTags.length > 0 ? 'rgba(139,92,246,0.4)' : 'var(--border-soft)'}`,
               }}
               title={!allTags || allTags.length === 0 ? 'Crie etiquetas no topo da aba' : ''}
             >
-              <span style={{ fontSize: 14 }}>🏷️</span>
+              <span style={{ fontSize: 12 }}>🏷️</span>
               <span>Etiqueta{taskTags.length > 0 ? ` · ${taskTags.length}` : ''}</span>
             </button>
             {showTagPicker && allTags && allTags.length > 0 && (
@@ -4205,28 +4208,32 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
           <button
             onClick={onSchedule}
             disabled={!onSchedule}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition text-sm font-medium disabled:opacity-40"
+            className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg transition font-medium disabled:opacity-40"
             style={{
+              fontSize: 12,
+              minHeight: 32,
               background: 'rgba(6,182,212,0.15)',
               color: AGENDA_ACCENT,
               border: '1px solid rgba(6,182,212,0.4)',
             }}
           >
-            <CalendarPlus size={14} />
+            <CalendarPlus size={12} />
             <span>Agendar</span>
           </button>
 
           {/* Excluir (2 cliques pra confirmar) */}
           <button
             onClick={handleDeleteClick}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition text-sm font-medium"
+            className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg transition font-medium"
             style={{
+              fontSize: 12,
+              minHeight: 32,
               background: confirmDelete ? 'var(--accent-rose)' : 'rgba(244,63,94,0.10)',
               color: confirmDelete ? '#fff' : 'var(--accent-rose)',
               border: `1px solid ${confirmDelete ? 'var(--accent-rose)' : 'rgba(244,63,94,0.30)'}`,
             }}
           >
-            <Trash2 size={14} />
+            <Trash2 size={12} />
             <span>{confirmDelete ? 'Confirmar?' : 'Excluir'}</span>
           </button>
         </div>
