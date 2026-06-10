@@ -3246,15 +3246,17 @@ function TagManager({ tags, onCreate, onUpdate, onDelete, onClose }) {
               <div className="flex gap-1.5 flex-wrap">
                 {COLORS.map((c) => (
                   <button
-                    key={c.key}
+                    key={c.id}
                     type="button"
-                    onClick={() => setNewColor(c.key)}
-                    className="w-7 h-7 rounded-full transition shrink-0"
+                    onClick={() => setNewColor(c.id)}
+                    title={c.name}
+                    className="w-8 h-8 rounded-full transition shrink-0"
                     style={{
-                      background: c.hex,
-                      outline: newColor === c.key ? `2px solid ${c.hex}` : 'none',
+                      background: `var(--accent-${c.id})`,
+                      outline: newColor === c.id ? `2.5px solid var(--accent-${c.id})` : 'none',
                       outlineOffset: 2,
-                      transform: newColor === c.key ? 'scale(1.1)' : 'scale(1)',
+                      transform: newColor === c.id ? 'scale(1.15)' : 'scale(1)',
+                      boxShadow: newColor === c.id ? `0 0 0 2px var(--bg-elev1)` : 'none',
                     }}
                   />
                 ))}
@@ -3300,14 +3302,17 @@ function TagManager({ tags, onCreate, onUpdate, onDelete, onClose }) {
                         <div className="flex gap-1.5 flex-wrap">
                           {COLORS.map((c) => (
                             <button
-                              key={c.key}
+                              key={c.id}
                               type="button"
-                              onClick={() => setEditing({ ...editing, color: c.key })}
-                              className="w-6 h-6 rounded-full transition shrink-0"
+                              onClick={() => setEditing({ ...editing, color: c.id })}
+                              title={c.name}
+                              className="w-7 h-7 rounded-full transition shrink-0"
                               style={{
-                                background: c.hex,
-                                outline: editing.color === c.key ? `2px solid ${c.hex}` : 'none',
-                                outlineOffset: 1,
+                                background: `var(--accent-${c.id})`,
+                                outline: editing.color === c.id ? `2.5px solid var(--accent-${c.id})` : 'none',
+                                outlineOffset: 2,
+                                transform: editing.color === c.id ? 'scale(1.15)' : 'scale(1)',
+                                boxShadow: editing.color === c.id ? `0 0 0 2px var(--bg-elev1)` : 'none',
                               }}
                             />
                           ))}
@@ -4335,16 +4340,16 @@ function ProjectForm({ project, onSave, onDelete, onClose }) {
             <div className="flex gap-2 mt-1.5 flex-wrap">
               {AGENDA_COLORS.map((c) => (
                 <button
-                  key={c.key}
+                  key={c.id}
                   type="button"
-                  onClick={() => setColor(c.key)}
+                  onClick={() => setColor(c.id)}
                   className="w-8 h-8 rounded-lg transition"
                   style={{
-                    background: `var(--accent-${c.key})`,
-                    border: color === c.key ? '2.5px solid var(--text-primary)' : '2.5px solid transparent',
-                    boxShadow: color === c.key ? `0 0 0 2px var(--bg-elev1)` : 'none',
+                    background: `var(--accent-${c.id})`,
+                    border: color === c.id ? '2.5px solid var(--text-primary)' : '2.5px solid transparent',
+                    boxShadow: color === c.id ? `0 0 0 2px var(--bg-elev1)` : 'none',
                   }}
-                  title={c.label}
+                  title={c.name}
                 />
               ))}
             </div>
