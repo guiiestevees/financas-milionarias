@@ -2839,7 +2839,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
               handleAdd(e)
             }
           }}
-          placeholder="Ex: Ligar pro contador sobre o IR, comprar café da Lavazza…"
+          placeholder="Ex: comprar livro X, agendar reunião com fulano…"
           rows={1}
           className="w-full bg-transparent outline-none px-1 py-1 resize-none"
           style={{
