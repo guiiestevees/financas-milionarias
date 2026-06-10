@@ -2765,6 +2765,18 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
   const [openProjects, setOpenProjects] = useState({})  // { [projectId]: true }
   const [editingProject, setEditingProject] = useState(null)
   const [showTagManager, setShowTagManager] = useState(false)
+  // Etiquetas: estado de colapso lembrado entre sessões
+  const [tagsCollapsed, setTagsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('domus:tags-collapsed') === 'true'
+  })
+  const toggleTagsCollapsed = () => {
+    setTagsCollapsed((v) => {
+      const next = !v
+      try { localStorage.setItem('domus:tags-collapsed', next ? 'true' : 'false') } catch {}
+      return next
+    })
+  }
   const newTitleRef = useRef(null)
 
   // Tarefas avulsas (sem project_id)
@@ -2863,50 +2875,27 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
           }}
         />
 
-        {/* Etiquetas — checkboxes visíveis embaixo do textarea */}
-        {tags && tags.length > 0 && (
-          <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
-            <div className="text-[10px] uppercase tracking-widest mb-1.5 flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
-              <span>Etiquetas</span>
-              <button
-                type="button"
-                onClick={() => setShowTagManager(true)}
-                className="text-[10px] normal-case tracking-normal underline transition hover:opacity-70"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                gerenciar
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tg) => {
-                const checked = newTagIds.includes(tg.id)
-                return (
-                  <button
-                    key={tg.id}
-                    type="button"
-                    onClick={() => setNewTagIds((ids) => checked ? ids.filter((x) => x !== tg.id) : [...ids, tg.id])}
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition"
-                    style={{
-                      background: checked ? `var(--accent-${tg.color || 'cyan'})20` : 'transparent',
-                      color: checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--text-tertiary)',
-                      border: `1px solid ${checked ? `var(--accent-${tg.color || 'cyan'})50` : 'var(--border-soft)'}`,
-                    }}
-                  >
-                    <span
-                      className="flex items-center justify-center rounded"
-                      style={{
-                        width: 14, height: 14,
-                        background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
-                        border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
-                      }}
-                    >
-                      {checked && <Check size={9} color="#fff" strokeWidth={3} />}
-                    </span>
-                    {tg.name}
-                  </button>
-                )
-              })}
-            </div>
+        {/* Etiquetas marcadas no form atual — mostra só as selecionadas como preview */}
+        {tags && tags.length > 0 && newTagIds.length > 0 && (
+          <div className="mt-2.5 pt-2.5 border-t flex flex-wrap items-center gap-1.5" style={{ borderColor: 'var(--border-soft)' }}>
+            <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Marcadas:
+            </span>
+            {newTagIds.map((id) => {
+              const tg = tags.find((t) => t.id === id)
+              if (!tg) return null
+              return (
+                <span key={id}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{
+                    background: `var(--accent-${tg.color || 'cyan'})20`,
+                    color: `var(--accent-${tg.color || 'cyan'})`,
+                  }}
+                >
+                  {tg.name}
+                </span>
+              )
+            })}
           </div>
         )}
 
@@ -2941,32 +2930,109 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
         </div>
       </form>
 
-      {/* Quando o user ainda não criou nenhuma etiqueta — botão pra começar */}
-      {tags && tags.length === 0 && (
+      {/* ====== Seção de Etiquetas — sempre visível, retrátil ====== */}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: 'var(--bg-elev2)',
+          border: '1px solid var(--border-soft)',
+        }}
+      >
+        {/* Cabeçalho clicável — colapsa/expande */}
         <button
-          onClick={() => setShowTagManager(true)}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl transition hover:opacity-90"
-          style={{
-            background: 'var(--bg-elev2)',
-            border: '1px dashed var(--border-medium)',
-            color: 'var(--text-secondary)',
-          }}
+          type="button"
+          onClick={toggleTagsCollapsed}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-white/5"
         >
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
-            style={{ background: 'rgba(6,182,212,0.12)', color: AGENDA_ACCENT }}
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+            style={{ background: 'rgba(6,182,212,0.15)', color: AGENDA_ACCENT }}
           >
-            <span style={{ fontSize: 13 }}>🏷️</span>
+            <span style={{ fontSize: 14 }}>🏷️</span>
           </div>
-          <div className="text-left flex-1">
+          <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Criar etiquetas
+              Etiquetas
+              {tags && tags.length > 0 && (
+                <span className="ml-1.5 font-normal" style={{ color: 'var(--text-tertiary)' }}>
+                  · {tags.length}
+                </span>
+              )}
             </div>
             <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-              Categorize suas tarefas (Trabalho, Casa, Estudo…)
+              {tags && tags.length === 0
+                ? 'Toque pra criar — categorize suas tarefas'
+                : (tagsCollapsed
+                    ? 'Toque pra mostrar e marcar nas tarefas'
+                    : 'Marque embaixo pra aplicar na próxima tarefa')
+              }
             </div>
           </div>
+          <ChevronDown
+            size={18}
+            style={{
+              color: 'var(--text-muted)',
+              transform: tagsCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+              transition: 'transform 0.2s',
+            }}
+          />
         </button>
-      )}
+
+        {/* Corpo expandido: chips de etiquetas + botão Gerenciar */}
+        {!tagsCollapsed && (
+          <div className="px-3.5 pb-3.5 pt-1 space-y-2.5" style={{ borderTop: '1px solid var(--border-soft)' }}>
+            {tags && tags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 pt-2.5">
+                {tags.map((tg) => {
+                  const checked = newTagIds.includes(tg.id)
+                  return (
+                    <button
+                      key={tg.id}
+                      type="button"
+                      onClick={() => setNewTagIds((ids) => checked ? ids.filter((x) => x !== tg.id) : [...ids, tg.id])}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition"
+                      style={{
+                        background: checked ? `var(--accent-${tg.color || 'cyan'})20` : 'var(--bg-elev1)',
+                        color: checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--text-secondary)',
+                        border: `1px solid ${checked ? `var(--accent-${tg.color || 'cyan'})60` : 'var(--border-soft)'}`,
+                      }}
+                    >
+                      <span
+                        className="flex items-center justify-center rounded"
+                        style={{
+                          width: 14, height: 14,
+                          background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
+                          border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
+                        }}
+                      >
+                        {checked && <Check size={9} color="#fff" strokeWidth={3} />}
+                      </span>
+                      {tg.name}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-center py-2" style={{ color: 'var(--text-tertiary)' }}>
+                Você ainda não tem etiquetas. Clique no botão abaixo pra criar a primeira.
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowTagManager(true)}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition hover:opacity-90"
+              style={{
+                background: 'var(--bg-elev1)',
+                border: '1px dashed var(--border-medium)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <Plus size={14} />
+              {tags && tags.length > 0 ? 'Criar / editar etiquetas' : 'Criar primeira etiqueta'}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Botão criar projeto */}
       <button
@@ -4009,126 +4075,7 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
           </button>
         </div>
 
-        {!done && !expanded && (
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Favoritar — Star simples (fundo âmbar quando ativo) */}
-            {onTogglePriority && (
-              <button
-                onClick={onTogglePriority}
-                title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
-                className="flex items-center justify-center transition rounded-lg"
-                style={{
-                  width: 34, height: 34,
-                  background: isImportant ? 'rgba(245,158,11,0.18)' : 'transparent',
-                  color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)',
-                  border: `1px solid ${isImportant ? 'rgba(245,158,11,0.35)' : 'transparent'}`,
-                }}
-              >
-                <Star size={15} fill={isImportant ? 'currentColor' : 'none'} />
-              </button>
-            )}
-
-            {/* Agendar — cor da agenda (cyan) sempre visível */}
-            {onSchedule && (
-              <button
-                onClick={onSchedule}
-                title="Agendar pra um dia"
-                className="flex items-center justify-center transition rounded-lg"
-                style={{
-                  width: 34, height: 34,
-                  background: 'rgba(6,182,212,0.12)',
-                  color: AGENDA_ACCENT,
-                  border: '1px solid rgba(6,182,212,0.25)',
-                }}
-              >
-                <CalendarPlus size={15} />
-              </button>
-            )}
-
-            {/* Menu de mais ações */}
-            <div className="relative">
-              <button
-                onClick={() => setShowMove((v) => !v)}
-                title="Mais opções"
-                className="flex items-center justify-center transition rounded-lg"
-                style={{
-                  width: 34, height: 34,
-                  background: showMove ? 'var(--bg-elev3)' : 'transparent',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <MoreVertical size={15} />
-              </button>
-              {showMove && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
-                  <div
-                    className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[220px]"
-                    style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
-                  >
-                    {/* Editar notas */}
-                    {onUpdate && (
-                      <button
-                        onClick={() => { setShowMove(false); setExpanded(true) }}
-                        className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        <span className="text-base">📝</span>
-                        <span>Editar / Adicionar notas</span>
-                      </button>
-                    )}
-
-                    {/* Tirar do projeto */}
-                    {onMoveOut && (
-                      <button
-                        onClick={() => { onMoveOut(); setShowMove(false) }}
-                        className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                        style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--border-soft)' }}
-                      >
-                        <span className="text-base">📤</span>
-                        <span>Tirar do projeto</span>
-                      </button>
-                    )}
-
-                    {/* Mover pra outro projeto */}
-                    {projects && projects.length > 0 && (
-                      <>
-                        <div className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider"
-                          style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border-soft)' }}>
-                          Mover pra projeto
-                        </div>
-                        {projects.map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
-                            className="w-full text-left px-3 py-2 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                            style={{ color: 'var(--text-primary)' }}
-                          >
-                            <Folder size={13} style={{ color: `var(--accent-${p.color})` }} />
-                            {p.icon && <span>{p.icon}</span>}
-                            <span className="truncate">{p.name}</span>
-                          </button>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Apagar */}
-                    <button
-                      onClick={() => { setShowMove(false); onDelete?.() }}
-                      className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-rose-500/10 flex items-center gap-2.5"
-                      style={{ color: 'var(--accent-rose)', borderTop: '1px solid var(--border-soft)' }}
-                    >
-                      <Trash2 size={13} />
-                      <span>Apagar tarefa</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Quando feita ou expandida: só apagar */}
+        {/* Quando feita ou expandida: ícone de delete no canto */}
         {(done || expanded) && (
           <button
             onClick={onDelete}
@@ -4140,6 +4087,131 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
           </button>
         )}
       </div>
+
+      {/* ===== Barra de ações com label visível (sempre embaixo do título) ===== */}
+      {!done && !expanded && (
+        <div className="flex items-center gap-1.5 px-3 pb-2.5 -mt-1 flex-wrap">
+          {/* Favoritar */}
+          {onTogglePriority && (
+            <button
+              onClick={onTogglePriority}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+              style={{
+                background: isImportant ? 'rgba(245,158,11,0.18)' : 'var(--bg-elev1)',
+                color: isImportant ? 'var(--accent-amber)' : 'var(--text-secondary)',
+                border: `1px solid ${isImportant ? 'rgba(245,158,11,0.4)' : 'var(--border-soft)'}`,
+              }}
+            >
+              <Star size={13} fill={isImportant ? 'currentColor' : 'none'} />
+              {isImportant ? 'Importante' : 'Favoritar'}
+            </button>
+          )}
+
+          {/* Agendar */}
+          {onSchedule && (
+            <button
+              onClick={onSchedule}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+              style={{
+                background: 'rgba(6,182,212,0.15)',
+                color: AGENDA_ACCENT,
+                border: '1px solid rgba(6,182,212,0.35)',
+              }}
+            >
+              <CalendarPlus size={13} />
+              Agendar
+            </button>
+          )}
+
+          {/* Editar / Notas */}
+          {onUpdate && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+              style={{
+                background: hasNotes ? 'rgba(139,92,246,0.12)' : 'var(--bg-elev1)',
+                color: hasNotes ? 'var(--accent-violet)' : 'var(--text-secondary)',
+                border: `1px solid ${hasNotes ? 'rgba(139,92,246,0.30)' : 'var(--border-soft)'}`,
+              }}
+            >
+              <span style={{ fontSize: 12 }}>📝</span>
+              {hasNotes ? 'Notas' : 'Adicionar nota'}
+            </button>
+          )}
+
+          {/* Mais ações */}
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setShowMove((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+              style={{
+                background: showMove ? 'var(--bg-elev3)' : 'var(--bg-elev1)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-soft)',
+              }}
+            >
+              <MoreVertical size={13} />
+              Mais
+            </button>
+            {showMove && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
+                <div
+                  className="absolute right-0 bottom-full mb-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[220px]"
+                  style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+                >
+                  {/* Tirar do projeto */}
+                  {onMoveOut && (
+                    <button
+                      onClick={() => { onMoveOut(); setShowMove(false) }}
+                      className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      <span className="text-base">📤</span>
+                      <span>Tirar do projeto</span>
+                    </button>
+                  )}
+
+                  {/* Mover pra outro projeto */}
+                  {projects && projects.length > 0 && (
+                    <>
+                      <div className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider"
+                        style={{
+                          color: 'var(--text-muted)',
+                          borderTop: onMoveOut ? '1px solid var(--border-soft)' : 'none',
+                        }}>
+                        Mover pra projeto
+                      </div>
+                      {projects.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
+                          className="w-full text-left px-3 py-2 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          <Folder size={13} style={{ color: `var(--accent-${p.color})` }} />
+                          {p.icon && <span>{p.icon}</span>}
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Apagar */}
+                  <button
+                    onClick={() => { setShowMove(false); onDelete?.() }}
+                    className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-rose-500/10 flex items-center gap-2.5"
+                    style={{ color: 'var(--accent-rose)', borderTop: '1px solid var(--border-soft)' }}
+                  >
+                    <Trash2 size={13} />
+                    <span>Apagar tarefa</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ===== Modo expandido: editar título + notas ===== */}
       {expanded && !done && (
