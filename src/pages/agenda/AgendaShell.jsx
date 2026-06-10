@@ -1239,21 +1239,22 @@ function DayCompletedCelebration({ onDismiss }) {
 // se reabrir o mesmo dia, sequência diferente em dias diferentes)
 // ============================================================
 const REFLECTIONS = [
-  'Qual a tarefa de hoje que mais me aproxima da realidade que eu quero viver?',
-  'Se eu fosse uma pessoa com permissão alta e sem bloqueios pra enriquecer, qual seria a principal atividade do meu dia?',
+  'Qual a tarefa que posso fazer hoje que mais me aproxima da realidade que eu quero viver?',
+  'Se eu fosse uma pessoa com permissão alta e sem bloqueios pra prosperar, qual seria a principal atividade do meu dia?',
   'Qual atividade estou adiando hoje que vai me levar pro próximo nível?',
-  'Se eu pudesse fazer apenas UMA coisa hoje que me orgulharia amanhã, qual seria?',
+  'Se eu pudesse fazer apenas UMA única coisa hoje que mais traria resultados, qual seria?',
   'O que estou evitando fazer hoje porque tenho medo de errar?',
   'Qual ação de hoje me aproxima do meu objetivo financeiro de longo prazo?',
-  'Se a versão de mim daqui a 5 anos me visse agora, o que ela me pediria pra priorizar hoje?',
-  'Qual o menor passo que posso dar hoje em direção ao que mais importa pra mim?',
-  'O que pode esperar — e o que NÃO pode esperar mais um dia?',
+  'Estou focando em tarefas que geram riqueza ou apenas em tarefas que me deixam ocupado?',
+  'Qual tarefa eu estou adiando porque exige coragem, exposição ou decisão? Mas que vai me ajudar a prosperar.',
+  'Estou construindo algo escalável ou apenas criando mais trabalho para mim mesmo?',
   'Se eu tivesse 1 hora de foco total hoje, em que eu aplicaria essa hora?',
-  'Qual relacionamento (pessoal ou profissional) merece um investimento meu hoje?',
-  'Que hábito eu fortaleço se completar essa tarefa que tô adiando?',
+  'O que eu posso delegar, automatizar ou eliminar hoje?',
+  'O que meu "eu mais rico e disciplinado" consideraria a atividade mais importante de hoje?',
   'Qual a tarefa que parece pequena, mas tem um impacto desproporcional?',
-  'O que estou fazendo hoje que o meu eu de 30 dias atrás não fazia?',
-  'Se eu encerrasse o dia agora, eu olharia pra trás com orgulho ou com vergonha?',
+  'Quais são as 3 tarefas essenciais de hoje, em ordem de prioridade?',
+  'Qual ação de hoje têm maior chance de colocar dinheiro no meu bolso de forma recorrente e escalar?',
+  'Qual tarefa é desconfortável, mas pode mudar o jogo?',
 ]
 
 // Hash determinístico simples — mesma date sempre gera mesma sequência
@@ -1371,21 +1372,22 @@ function DailyReflection({ date }) {
 // pra usar na aba Semana. Mesma estrutura visual da DailyReflection.
 // ============================================================
 const WEEKLY_REFLECTIONS = [
-  'Qual a tarefa principal dessa semana que vai me aproximar mais da realidade que eu quero viver?',
+  'Se todas as profissões e negócios recebessem o mesmo salário, qual trabalho eu teria?',
   'Que ação consistente, repetida nos próximos 7 dias, mudaria meu jogo financeiro?',
-  'Se essa semana fosse a primeira de uma nova versão minha, o que ela faria diferente?',
-  'Qual decisão estou adiando há semanas que precisa ser tomada agora?',
-  'Que oportunidade de crescimento eu estou ignorando por estar ocupado com o trivial?',
-  'Como eu posso multiplicar o resultado dessa semana — em vez de só somar?',
-  'Qual hábito eu vou construir essa semana que meu eu de 1 ano à frente vai me agradecer?',
-  'Qual conversa importante (com cliente, sócio, mentor, parceiro) eu preciso ter essa semana?',
-  'Se eu pudesse aplicar dinheiro em UMA coisa que multiplicaria meus retornos, qual seria?',
-  'Que medo está me impedindo de cobrar mais caro, propor mais ou pedir o que mereço?',
-  'O que eu posso aprender essa semana que me posiciona pra ganhar mais nos próximos anos?',
-  'Qual conexão estratégica (networking) eu vou priorizar nos próximos 7 dias?',
-  'O que estou fazendo por hábito que não me serve mais e devia parar?',
-  'Se eu fosse cobrar de mim mesmo o nível de performance que cobro dos outros, o que mudaria?',
-  'Qual movimento financeiro inteligente eu poderia fazer essa semana — investir, renegociar, cortar, ou pedir aumento?',
+  'Se essa semana o meu eu mais rico e próspero estivesse no comando, o que ele faria?',
+  'Se eu só pudesse conquistar uma coisa nesta semana, o que mais mudaria meu jogo?',
+  'Que oportunidade de crescimento eu estou ignorando por falta de permissão?',
+  'O que eu posso criar uma vez e vender muitas vezes depois?',
+  'Qual tarefa eu chamo de "estratégia", mas na verdade é procrastinação disfarçada?',
+  'Quais são as 3 prioridades reais da semana?',
+  'Qual atitude simples que posso fazer e gerar resultados extraordinários?',
+  'O que eu posso construir nesta semana que continuará me trazendo resultado depois que estiver pronto?',
+  'Se eu soubesse que ninguém iria me julgar, qual ação eu teria coragem de tomar?',
+  'Se eu tivesse certeza de que daria certo, qual projeto eu começaria ou aceleraria agora?',
+  'Se eu não tivesse medo de receber um "não", quem eu chamaria para conversar?',
+  'Que tipo de parceria posso fazer que alavancaria meus negócios?',
+  'Qual decisão o meu eu milionário acharia óbvia, mas eu ainda estou adiando?',
+  'Onde eu estou sendo ambicioso em pensamento, mas tímido na execução?',
 ]
 
 function WeeklyReflection({ weekSeed }) {
