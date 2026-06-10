@@ -3925,8 +3925,14 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
     <div
       className="rounded-xl transition relative"
       style={{
-        background: isImportant ? 'rgba(245,158,11,0.06)' : 'var(--bg-elev2)',
-        border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')}`,
+        background: taskTags.length > 0
+          ? getColorTint(taskTags[0].color, 'bg')
+          : (isImportant ? 'rgba(245,158,11,0.10)' : 'var(--bg-elev2)'),
+        border: `1px solid ${
+          taskTags.length > 0
+            ? getColorTint(taskTags[0].color, 'border')
+            : (isImportant ? 'rgba(245,158,11,0.30)' : (expanded ? 'var(--border-medium)' : 'var(--border-soft)'))
+        }`,
         opacity: done ? 0.55 : 1,
       }}
     >
