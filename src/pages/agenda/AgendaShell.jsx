@@ -3965,11 +3965,29 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
   const taskTags = (allTags || []).filter((t) => taskTagIds.includes(t.id))
   const [showMove, setShowMove] = useState(false)
   const [showTagPicker, setShowTagPicker] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title || '')
   const [editNotes, setEditNotes] = useState(task.notes || '')
   const [editTagIds, setEditTagIds] = useState(taskTagIds)
   const [saving, setSaving] = useState(false)
+
+  // Confirma exclusão em 2 cliques (sem dialog feio do navegador)
+  // Clique 1: botão vira "Confirmar?" por 3 segundos
+  // Clique 2: deleta de fato
+  useEffect(() => {
+    if (!confirmDelete) return
+    const id = setTimeout(() => setConfirmDelete(false), 3000)
+    return () => clearTimeout(id)
+  }, [confirmDelete])
+
+  const handleDeleteClick = () => {
+    if (confirmDelete) {
+      onDelete?.()
+    } else {
+      setConfirmDelete(true)
+    }
+  }
 
   // Toggle de uma tag direto (salva imediatamente, sem precisar de modo expandido)
   const toggleTag = async (tagId) => {
@@ -4117,175 +4135,100 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
         )}
       </div>
 
-      {/* ===== Barra de ações com label visível (sempre embaixo do título) ===== */}
+      {/* ===== Barra de ações: 3 botões — Etiqueta / Agendar / Excluir ===== */}
       {!done && !expanded && (
-        <div className="flex items-center gap-1.5 px-3 pb-2.5 -mt-1 flex-wrap">
-          {/* Etiquetas — popover com checkboxes */}
-          {onUpdate && (
-            <div className="relative">
-              <button
-                onClick={() => {
-                  if (allTags && allTags.length === 0) {
-                    // Sem etiquetas cadastradas — não tem o que mostrar
-                    return
-                  }
-                  setShowTagPicker((v) => !v)
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
-                style={{
-                  background: taskTags.length > 0 ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
-                  color: taskTags.length > 0 ? AGENDA_ACCENT : 'var(--text-secondary)',
-                  border: `1px solid ${taskTags.length > 0 ? 'rgba(6,182,212,0.35)' : 'var(--border-soft)'}`,
-                }}
-                title={!allTags || allTags.length === 0 ? 'Crie etiquetas no topo da aba' : ''}
-              >
-                <span style={{ fontSize: 12 }}>🏷️</span>
-                {taskTags.length > 0 ? `Etiquetas · ${taskTags.length}` : 'Adicionar etiqueta'}
-              </button>
-              {showTagPicker && allTags && allTags.length > 0 && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowTagPicker(false)} />
-                  <div
-                    className="absolute left-0 bottom-full mb-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[200px] p-2"
-                    style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
-                  >
-                    <div className="text-[9px] uppercase tracking-wider mb-1.5 px-1"
-                      style={{ color: 'var(--text-muted)' }}>
-                      Etiquetas
-                    </div>
-                    <div className="flex flex-col gap-1 max-h-[200px] overflow-y-auto">
-                      {allTags.map((tg) => {
-                        const checked = taskTagIds.includes(tg.id)
-                        return (
-                          <button
-                            key={tg.id}
-                            onClick={() => toggleTag(tg.id)}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition hover:bg-white/5 text-left"
-                          >
-                            <span
-                              className="flex items-center justify-center rounded shrink-0"
-                              style={{
-                                width: 16, height: 16,
-                                background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
-                                border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
-                              }}
-                            >
-                              {checked && <Check size={10} color="#fff" strokeWidth={3} />}
-                            </span>
-                            <span className="w-2 h-2 rounded-full shrink-0"
-                              style={{ background: `var(--accent-${tg.color || 'cyan'})` }} />
-                            <span className="flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
-                              {tg.name}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Agendar */}
-          {onSchedule && (
+        <div className="grid grid-cols-3 gap-2 px-3 pb-3 -mt-0.5">
+          {/* Etiqueta — popover com checkboxes */}
+          <div className="relative">
             <button
-              onClick={onSchedule}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
-              style={{
-                background: 'rgba(6,182,212,0.15)',
-                color: AGENDA_ACCENT,
-                border: '1px solid rgba(6,182,212,0.35)',
+              onClick={() => {
+                if (!allTags || allTags.length === 0) return
+                setShowTagPicker((v) => !v)
               }}
-            >
-              <CalendarPlus size={13} />
-              Agendar
-            </button>
-          )}
-
-          {/* Mais ações */}
-          <div className="relative ml-auto">
-            <button
-              onClick={() => setShowMove((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+              disabled={!onUpdate || !allTags || allTags.length === 0}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition text-sm font-medium disabled:opacity-40"
               style={{
-                background: showMove ? 'var(--bg-elev3)' : 'var(--bg-elev1)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-soft)',
+                background: taskTags.length > 0 ? 'rgba(139,92,246,0.15)' : 'var(--bg-elev1)',
+                color: taskTags.length > 0 ? 'var(--accent-violet)' : 'var(--text-secondary)',
+                border: `1px solid ${taskTags.length > 0 ? 'rgba(139,92,246,0.4)' : 'var(--border-soft)'}`,
               }}
+              title={!allTags || allTags.length === 0 ? 'Crie etiquetas no topo da aba' : ''}
             >
-              <MoreVertical size={13} />
-              Mais
+              <span style={{ fontSize: 14 }}>🏷️</span>
+              <span>Etiqueta{taskTags.length > 0 ? ` · ${taskTags.length}` : ''}</span>
             </button>
-            {showMove && (
+            {showTagPicker && allTags && allTags.length > 0 && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
+                <div className="fixed inset-0 z-10" onClick={() => setShowTagPicker(false)} />
                 <div
-                  className="absolute right-0 bottom-full mb-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[220px]"
+                  className="absolute left-0 bottom-full mb-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[220px] p-2"
                   style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
                 >
-                  {/* Editar / notas */}
-                  {onUpdate && (
-                    <button
-                      onClick={() => { setShowMove(false); setExpanded(true) }}
-                      className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      <span className="text-base">📝</span>
-                      <span>{hasNotes ? 'Editar notas' : 'Adicionar nota'}</span>
-                    </button>
-                  )}
-
-                  {/* Tirar do projeto */}
-                  {onMoveOut && (
-                    <button
-                      onClick={() => { onMoveOut(); setShowMove(false) }}
-                      className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                      style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--border-soft)' }}
-                    >
-                      <span className="text-base">📤</span>
-                      <span>Tirar do projeto</span>
-                    </button>
-                  )}
-
-                  {/* Mover pra outro projeto */}
-                  {projects && projects.length > 0 && (
-                    <>
-                      <div className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider"
-                        style={{
-                          color: 'var(--text-muted)',
-                          borderTop: '1px solid var(--border-soft)',
-                        }}>
-                        Mover pra projeto
-                      </div>
-                      {projects.map((p) => (
+                  <div className="text-[9px] uppercase tracking-wider mb-1.5 px-1"
+                    style={{ color: 'var(--text-muted)' }}>
+                    Etiquetas
+                  </div>
+                  <div className="flex flex-col gap-1 max-h-[200px] overflow-y-auto">
+                    {allTags.map((tg) => {
+                      const checked = taskTagIds.includes(tg.id)
+                      return (
                         <button
-                          key={p.id}
-                          onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
-                          className="w-full text-left px-3 py-2 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                          style={{ color: 'var(--text-primary)' }}
+                          key={tg.id}
+                          onClick={() => toggleTag(tg.id)}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition hover:bg-white/5 text-left"
                         >
-                          <Folder size={13} style={{ color: `var(--accent-${p.color})` }} />
-                          {p.icon && <span>{p.icon}</span>}
-                          <span className="truncate">{p.name}</span>
+                          <span
+                            className="flex items-center justify-center rounded shrink-0"
+                            style={{
+                              width: 16, height: 16,
+                              background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
+                              border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
+                            }}
+                          >
+                            {checked && <Check size={10} color="#fff" strokeWidth={3} />}
+                          </span>
+                          <span className="w-2 h-2 rounded-full shrink-0"
+                            style={{ background: `var(--accent-${tg.color || 'cyan'})` }} />
+                          <span className="flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+                            {tg.name}
+                          </span>
                         </button>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Apagar */}
-                  <button
-                    onClick={() => { setShowMove(false); onDelete?.() }}
-                    className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-rose-500/10 flex items-center gap-2.5"
-                    style={{ color: 'var(--accent-rose)', borderTop: '1px solid var(--border-soft)' }}
-                  >
-                    <Trash2 size={13} />
-                    <span>Apagar tarefa</span>
-                  </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </>
             )}
           </div>
+
+          {/* Agendar */}
+          <button
+            onClick={onSchedule}
+            disabled={!onSchedule}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition text-sm font-medium disabled:opacity-40"
+            style={{
+              background: 'rgba(6,182,212,0.15)',
+              color: AGENDA_ACCENT,
+              border: '1px solid rgba(6,182,212,0.4)',
+            }}
+          >
+            <CalendarPlus size={14} />
+            <span>Agendar</span>
+          </button>
+
+          {/* Excluir (2 cliques pra confirmar) */}
+          <button
+            onClick={handleDeleteClick}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition text-sm font-medium"
+            style={{
+              background: confirmDelete ? 'var(--accent-rose)' : 'rgba(244,63,94,0.10)',
+              color: confirmDelete ? '#fff' : 'var(--accent-rose)',
+              border: `1px solid ${confirmDelete ? 'var(--accent-rose)' : 'rgba(244,63,94,0.30)'}`,
+            }}
+          >
+            <Trash2 size={14} />
+            <span>{confirmDelete ? 'Confirmar?' : 'Excluir'}</span>
+          </button>
         </div>
       )}
 
