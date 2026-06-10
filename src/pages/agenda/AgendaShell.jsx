@@ -9,6 +9,7 @@ import {
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
 import { useAgendaProjects } from '../../hooks/useAgendaProjects'
+import { useAgendaTags } from '../../hooks/useAgendaTags'
 import { useAgendaCompletions } from '../../hooks/useAgendaCompletions'
 import { useTheme } from '../../hooks/useTheme'
 import AppSwitcher from '../../components/AppSwitcher'
@@ -50,6 +51,7 @@ export default function AgendaShell() {
 
   const tasksHook = useAgendaTasks()
   const projectsHook = useAgendaProjects()
+  const tagsHook = useAgendaTags()
   const completionsHook = useAgendaCompletions()
 
   // Aplica o tema específico da Agenda (lê 'domus:theme:agenda' do localStorage)
@@ -241,6 +243,7 @@ export default function AgendaShell() {
             )}
             {tab === 'tasks' && (
               <TasksView
+                tagsHook={tagsHook}
                 tasksHook={tasksHook}
                 projectsHook={projectsHook}
                 onSchedule={(task) => setCreating({
@@ -2748,17 +2751,20 @@ function MonthView({ events, refDate, setRefDate, setView }) {
 // ============================================================
 // TASKS VIEW — TODOs sem data + projetos (pastas)
 // ============================================================
-function TasksView({ tasksHook, projectsHook, onSchedule }) {
+function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
   const { pending, completed, loading, error, createTask, toggleTask, deleteTask, updateTask } = tasksHook
   const { projects, createProject, updateProject, deleteProject } = projectsHook
+  const { tags, createTag, updateTag, deleteTag } = tagsHook
 
   const [newTitle, setNewTitle] = useState('')
   const [important, setImportant] = useState(false)
+  const [newTagIds, setNewTagIds] = useState([])  // tags marcadas no form de criar tarefa
   const [adding, setAdding] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [openProjects, setOpenProjects] = useState({})  // { [projectId]: true }
   const [editingProject, setEditingProject] = useState(null)
+  const [showTagManager, setShowTagManager] = useState(false)
   const newTitleRef = useRef(null)
 
   // Tarefas avulsas (sem project_id)
@@ -2783,9 +2789,10 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
     if (!title) return
     setAdding(true)
     try {
-      await createTask({ title, priority: important })
+      await createTask({ title, priority: important, tags: newTagIds })
       setNewTitle('')
       setImportant(false)
+      setNewTagIds([])
       // Reseta altura do textarea (escapa do auto-resize)
       if (newTitleRef.current) newTitleRef.current.style.height = 'auto'
     } catch (err) {
@@ -2856,6 +2863,53 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
           }}
         />
 
+        {/* Etiquetas — checkboxes visíveis embaixo do textarea */}
+        {tags && tags.length > 0 && (
+          <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+            <div className="text-[10px] uppercase tracking-widest mb-1.5 flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
+              <span>Etiquetas</span>
+              <button
+                type="button"
+                onClick={() => setShowTagManager(true)}
+                className="text-[10px] normal-case tracking-normal underline transition hover:opacity-70"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                gerenciar
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tg) => {
+                const checked = newTagIds.includes(tg.id)
+                return (
+                  <button
+                    key={tg.id}
+                    type="button"
+                    onClick={() => setNewTagIds((ids) => checked ? ids.filter((x) => x !== tg.id) : [...ids, tg.id])}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition"
+                    style={{
+                      background: checked ? `var(--accent-${tg.color || 'cyan'})20` : 'transparent',
+                      color: checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--text-tertiary)',
+                      border: `1px solid ${checked ? `var(--accent-${tg.color || 'cyan'})50` : 'var(--border-soft)'}`,
+                    }}
+                  >
+                    <span
+                      className="flex items-center justify-center rounded"
+                      style={{
+                        width: 14, height: 14,
+                        background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
+                        border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
+                      }}
+                    >
+                      {checked && <Check size={9} color="#fff" strokeWidth={3} />}
+                    </span>
+                    {tg.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Linha de ações: importante toggle + botão Adicionar */}
         <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
           <button
@@ -2886,6 +2940,33 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
           </button>
         </div>
       </form>
+
+      {/* Quando o user ainda não criou nenhuma etiqueta — botão pra começar */}
+      {tags && tags.length === 0 && (
+        <button
+          onClick={() => setShowTagManager(true)}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl transition hover:opacity-90"
+          style={{
+            background: 'var(--bg-elev2)',
+            border: '1px dashed var(--border-medium)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+            style={{ background: 'rgba(6,182,212,0.12)', color: AGENDA_ACCENT }}
+          >
+            <span style={{ fontSize: 13 }}>🏷️</span>
+          </div>
+          <div className="text-left flex-1">
+            <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Criar etiquetas
+            </div>
+            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              Categorize suas tarefas (Trabalho, Casa, Estudo…)
+            </div>
+          </div>
+        </button>
+      )}
 
       {/* Botão criar projeto */}
       <button
@@ -2952,6 +3033,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
                     project={p}
                     pendingTasks={tasks.pending}
                     completedTasks={tasks.completed}
+                    allTags={tags}
                     isOpen={isOpen}
                     onToggleOpen={() => setOpenProjects((o) => ({ ...o, [p.id]: !o[p.id] }))}
                     onAddTask={(title, prio) => createTask({ title, priority: prio, project_id: p.id })}
@@ -2979,6 +3061,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
                   key={t.id}
                   task={t}
                   projects={projects}
+                  allTags={tags}
                   onToggle={() => toggleTask(t.id)}
                   onDelete={() => deleteTask(t.id)}
                   onSchedule={() => onSchedule(t)}
@@ -3005,6 +3088,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
                   key={t.id}
                   task={t}
                   projects={projects}
+                  allTags={tags}
                   onToggle={() => toggleTask(t.id)}
                   onDelete={() => deleteTask(t.id)}
                   onSchedule={() => onSchedule(t)}
@@ -3035,6 +3119,268 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
           onClose={() => { setShowProjectForm(false); setEditingProject(null) }}
         />
       )}
+
+      {/* Modal gerenciar etiquetas */}
+      {showTagManager && (
+        <TagManager
+          tags={tags}
+          onCreate={createTag}
+          onUpdate={updateTag}
+          onDelete={deleteTag}
+          onClose={() => setShowTagManager(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// TAG MANAGER — modal pra criar / editar / apagar etiquetas
+// ============================================================
+function TagManager({ tags, onCreate, onUpdate, onDelete, onClose }) {
+  const [newName, setNewName] = useState('')
+  const [newColor, setNewColor] = useState('cyan')
+  const [editing, setEditing] = useState(null)  // tag em edição
+  const [confirmDelete, setConfirmDelete] = useState(null)  // tag id pra confirmar exclusão
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  const handleCreate = async (e) => {
+    e?.preventDefault?.()
+    const name = newName.trim()
+    if (!name) return
+    setSaving(true)
+    try {
+      await onCreate({ name, color: newColor })
+      setNewName('')
+      setNewColor('cyan')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editing || !editing.name.trim()) return
+    setSaving(true)
+    try {
+      await onUpdate(editing.id, { name: editing.name.trim(), color: editing.color })
+      setEditing(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    setSaving(true)
+    try {
+      await onDelete(id)
+      setConfirmDelete(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Lista das cores disponíveis (mesmo set usado em projetos)
+  const COLORS = AGENDA_COLORS
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl"
+        style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-soft)' }}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border-soft)' }}>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl"
+              style={{ background: 'rgba(6,182,212,0.15)', color: AGENDA_ACCENT }}>
+              <span style={{ fontSize: 16 }}>🏷️</span>
+            </div>
+            <div>
+              <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg leading-tight">
+                Etiquetas
+              </h2>
+              <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                Categorize suas tarefas
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg transition hover:opacity-70"
+            style={{ color: 'var(--text-muted)' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Criar nova */}
+          <form onSubmit={handleCreate} className="rounded-xl p-3 space-y-2.5"
+            style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
+          >
+            <div className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Nova etiqueta
+            </div>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Ex: Trabalho, Casa, Estudo, Saúde…"
+              className="w-full bg-transparent outline-none px-2 py-1.5 rounded-lg text-sm"
+              style={{
+                background: 'var(--bg-elev1)',
+                border: '1px solid var(--border-medium)',
+                color: 'var(--text-primary)',
+              }}
+              maxLength={30}
+            />
+            <div>
+              <div className="text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Cor</div>
+              <div className="flex gap-1.5 flex-wrap">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setNewColor(c.key)}
+                    className="w-7 h-7 rounded-full transition shrink-0"
+                    style={{
+                      background: c.hex,
+                      outline: newColor === c.key ? `2px solid ${c.hex}` : 'none',
+                      outlineOffset: 2,
+                      transform: newColor === c.key ? 'scale(1.1)' : 'scale(1)',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={!newName.trim() || saving}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-40"
+              style={{ background: AGENDA_ACCENT, color: '#fff' }}
+            >
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              Criar etiqueta
+            </button>
+          </form>
+
+          {/* Lista existente */}
+          {tags.length > 0 ? (
+            <div>
+              <div className="text-[10px] uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+                Suas etiquetas · {tags.length}
+              </div>
+              <div className="space-y-1.5">
+                {tags.map((tg) => {
+                  if (editing?.id === tg.id) {
+                    return (
+                      <div key={tg.id} className="rounded-lg p-3 space-y-2"
+                        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-medium)' }}
+                      >
+                        <input
+                          type="text"
+                          value={editing.name}
+                          onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                          className="w-full px-2 py-1.5 rounded-lg text-sm outline-none"
+                          style={{
+                            background: 'var(--bg-elev1)',
+                            border: '1px solid var(--border-medium)',
+                            color: 'var(--text-primary)',
+                          }}
+                          maxLength={30}
+                          autoFocus
+                        />
+                        <div className="flex gap-1.5 flex-wrap">
+                          {COLORS.map((c) => (
+                            <button
+                              key={c.key}
+                              type="button"
+                              onClick={() => setEditing({ ...editing, color: c.key })}
+                              className="w-6 h-6 rounded-full transition shrink-0"
+                              style={{
+                                background: c.hex,
+                                outline: editing.color === c.key ? `2px solid ${c.hex}` : 'none',
+                                outlineOffset: 1,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex gap-1.5 justify-end">
+                          <button
+                            onClick={() => setEditing(null)}
+                            disabled={saving}
+                            className="px-2.5 py-1.5 rounded-lg text-xs transition"
+                            style={{ color: 'var(--text-tertiary)', background: 'var(--bg-elev1)' }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={handleSaveEdit}
+                            disabled={!editing.name.trim() || saving}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                            style={{ background: AGENDA_ACCENT, color: '#fff' }}
+                          >
+                            Salvar
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+                  if (confirmDelete === tg.id) {
+                    return (
+                      <div key={tg.id} className="rounded-lg p-3 flex items-center gap-3"
+                        style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.30)' }}
+                      >
+                        <div className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          Apagar "<strong>{tg.name}</strong>"? Tarefas com essa etiqueta vão perdê-la.
+                        </div>
+                        <button onClick={() => setConfirmDelete(null)} disabled={saving}
+                          className="text-xs px-2 py-1 rounded transition" style={{ color: 'var(--text-tertiary)' }}>
+                          Cancelar
+                        </button>
+                        <button onClick={() => handleDelete(tg.id)} disabled={saving}
+                          className="text-xs px-2 py-1 rounded font-semibold transition"
+                          style={{ background: 'var(--accent-rose)', color: '#fff' }}>
+                          Apagar
+                        </button>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={tg.id} className="rounded-lg px-3 py-2.5 flex items-center gap-2.5"
+                      style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
+                    >
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ background: `var(--accent-${tg.color || 'cyan'})` }} />
+                      <div className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                        {tg.name}
+                      </div>
+                      <button onClick={() => setEditing({ ...tg })} className="p-1.5 rounded transition hover:opacity-70"
+                        style={{ color: 'var(--text-muted)' }} title="Editar">
+                        <span style={{ fontSize: 13 }}>✏️</span>
+                      </button>
+                      <button onClick={() => setConfirmDelete(tg.id)} className="p-1.5 rounded transition hover:opacity-70"
+                        style={{ color: 'var(--text-muted)' }} title="Apagar">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Crie sua primeira etiqueta acima ☝️
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -3043,7 +3389,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
 // PROJECT CARD — pasta expandível com tarefas dentro
 // ============================================================
 function ProjectCard({
-  project, pendingTasks, completedTasks, isOpen, onToggleOpen,
+  project, pendingTasks, completedTasks, allTags, isOpen, onToggleOpen,
   onAddTask, onToggleTask, onDeleteTask, onScheduleTask, onTogglePriority,
   onMoveTaskOut, onUpdateTask, onEditProject,
 }) {
@@ -3187,6 +3533,7 @@ function ProjectCard({
               key={t.id}
               task={t}
               insideProject
+              allTags={allTags}
               onToggle={() => onToggleTask(t.id)}
               onDelete={() => onDeleteTask(t.id)}
               onSchedule={() => onScheduleTask(t)}
@@ -3517,33 +3864,29 @@ function QuadrantOption({ active, icon, label, hint, color, onClick }) {
   )
 }
 
-function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule, onTogglePriority, onMoveToProject, onMoveOut, onUpdate }) {
+function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, onSchedule, onTogglePriority, onMoveToProject, onMoveOut, onUpdate }) {
   const done = !!task.completed_at
-  const quadrant = getQuadrant(task.priority)
-  const isUrgent = isUrgentP(task.priority) && !done
-  const isImportant = isImportantP(task.priority) && !done
-  const hasPriority = (isUrgent || isImportant) && !done
+  const isImportant = (Number(task.priority) || 0) >= 1 && !done
   const hasNotes = !!(task.notes && task.notes.trim())
+  // Tags da tarefa (resolvidas pra objetos {id,name,color} usando o catálogo)
+  const taskTagIds = Array.isArray(task.tags) ? task.tags : []
+  const taskTags = (allTags || []).filter((t) => taskTagIds.includes(t.id))
   const [showMove, setShowMove] = useState(false)
-  const [showQuadrant, setShowQuadrant] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title || '')
   const [editNotes, setEditNotes] = useState(task.notes || '')
+  const [editTagIds, setEditTagIds] = useState(taskTagIds)
   const [saving, setSaving] = useState(false)
-
-  // Aplica novo quadrante (urgência/importância) via onUpdate
-  const setQuadrant = (newPriority) => {
-    if (onUpdate) onUpdate({ priority: newPriority })
-    setShowQuadrant(false)
-  }
 
   // Sincroniza valores locais com mudanças externas (ex: reordenação)
   useEffect(() => {
     if (!expanded) {
       setEditTitle(task.title || '')
       setEditNotes(task.notes || '')
+      setEditTagIds(taskTagIds)
     }
-  }, [task.title, task.notes, expanded])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.title, task.notes, expanded, JSON.stringify(taskTagIds)])
 
   const handleSave = async () => {
     const t = editTitle.trim()
@@ -3552,6 +3895,10 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
     if (t !== task.title) patch.title = t
     const newNotes = editNotes.trim() || null
     if (newNotes !== (task.notes || null)) patch.notes = newNotes
+    // Compara tags (ordem-insensível)
+    const oldIds = [...taskTagIds].sort().join(',')
+    const newIds = [...editTagIds].sort().join(',')
+    if (oldIds !== newIds) patch.tags = editTagIds
     if (Object.keys(patch).length === 0) { setExpanded(false); return }
     setSaving(true)
     try {
@@ -3565,6 +3912,7 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
   const handleCancel = () => {
     setEditTitle(task.title || '')
     setEditNotes(task.notes || '')
+    setEditTagIds(taskTagIds)
     setExpanded(false)
   }
 
@@ -3572,8 +3920,8 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
     <div
       className="rounded-xl transition relative"
       style={{
-        background: hasPriority ? quadrant.bg : 'var(--bg-elev2)',
-        border: `1px solid ${hasPriority ? quadrant.border : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')}`,
+        background: isImportant ? 'rgba(245,158,11,0.06)' : 'var(--bg-elev2)',
+        border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')}`,
         opacity: done ? 0.55 : 1,
       }}
     >
@@ -3599,19 +3947,21 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
             disabled={!onUpdate || done}
             style={{ cursor: onUpdate && !done ? 'pointer' : 'default' }}
           >
-            {/* Badge do quadrante acima do título */}
-            {hasPriority && (
-              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold mb-1"
-                style={{
-                  background: quadrant.bg,
-                  color: quadrant.hex,
-                  border: `1px solid ${quadrant.border}`,
-                }}
-              >
-                {quadrant.id === 3 && '🔥'}
-                {quadrant.id === 2 && '⚡'}
-                {quadrant.id === 1 && '⭐'}
-                {quadrant.label}
+            {/* Etiquetas da tarefa */}
+            {taskTags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {taskTags.map((tg) => (
+                  <span key={tg.id}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                    style={{
+                      background: `var(--accent-${tg.color || 'cyan'})20`,
+                      color: `var(--accent-${tg.color || 'cyan'})`,
+                      border: `1px solid var(--accent-${tg.color || 'cyan'})40`,
+                    }}
+                  >
+                    {tg.name}
+                  </span>
+                ))}
               </div>
             )}
             <div
@@ -3619,12 +3969,13 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
               style={{
                 color: 'var(--text-primary)',
                 textDecoration: done ? 'line-through' : 'none',
-                fontWeight: hasPriority ? 600 : 400,
+                fontWeight: isImportant ? 600 : 400,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 lineHeight: 1.4,
               }}
             >
+              {isImportant && <Star size={11} className="inline mr-1 mb-0.5" fill="currentColor" style={{ color: 'var(--accent-amber)' }} />}
               {task.title}
             </div>
             {hasNotes && !expanded && (
@@ -3649,73 +4000,21 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
 
         {!done && !expanded && (
           <div className="flex items-center gap-1 shrink-0">
-            {/* Prioridade — abre seletor de quadrante Eisenhower */}
-            {onUpdate && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowQuadrant((v) => !v)}
-                  title={hasPriority ? `${quadrant.label} — clica pra mudar` : 'Definir prioridade'}
-                  className="flex items-center justify-center transition rounded-lg"
-                  style={{
-                    width: 34, height: 34,
-                    background: hasPriority ? quadrant.bg : 'transparent',
-                    color: hasPriority ? quadrant.hex : 'var(--text-muted)',
-                    border: `1px solid ${hasPriority ? quadrant.border : 'transparent'}`,
-                  }}
-                >
-                  {hasPriority && quadrant.id === 3 && <span style={{ fontSize: 14 }}>🔥</span>}
-                  {hasPriority && quadrant.id === 2 && <span style={{ fontSize: 14 }}>⚡</span>}
-                  {hasPriority && quadrant.id === 1 && <Star size={15} fill="currentColor" />}
-                  {!hasPriority && <Star size={15} fill="none" />}
-                </button>
-                {showQuadrant && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowQuadrant(false)} />
-                    <div
-                      className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[240px]"
-                      style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
-                    >
-                      <div className="px-3 py-2 text-[10px] uppercase tracking-wider"
-                        style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}>
-                        🎯 Matriz de Eisenhower
-                      </div>
-
-                      <QuadrantOption
-                        active={quadrant.id === 3}
-                        icon="🔥"
-                        label="Fazer agora"
-                        hint="Urgente e importante"
-                        color="#f43f5e"
-                        onClick={() => setQuadrant(3)}
-                      />
-                      <QuadrantOption
-                        active={quadrant.id === 1}
-                        icon="⭐"
-                        label="Planejar"
-                        hint="Importante mas não urgente"
-                        color="#06b6d4"
-                        onClick={() => setQuadrant(1)}
-                      />
-                      <QuadrantOption
-                        active={quadrant.id === 2}
-                        icon="⚡"
-                        label="Delegar / Resolver rápido"
-                        hint="Urgente mas não importante"
-                        color="#f59e0b"
-                        onClick={() => setQuadrant(2)}
-                      />
-                      <QuadrantOption
-                        active={quadrant.id === 0}
-                        icon="—"
-                        label="Sem prioridade"
-                        hint="Nem urgente, nem importante"
-                        color="var(--text-muted)"
-                        onClick={() => setQuadrant(0)}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+            {/* Favoritar — Star simples (fundo âmbar quando ativo) */}
+            {onTogglePriority && (
+              <button
+                onClick={onTogglePriority}
+                title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
+                className="flex items-center justify-center transition rounded-lg"
+                style={{
+                  width: 34, height: 34,
+                  background: isImportant ? 'rgba(245,158,11,0.18)' : 'transparent',
+                  color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)',
+                  border: `1px solid ${isImportant ? 'rgba(245,158,11,0.35)' : 'transparent'}`,
+                }}
+              >
+                <Star size={15} fill={isImportant ? 'currentColor' : 'none'} />
+              </button>
             )}
 
             {/* Agendar — cor da agenda (cyan) sempre visível */}
@@ -3874,6 +4173,48 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
               maxLength={2000}
             />
           </div>
+
+          {/* Seletor de etiquetas (checkbox) */}
+          {allTags && allTags.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                Etiquetas
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {allTags.map((tg) => {
+                  const checked = editTagIds.includes(tg.id)
+                  return (
+                    <button
+                      key={tg.id}
+                      type="button"
+                      onClick={() => {
+                        setEditTagIds((ids) => checked ? ids.filter((x) => x !== tg.id) : [...ids, tg.id])
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition"
+                      style={{
+                        background: checked ? `var(--accent-${tg.color || 'cyan'})20` : 'var(--bg-elev1)',
+                        color: checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--text-tertiary)',
+                        border: `1px solid ${checked ? `var(--accent-${tg.color || 'cyan'})50` : 'var(--border-medium)'}`,
+                      }}
+                    >
+                      <span
+                        className="flex items-center justify-center rounded"
+                        style={{
+                          width: 14, height: 14,
+                          background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
+                          border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
+                        }}
+                      >
+                        {checked && <Check size={9} color="#fff" strokeWidth={3} />}
+                      </span>
+                      {tg.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2 pt-1">
             <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {editNotes.length > 0 ? `${editNotes.length}/2000` : 'Anote pra tirar da cabeça'}

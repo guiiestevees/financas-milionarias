@@ -47,6 +47,7 @@ export function useAgendaTasks() {
       color: payload.color || 'cyan',
       priority: payload.priority ? 1 : 0,
       project_id: payload.project_id || null,
+      tags: Array.isArray(payload.tags) ? payload.tags : [],
     }
     const { data, error } = await supabase
       .from('agenda_tasks')
@@ -59,7 +60,7 @@ export function useAgendaTasks() {
   }, [user])
 
   const updateTask = useCallback(async (id, patch) => {
-    const allowed = ['title', 'notes', 'color', 'priority', 'completed_at', 'project_id']
+    const allowed = ['title', 'notes', 'color', 'priority', 'completed_at', 'project_id', 'tags']
     const update = {}
     for (const k of allowed) {
       if (k in patch) update[k] = patch[k]
