@@ -2899,21 +2899,8 @@ function TasksView({ tasksHook, projectsHook, tagsHook, onSchedule }) {
           </div>
         )}
 
-        {/* Linha de ações: importante toggle + botão Adicionar */}
-        <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
-          <button
-            type="button"
-            onClick={() => setImportant((v) => !v)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
-            style={{
-              background: important ? 'rgba(245,158,11,0.15)' : 'transparent',
-              color: important ? 'var(--accent-amber)' : 'var(--text-muted)',
-              border: `1px solid ${important ? 'rgba(245,158,11,0.4)' : 'var(--border-soft)'}`,
-            }}
-          >
-            <Star size={13} fill={important ? 'currentColor' : 'none'} />
-            {important ? 'Importante' : 'Marcar importante'}
-          </button>
+        {/* Linha de ação: só o botão Adicionar (à direita) */}
+        <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t" style={{ borderColor: 'var(--border-soft)' }}>
           <button
             type="submit"
             disabled={!newTitle.trim() || adding}
@@ -3471,6 +3458,10 @@ function ProjectCard({
   const tintBorder = getColorTint(project.color, 'border')
   const colorVar = `var(--accent-${project.color})`
 
+  // Barra de progresso — % de tarefas feitas
+  const totalTasks = pendingTasks.length + completedTasks.length
+  const progressPct = totalTasks === 0 ? 0 : Math.round((completedTasks.length / totalTasks) * 100)
+
   const handleAddInside = async (e) => {
     e?.preventDefault?.()
     const title = newInside.trim()
@@ -3512,10 +3503,16 @@ function ProjectCard({
             <div className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
               {project.name}
             </div>
-            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-              {pendingTasks.length === 0 && completedTasks.length === 0
-                ? 'Vazio — toque pra adicionar tarefas'
-                : `${pendingTasks.length} pendente${pendingTasks.length === 1 ? '' : 's'}${completedTasks.length > 0 ? ` · ${completedTasks.length} feita${completedTasks.length === 1 ? '' : 's'}` : ''}`}
+            <div className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--text-tertiary)' }}>
+              {totalTasks === 0 ? (
+                <span>Vazio — toque pra adicionar tarefas</span>
+              ) : (
+                <>
+                  <span>{completedTasks.length}/{totalTasks} feitas</span>
+                  <span>·</span>
+                  <span style={{ color: colorVar, fontWeight: 600 }}>{progressPct}%</span>
+                </>
+              )}
             </div>
           </div>
           <ChevronDown
@@ -3536,6 +3533,30 @@ function ProjectCard({
           <MoreVertical size={15} />
         </button>
       </div>
+
+      {/* Barra de progresso (só aparece se tem ao menos 1 tarefa) */}
+      {totalTasks > 0 && (
+        <div className="px-3 pb-2">
+          <div
+            className="w-full rounded-full overflow-hidden"
+            style={{
+              height: 6,
+              background: 'rgba(0,0,0,0.12)',
+              border: '1px solid rgba(0,0,0,0.08)',
+            }}
+          >
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${progressPct}%`,
+                background: colorVar,
+                transition: 'width 0.35s ease',
+                boxShadow: progressPct === 100 ? `0 0 8px ${colorVar}` : 'none',
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Conteúdo expandido */}
       {isOpen && (
@@ -3943,11 +3964,20 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
   const taskTagIds = Array.isArray(task.tags) ? task.tags : []
   const taskTags = (allTags || []).filter((t) => taskTagIds.includes(t.id))
   const [showMove, setShowMove] = useState(false)
+  const [showTagPicker, setShowTagPicker] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title || '')
   const [editNotes, setEditNotes] = useState(task.notes || '')
   const [editTagIds, setEditTagIds] = useState(taskTagIds)
   const [saving, setSaving] = useState(false)
+
+  // Toggle de uma tag direto (salva imediatamente, sem precisar de modo expandido)
+  const toggleTag = async (tagId) => {
+    if (!onUpdate) return
+    const has = taskTagIds.includes(tagId)
+    const next = has ? taskTagIds.filter((x) => x !== tagId) : [...taskTagIds, tagId]
+    await onUpdate({ tags: next })
+  }
 
   // Sincroniza valores locais com mudanças externas (ex: reordenação)
   useEffect(() => {
@@ -3993,11 +4023,11 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
       style={{
         background: taskTags.length > 0
           ? getColorTint(taskTags[0].color, 'bg')
-          : (isImportant ? 'rgba(245,158,11,0.10)' : 'var(--bg-elev2)'),
+          : 'var(--bg-elev2)',
         border: `1px solid ${
           taskTags.length > 0
             ? getColorTint(taskTags[0].color, 'border')
-            : (isImportant ? 'rgba(245,158,11,0.30)' : (expanded ? 'var(--border-medium)' : 'var(--border-soft)'))
+            : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')
         }`,
         opacity: done ? 0.55 : 1,
       }}
@@ -4046,13 +4076,12 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
               style={{
                 color: 'var(--text-primary)',
                 textDecoration: done ? 'line-through' : 'none',
-                fontWeight: isImportant ? 600 : 400,
+                fontWeight: 400,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 lineHeight: 1.4,
               }}
             >
-              {isImportant && <Star size={11} className="inline mr-1 mb-0.5" fill="currentColor" style={{ color: 'var(--accent-amber)' }} />}
               {task.title}
             </div>
             {hasNotes && !expanded && (
@@ -4091,20 +4120,71 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
       {/* ===== Barra de ações com label visível (sempre embaixo do título) ===== */}
       {!done && !expanded && (
         <div className="flex items-center gap-1.5 px-3 pb-2.5 -mt-1 flex-wrap">
-          {/* Favoritar */}
-          {onTogglePriority && (
-            <button
-              onClick={onTogglePriority}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
-              style={{
-                background: isImportant ? 'rgba(245,158,11,0.18)' : 'var(--bg-elev1)',
-                color: isImportant ? 'var(--accent-amber)' : 'var(--text-secondary)',
-                border: `1px solid ${isImportant ? 'rgba(245,158,11,0.4)' : 'var(--border-soft)'}`,
-              }}
-            >
-              <Star size={13} fill={isImportant ? 'currentColor' : 'none'} />
-              {isImportant ? 'Importante' : 'Favoritar'}
-            </button>
+          {/* Etiquetas — popover com checkboxes */}
+          {onUpdate && (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (allTags && allTags.length === 0) {
+                    // Sem etiquetas cadastradas — não tem o que mostrar
+                    return
+                  }
+                  setShowTagPicker((v) => !v)
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+                style={{
+                  background: taskTags.length > 0 ? 'rgba(6,182,212,0.15)' : 'var(--bg-elev1)',
+                  color: taskTags.length > 0 ? AGENDA_ACCENT : 'var(--text-secondary)',
+                  border: `1px solid ${taskTags.length > 0 ? 'rgba(6,182,212,0.35)' : 'var(--border-soft)'}`,
+                }}
+                title={!allTags || allTags.length === 0 ? 'Crie etiquetas no topo da aba' : ''}
+              >
+                <span style={{ fontSize: 12 }}>🏷️</span>
+                {taskTags.length > 0 ? `Etiquetas · ${taskTags.length}` : 'Adicionar etiqueta'}
+              </button>
+              {showTagPicker && allTags && allTags.length > 0 && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowTagPicker(false)} />
+                  <div
+                    className="absolute left-0 bottom-full mb-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[200px] p-2"
+                    style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+                  >
+                    <div className="text-[9px] uppercase tracking-wider mb-1.5 px-1"
+                      style={{ color: 'var(--text-muted)' }}>
+                      Etiquetas
+                    </div>
+                    <div className="flex flex-col gap-1 max-h-[200px] overflow-y-auto">
+                      {allTags.map((tg) => {
+                        const checked = taskTagIds.includes(tg.id)
+                        return (
+                          <button
+                            key={tg.id}
+                            onClick={() => toggleTag(tg.id)}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition hover:bg-white/5 text-left"
+                          >
+                            <span
+                              className="flex items-center justify-center rounded shrink-0"
+                              style={{
+                                width: 16, height: 16,
+                                background: checked ? `var(--accent-${tg.color || 'cyan'})` : 'transparent',
+                                border: `1.5px solid ${checked ? `var(--accent-${tg.color || 'cyan'})` : 'var(--border-strong)'}`,
+                              }}
+                            >
+                              {checked && <Check size={10} color="#fff" strokeWidth={3} />}
+                            </span>
+                            <span className="w-2 h-2 rounded-full shrink-0"
+                              style={{ background: `var(--accent-${tg.color || 'cyan'})` }} />
+                            <span className="flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+                              {tg.name}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           {/* Agendar */}
@@ -4120,22 +4200,6 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
             >
               <CalendarPlus size={13} />
               Agendar
-            </button>
-          )}
-
-          {/* Editar / Notas */}
-          {onUpdate && (
-            <button
-              onClick={() => setExpanded(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
-              style={{
-                background: hasNotes ? 'rgba(139,92,246,0.12)' : 'var(--bg-elev1)',
-                color: hasNotes ? 'var(--accent-violet)' : 'var(--text-secondary)',
-                border: `1px solid ${hasNotes ? 'rgba(139,92,246,0.30)' : 'var(--border-soft)'}`,
-              }}
-            >
-              <span style={{ fontSize: 12 }}>📝</span>
-              {hasNotes ? 'Notas' : 'Adicionar nota'}
             </button>
           )}
 
@@ -4160,12 +4224,24 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
                   className="absolute right-0 bottom-full mb-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[220px]"
                   style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
                 >
+                  {/* Editar / notas */}
+                  {onUpdate && (
+                    <button
+                      onClick={() => { setShowMove(false); setExpanded(true) }}
+                      className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      <span className="text-base">📝</span>
+                      <span>{hasNotes ? 'Editar notas' : 'Adicionar nota'}</span>
+                    </button>
+                  )}
+
                   {/* Tirar do projeto */}
                   {onMoveOut && (
                     <button
                       onClick={() => { onMoveOut(); setShowMove(false) }}
                       className="w-full text-left px-3 py-2.5 text-sm transition hover:bg-white/5 flex items-center gap-2.5"
-                      style={{ color: 'var(--text-primary)' }}
+                      style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--border-soft)' }}
                     >
                       <span className="text-base">📤</span>
                       <span>Tirar do projeto</span>
@@ -4178,7 +4254,7 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
                       <div className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-wider"
                         style={{
                           color: 'var(--text-muted)',
-                          borderTop: onMoveOut ? '1px solid var(--border-soft)' : 'none',
+                          borderTop: '1px solid var(--border-soft)',
                         }}>
                         Mover pra projeto
                       </div>
