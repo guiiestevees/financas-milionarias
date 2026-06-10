@@ -4228,17 +4228,17 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
                 setShowTagPicker((v) => !v)
               }}
               disabled={!onUpdate || !allTags || allTags.length === 0}
-              className="flex items-center justify-center gap-1 px-2 py-0.5 rounded-md transition font-medium disabled:opacity-40"
+              className="flex items-center justify-center gap-1 px-3 py-1 rounded-md transition font-medium disabled:opacity-40"
               style={{
-                fontSize: 10,
-                minHeight: 24,
+                fontSize: 12,
+                minHeight: 30,
                 background: taskTags.length > 0 ? 'rgba(139,92,246,0.15)' : 'var(--bg-elev1)',
                 color: taskTags.length > 0 ? 'var(--accent-violet)' : 'var(--text-secondary)',
                 border: `1px solid ${taskTags.length > 0 ? 'rgba(139,92,246,0.4)' : 'var(--border-soft)'}`,
               }}
               title={!allTags || allTags.length === 0 ? 'Crie etiquetas no topo da aba' : ''}
             >
-              <span style={{ fontSize: 10 }}>🏷️</span>
+              <span style={{ fontSize: 12 }}>🏷️</span>
               <span>Etiqueta{taskTags.length > 0 ? ` · ${taskTags.length}` : ''}</span>
             </button>
             {showTagPicker && allTags && allTags.length > 0 && (
@@ -4289,32 +4289,32 @@ function TaskRow({ task, projects, allTags, insideProject, onToggle, onDelete, o
           <button
             onClick={onSchedule}
             disabled={!onSchedule}
-            className="flex items-center justify-center gap-1 px-2 py-0.5 rounded-md transition font-medium disabled:opacity-40"
+            className="flex items-center justify-center gap-1 px-3 py-1 rounded-md transition font-medium disabled:opacity-40"
             style={{
-              fontSize: 10,
-              minHeight: 24,
+              fontSize: 12,
+              minHeight: 30,
               background: 'rgba(6,182,212,0.15)',
               color: AGENDA_ACCENT,
               border: '1px solid rgba(6,182,212,0.4)',
             }}
           >
-            <CalendarPlus size={10} />
+            <CalendarPlus size={12} />
             <span>Agendar</span>
           </button>
 
           {/* Excluir (2 cliques pra confirmar) */}
           <button
             onClick={handleDeleteClick}
-            className="flex items-center justify-center gap-1 px-2 py-0.5 rounded-md transition font-medium"
+            className="flex items-center justify-center gap-1 px-3 py-1 rounded-md transition font-medium"
             style={{
-              fontSize: 10,
-              minHeight: 24,
+              fontSize: 12,
+              minHeight: 30,
               background: confirmDelete ? 'var(--accent-rose)' : 'rgba(244,63,94,0.10)',
               color: confirmDelete ? '#fff' : 'var(--accent-rose)',
               border: `1px solid ${confirmDelete ? 'var(--accent-rose)' : 'rgba(244,63,94,0.30)'}`,
             }}
           >
-            <Trash2 size={10} />
+            <Trash2 size={12} />
             <span>{confirmDelete ? 'Confirmar?' : 'Excluir'}</span>
           </button>
         </div>
