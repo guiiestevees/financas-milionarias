@@ -3267,14 +3267,22 @@ function PrioritizeWizard({ project, tasks, colorVar, onClose, onUpdateTask }) {
     },
   ]
 
-  const remaining = tasks.filter((t) => !picks.includes(t.id))
+  const pickedIds = picks.map((p) => p.id)
+  const remaining = tasks.filter((t) => !pickedIds.includes(t.id))
   const current = STEPS[step]
   const totalSteps = Math.min(3, tasks.length)
 
+  // Mapa de passo → quadrante Eisenhower:
+  //   Step 0 (destrava o projeto)    → 3 = FAZER AGORA (urgente + importante)
+  //   Step 1 (prazo curto)           → 2 = URGENTE
+  //   Step 2 (rapidinha — alívio)    → 1 = IMPORTANTE (planejar logo)
+  const STEP_PRIORITY = [3, 2, 1]
+
   const handlePick = (id) => {
-    setPicks((p) => [...p, id])
+    const stepIdx = step
+    setPicks((p) => [...p, { id, stepIdx }])
     if (step + 1 >= totalSteps || remaining.length <= 1) {
-      finalize([...picks, id])
+      finalize([...picks, { id, stepIdx }])
     } else {
       setStep((s) => s + 1)
     }
@@ -3295,10 +3303,10 @@ function PrioritizeWizard({ project, tasks, colorVar, onClose, onUpdateTask }) {
     }
     setSaving(true)
     try {
-      // Marca as escolhidas como importantes
-      // (a ordem entre elas já reflete a prioridade da pergunta: destrava > prazo > rapidinha)
-      for (const id of finalPicks) {
-        await onUpdateTask?.(id, { priority: 1 })
+      // Mapeia cada pick pra um quadrante Eisenhower (ver STEP_PRIORITY)
+      for (const pick of finalPicks) {
+        const priority = STEP_PRIORITY[pick.stepIdx] ?? 1
+        await onUpdateTask?.(pick.id, { priority })
       }
     } finally {
       setSaving(false)
@@ -3417,12 +3425,16 @@ function PrioritizeWizard({ project, tasks, colorVar, onClose, onUpdateTask }) {
                 Você já escolheu · {picks.length}
               </div>
               <div className="space-y-1">
-                {picks.map((id, idx) => {
-                  const pickedTask = tasks.find((tt) => tt.id === id)
+                {picks.map((pick, idx) => {
+                  const pickedTask = tasks.find((tt) => tt.id === pick.id)
                   if (!pickedTask) return null
+                  const q = getQuadrant(STEP_PRIORITY[pick.stepIdx])
                   return (
-                    <div key={id} className="text-[11px] flex items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
-                      <span className="font-semibold" style={{ color: colorVar }}>#{idx + 1}</span>
+                    <div key={pick.id} className="text-[11px] flex items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
+                      <span className="font-semibold" style={{ color: q.hex || colorVar }}>#{idx + 1}</span>
+                      {q.id === 3 && <span>🔥</span>}
+                      {q.id === 2 && <span>⚡</span>}
+                      {q.id === 1 && <span>⭐</span>}
                       <span className="truncate">{pickedTask.title}</span>
                     </div>
                   )
@@ -3481,15 +3493,49 @@ function CompletedSection({ tasks, insideProject, onToggle, onDelete }) {
   )
 }
 
+function QuadrantOption({ active, icon, label, hint, color, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left px-3 py-2.5 transition hover:bg-white/5 flex items-start gap-2.5"
+      style={{
+        background: active ? `${typeof color === 'string' && color.startsWith('#') ? color + '15' : 'var(--bg-elev2)'}` : 'transparent',
+        borderTop: '1px solid var(--border-soft)',
+      }}
+    >
+      <div className="text-base shrink-0 mt-0.5" style={{ minWidth: 20, textAlign: 'center' }}>{icon}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold" style={{ color: active ? color : 'var(--text-primary)' }}>
+          {label}
+        </div>
+        <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+          {hint}
+        </div>
+      </div>
+      {active && <Check size={14} style={{ color, marginTop: 2 }} />}
+    </button>
+  )
+}
+
 function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule, onTogglePriority, onMoveToProject, onMoveOut, onUpdate }) {
   const done = !!task.completed_at
-  const isImportant = task.priority === 1 && !done
+  const quadrant = getQuadrant(task.priority)
+  const isUrgent = isUrgentP(task.priority) && !done
+  const isImportant = isImportantP(task.priority) && !done
+  const hasPriority = (isUrgent || isImportant) && !done
   const hasNotes = !!(task.notes && task.notes.trim())
   const [showMove, setShowMove] = useState(false)
+  const [showQuadrant, setShowQuadrant] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title || '')
   const [editNotes, setEditNotes] = useState(task.notes || '')
   const [saving, setSaving] = useState(false)
+
+  // Aplica novo quadrante (urgência/importância) via onUpdate
+  const setQuadrant = (newPriority) => {
+    if (onUpdate) onUpdate({ priority: newPriority })
+    setShowQuadrant(false)
+  }
 
   // Sincroniza valores locais com mudanças externas (ex: reordenação)
   useEffect(() => {
@@ -3526,8 +3572,8 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
     <div
       className="rounded-xl transition relative"
       style={{
-        background: isImportant ? 'rgba(245,158,11,0.06)' : 'var(--bg-elev2)',
-        border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')}`,
+        background: hasPriority ? quadrant.bg : 'var(--bg-elev2)',
+        border: `1px solid ${hasPriority ? quadrant.border : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')}`,
         opacity: done ? 0.55 : 1,
       }}
     >
@@ -3553,18 +3599,32 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
             disabled={!onUpdate || done}
             style={{ cursor: onUpdate && !done ? 'pointer' : 'default' }}
           >
+            {/* Badge do quadrante acima do título */}
+            {hasPriority && (
+              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold mb-1"
+                style={{
+                  background: quadrant.bg,
+                  color: quadrant.hex,
+                  border: `1px solid ${quadrant.border}`,
+                }}
+              >
+                {quadrant.id === 3 && '🔥'}
+                {quadrant.id === 2 && '⚡'}
+                {quadrant.id === 1 && '⭐'}
+                {quadrant.label}
+              </div>
+            )}
             <div
               className="text-sm"
               style={{
                 color: 'var(--text-primary)',
                 textDecoration: done ? 'line-through' : 'none',
-                fontWeight: isImportant ? 600 : 400,
+                fontWeight: hasPriority ? 600 : 400,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 lineHeight: 1.4,
               }}
             >
-              {isImportant && <Star size={11} className="inline mr-1 mb-0.5" fill="currentColor" style={{ color: 'var(--accent-amber)' }} />}
               {task.title}
             </div>
             {hasNotes && !expanded && (
@@ -3589,21 +3649,73 @@ function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule
 
         {!done && !expanded && (
           <div className="flex items-center gap-1 shrink-0">
-            {/* Favoritar — fundo amber quando ativo */}
-            {onTogglePriority && (
-              <button
-                onClick={onTogglePriority}
-                title={isImportant ? 'Tirar destaque' : 'Favoritar'}
-                className="flex items-center justify-center transition rounded-lg"
-                style={{
-                  width: 34, height: 34,
-                  background: isImportant ? 'rgba(245,158,11,0.18)' : 'transparent',
-                  color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)',
-                  border: `1px solid ${isImportant ? 'rgba(245,158,11,0.35)' : 'transparent'}`,
-                }}
-              >
-                <Star size={15} fill={isImportant ? 'currentColor' : 'none'} />
-              </button>
+            {/* Prioridade — abre seletor de quadrante Eisenhower */}
+            {onUpdate && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowQuadrant((v) => !v)}
+                  title={hasPriority ? `${quadrant.label} — clica pra mudar` : 'Definir prioridade'}
+                  className="flex items-center justify-center transition rounded-lg"
+                  style={{
+                    width: 34, height: 34,
+                    background: hasPriority ? quadrant.bg : 'transparent',
+                    color: hasPriority ? quadrant.hex : 'var(--text-muted)',
+                    border: `1px solid ${hasPriority ? quadrant.border : 'transparent'}`,
+                  }}
+                >
+                  {hasPriority && quadrant.id === 3 && <span style={{ fontSize: 14 }}>🔥</span>}
+                  {hasPriority && quadrant.id === 2 && <span style={{ fontSize: 14 }}>⚡</span>}
+                  {hasPriority && quadrant.id === 1 && <Star size={15} fill="currentColor" />}
+                  {!hasPriority && <Star size={15} fill="none" />}
+                </button>
+                {showQuadrant && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowQuadrant(false)} />
+                    <div
+                      className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[240px]"
+                      style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+                    >
+                      <div className="px-3 py-2 text-[10px] uppercase tracking-wider"
+                        style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}>
+                        🎯 Matriz de Eisenhower
+                      </div>
+
+                      <QuadrantOption
+                        active={quadrant.id === 3}
+                        icon="🔥"
+                        label="Fazer agora"
+                        hint="Urgente e importante"
+                        color="#f43f5e"
+                        onClick={() => setQuadrant(3)}
+                      />
+                      <QuadrantOption
+                        active={quadrant.id === 1}
+                        icon="⭐"
+                        label="Planejar"
+                        hint="Importante mas não urgente"
+                        color="#06b6d4"
+                        onClick={() => setQuadrant(1)}
+                      />
+                      <QuadrantOption
+                        active={quadrant.id === 2}
+                        icon="⚡"
+                        label="Delegar / Resolver rápido"
+                        hint="Urgente mas não importante"
+                        color="#f59e0b"
+                        onClick={() => setQuadrant(2)}
+                      />
+                      <QuadrantOption
+                        active={quadrant.id === 0}
+                        icon="—"
+                        label="Sem prioridade"
+                        hint="Nem urgente, nem importante"
+                        color="var(--text-muted)"
+                        onClick={() => setQuadrant(0)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Agendar — cor da agenda (cyan) sempre visível */}
@@ -4238,19 +4350,52 @@ function formatDurationShort(mins) {
 }
 
 // Retorna tint da cor (background suave) ou cor da borda
+// ============================================================
+// EISENHOWER — matriz de 4 quadrantes pra priorizar tarefas.
+// Codificada no campo `priority` (INTEGER) via bitwise:
+//   bit 0 (1) = Importante
+//   bit 1 (2) = Urgente
+// Mapa:
+//   0 → nem urgente nem importante (sem destaque)
+//   1 → importante mas não urgente   → PLANEJAR (cyan)
+//   2 → urgente mas não importante   → DELEGAR  (amber)
+//   3 → urgente E importante         → FAZER AGORA (rose)
+// ============================================================
+const QUADRANTS = {
+  0: { id: 0, label: null,           short: null,        hex: null,       bg: null,                        border: null },
+  1: { id: 1, label: 'Importante',   short: 'IMP',       hex: '#06b6d4',  bg: 'rgba(6,182,212,0.10)',      border: 'rgba(6,182,212,0.35)' },
+  2: { id: 2, label: 'Urgente',      short: 'URG',       hex: '#f59e0b',  bg: 'rgba(245,158,11,0.10)',     border: 'rgba(245,158,11,0.40)' },
+  3: { id: 3, label: 'Fazer agora!', short: 'AGORA',     hex: '#f43f5e',  bg: 'rgba(244,63,94,0.10)',      border: 'rgba(244,63,94,0.45)' },
+}
+function getQuadrant(priority) {
+  const p = Number(priority) || 0
+  return QUADRANTS[p] || QUADRANTS[0]
+}
+function setUrgent(priority, on) {
+  const p = Number(priority) || 0
+  return on ? (p | 2) : (p & ~2)
+}
+function setImportant(priority, on) {
+  const p = Number(priority) || 0
+  return on ? (p | 1) : (p & ~1)
+}
+function isImportantP(p) { return ((Number(p) || 0) & 1) === 1 }
+function isUrgentP(p)    { return ((Number(p) || 0) & 2) === 2 }
+
 function getColorTint(colorKey, mode) {
   // Mapeamento manual rgba pra cada accent (não dá pra usar CSS var em alpha)
+  // Opacidades calibradas pra ficarem visíveis tanto em fundo escuro quanto claro.
   const tints = {
-    gold:    { bg: 'rgba(212,175,55,0.10)',  border: 'rgba(212,175,55,0.30)'  },
-    emerald: { bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.30)'  },
-    rose:    { bg: 'rgba(244,63,94,0.10)',   border: 'rgba(244,63,94,0.30)'   },
-    amber:   { bg: 'rgba(245,158,11,0.10)',  border: 'rgba(245,158,11,0.30)'  },
-    cyan:    { bg: 'rgba(6,182,212,0.10)',   border: 'rgba(6,182,212,0.30)'   },
-    violet:  { bg: 'rgba(139,92,246,0.10)',  border: 'rgba(139,92,246,0.30)'  },
-    sky:     { bg: 'rgba(14,165,233,0.10)',  border: 'rgba(14,165,233,0.30)'  },
-    fuchsia: { bg: 'rgba(217,70,239,0.10)',  border: 'rgba(217,70,239,0.30)'  },
-    lime:    { bg: 'rgba(132,204,22,0.10)',  border: 'rgba(132,204,22,0.30)'  },
-    orange:  { bg: 'rgba(249,115,22,0.10)',  border: 'rgba(249,115,22,0.30)'  },
+    gold:    { bg: 'rgba(212,175,55,0.20)',  border: 'rgba(212,175,55,0.55)'  },
+    emerald: { bg: 'rgba(16,185,129,0.20)',  border: 'rgba(16,185,129,0.55)'  },
+    rose:    { bg: 'rgba(244,63,94,0.18)',   border: 'rgba(244,63,94,0.55)'   },
+    amber:   { bg: 'rgba(245,158,11,0.20)',  border: 'rgba(245,158,11,0.55)'  },
+    cyan:    { bg: 'rgba(6,182,212,0.18)',   border: 'rgba(6,182,212,0.55)'   },
+    violet:  { bg: 'rgba(139,92,246,0.18)',  border: 'rgba(139,92,246,0.55)'  },
+    sky:     { bg: 'rgba(14,165,233,0.18)',  border: 'rgba(14,165,233,0.55)'  },
+    fuchsia: { bg: 'rgba(217,70,239,0.18)',  border: 'rgba(217,70,239,0.55)'  },
+    lime:    { bg: 'rgba(132,204,22,0.20)',  border: 'rgba(132,204,22,0.55)'  },
+    orange:  { bg: 'rgba(249,115,22,0.20)',  border: 'rgba(249,115,22,0.55)'  },
   }
   return (tints[colorKey] || tints.cyan)[mode]
 }

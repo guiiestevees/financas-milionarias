@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAppPreference } from '../../hooks/useAppPreference'
+import { useTheme } from '../../hooks/useTheme'
 
 // ===========================================================================
 // App Launcher — tela inicial que mostra os apps do Domus.
@@ -48,6 +49,9 @@ export default function Launcher() {
   const { user, signOut } = useAuth()
   const { defaultApp, setDefaultApp } = useAppPreference()
   const [prefsOpen, setPrefsOpen] = useState(false)
+
+  // Aplica o tema GLOBAL (sem appKey) — espelha o último tema escolhido em qualquer app
+  useTheme()
 
   const firstName = (user?.user_metadata?.name || '').trim().split(' ')[0] || ''
 

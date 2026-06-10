@@ -126,6 +126,9 @@ export function useTheme(appKey = null) {
     try {
       if (appKey) {
         localStorage.setItem(APP_KEY_PREFIX + appKey, theme)
+        // Também atualiza o GLOBAL — assim a Launcher (sem appKey) e o
+        // bootstrap inicial refletem a última escolha do user.
+        localStorage.setItem(GLOBAL_KEY, theme)
       } else {
         localStorage.setItem(GLOBAL_KEY, theme)
       }
@@ -137,6 +140,8 @@ export function useTheme(appKey = null) {
       return
     }
     saveThemeToSupabase(appKey, theme)
+    // Se setou em app específico, também salva como global no servidor
+    if (appKey) saveThemeToSupabase(null, theme)
   }, [theme, appKey])
 
   const setTheme = useCallback((next) => {
