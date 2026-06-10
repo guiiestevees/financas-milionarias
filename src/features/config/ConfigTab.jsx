@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2, Sun, Moon, Palette, PlayCircle, ArrowRight } from 'lucide-react'
+import { Settings, Sparkles, CreditCard, Banknote, Target, Users, Wallet, Check, X, AlertTriangle, Trash2, MessageCircle, LogOut, UserCircle2, Sun, Moon, Palette, PlayCircle, ArrowRight, Pencil } from 'lucide-react'
 import { Card, SectionTitle, Empty, Btn, AdderToggle, DeleteIconBtn, MiniInput, TextInput } from '../../components/ui'
 import { AdderShell } from '../../components/ui'
 import { accents, accentKeys, hashAccent } from '../../lib/constants'
@@ -80,6 +80,12 @@ function CardsConfig({ config, setConfig }) {
   const [dueDay, setDueDay] = useState('')
   const [kind, setKind] = useState('card')  // 'card' | 'person'
 
+  // Estado da edição inline (qual card está sendo editado e os valores temporários)
+  const [editingOrig, setEditingOrig] = useState(null)  // nome ORIGINAL (chave de identificação)
+  const [editName, setEditName] = useState('')
+  const [editDueDay, setEditDueDay] = useState('')
+  const [editKind, setEditKind] = useState('card')
+
   const reset = () => { setName(''); setDueDay(''); setKind('card'); setAdding(false) }
   const submit = () => {
     const n = name.trim(); if (!n || config.cards.find((c) => c.name === n)) { reset(); return }
@@ -89,6 +95,35 @@ function CardsConfig({ config, setConfig }) {
       paymentMethods: config.paymentMethods.includes(n) ? config.paymentMethods : [...config.paymentMethods, n],
     })
     reset()
+  }
+
+  // Inicia edição de um card específico
+  const startEdit = (c) => {
+    setEditingOrig(c.name)
+    setEditName(c.name)
+    setEditDueDay(c.dueDay ?? '')
+    setEditKind(c.kind || 'card')
+  }
+  const cancelEdit = () => {
+    setEditingOrig(null); setEditName(''); setEditDueDay(''); setEditKind('card')
+  }
+  const saveEdit = () => {
+    const n = editName.trim()
+    if (!n) { cancelEdit(); return }
+    // Se renomeou, garante que o novo nome não conflita com outro card existente
+    if (n !== editingOrig && config.cards.find((c) => c.name === n)) {
+      cancelEdit()
+      return
+    }
+    const newCards = config.cards.map((c) =>
+      c.name === editingOrig
+        ? { ...c, name: n, dueDay: editDueDay === '' ? null : Number(editDueDay), kind: editKind }
+        : c
+    )
+    // Atualiza também o paymentMethods (substitui nome antigo pelo novo)
+    const newMethods = config.paymentMethods.map((p) => p === editingOrig ? n : p)
+    setConfig({ cards: newCards, paymentMethods: newMethods })
+    cancelEdit()
   }
 
   // Helpers visuais por tipo
@@ -157,6 +192,99 @@ function CardsConfig({ config, setConfig }) {
           const a = accents[c.accent] || accents.cyan
           const Icon = iconFor(c.kind)
           const isPerson = c.kind === 'person'
+          const isEditing = editingOrig === c.name
+
+          // -------- Modo EDIÇÃO --------
+          if (isEditing) {
+            const editAccent = editKind === 'person' ? accents.amber : accents.cyan
+            return (
+              <div key={c.name} className="p-3 rounded-lg" style={{ background: editAccent.soft, border: `1px solid ${editAccent.hex}40` }}>
+                <div className="space-y-2.5">
+                  {/* Toggle tipo */}
+                  <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-medium)' }}>
+                    <button
+                      onClick={() => setEditKind('card')}
+                      className="flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition"
+                      style={{
+                        background: editKind === 'card' ? accents.cyan.soft : 'transparent',
+                        color: editKind === 'card' ? accents.cyan.hex : 'var(--text-tertiary)',
+                        border: `1px solid ${editKind === 'card' ? accents.cyan.hex + '50' : 'transparent'}`,
+                      }}
+                    >
+                      <CreditCard size={12} /> Cartão
+                    </button>
+                    <button
+                      onClick={() => setEditKind('person')}
+                      className="flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition"
+                      style={{
+                        background: editKind === 'person' ? accents.amber.soft : 'transparent',
+                        color: editKind === 'person' ? accents.amber.hex : 'var(--text-tertiary)',
+                        border: `1px solid ${editKind === 'person' ? accents.amber.hex + '50' : 'transparent'}`,
+                      }}
+                    >
+                      <Users size={12} /> Pessoa
+                    </button>
+                  </div>
+
+                  {/* Nome */}
+                  <input
+                    autoFocus
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder={editKind === 'person' ? 'Nome da pessoa' : 'Nome do cartão'}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
+                    style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+                    className="placeholder:text-white/30"
+                  />
+
+                  {/* DueDay */}
+                  <div>
+                    <div className="text-xs text-white/45 mb-1">
+                      {editKind === 'person' ? 'Pagar até dia (opcional)' : 'Vence dia'}
+                    </div>
+                    <input
+                      type="number"
+                      value={editDueDay}
+                      onChange={(e) => setEditDueDay(e.target.value)}
+                      placeholder="ex: 5"
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
+                      style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none' }}
+                      className="placeholder:text-white/30 tabular-nums"
+                    />
+                  </div>
+
+                  {/* Botões */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={cancelEdit}
+                      className="flex-1 px-3 py-2 rounded-lg text-sm transition flex items-center justify-center gap-1.5"
+                      style={{ background: 'var(--bg-elev3)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }}
+                    >
+                      <X size={14} /> Cancelar
+                    </button>
+                    <button
+                      onClick={saveEdit}
+                      disabled={!editName.trim()}
+                      style={{
+                        opacity: editName.trim() ? 1 : 0.4,
+                        background: editKind === 'person' ? 'rgba(245,158,11,0.2)' : 'rgba(6,182,212,0.2)',
+                        color: editKind === 'person' ? accents.amber.hex : accents.cyan.hex,
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1.5 hover:opacity-90"
+                    >
+                      <Check size={14} /> Salvar
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-white/40 px-0.5 leading-snug">
+                    Se renomear, despesas antigas vinculadas ao nome anterior podem ficar desvinculadas.
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          // -------- Modo VISUALIZAÇÃO (padrão) --------
           return (
             <div key={c.name} className="p-3 rounded-lg bg-white/5">
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -170,7 +298,19 @@ function CardsConfig({ config, setConfig }) {
                     </span>
                   )}
                 </div>
-                <DeleteIconBtn onClick={() => setConfig({ cards: config.cards.filter((x) => x.name !== c.name), paymentMethods: config.paymentMethods.filter((p) => p !== c.name) })} />
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => startEdit(c)}
+                    className="p-1.5 rounded-md transition"
+                    style={{ color: 'var(--text-tertiary)' }}
+                    title="Editar"
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elev3)'; e.currentTarget.style.color = a.hex }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <DeleteIconBtn onClick={() => setConfig({ cards: config.cards.filter((x) => x.name !== c.name), paymentMethods: config.paymentMethods.filter((p) => p !== c.name) })} />
+                </div>
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1">

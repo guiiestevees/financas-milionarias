@@ -270,8 +270,8 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
               />
             </div>
 
-            {/* Data e Hora — compactos, largura limitada (evita estouro no iOS) */}
-            <div className="flex flex-wrap gap-4">
+            {/* Data + Hora início + Hora término — todos no MESMO tamanho, lado a lado */}
+            <div className="flex flex-wrap gap-3">
               <div className="min-w-0">
                 <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   <Calendar size={11} className="inline mr-1" />
@@ -289,7 +289,7 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
               <div className="min-w-0">
                 <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   <Clock size={11} className="inline mr-1" />
-                  Hora
+                  Início
                 </label>
                 <input
                   type="time"
@@ -299,12 +299,32 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
                   className="focus:border-cyan-400"
                 />
               </div>
+
+              <div className="min-w-0">
+                <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  <Clock size={11} className="inline mr-1" />
+                  Término
+                </label>
+                <input
+                  type="time"
+                  value={endTime || ''}
+                  onChange={(e) => onEndTimeChange(e.target.value)}
+                  style={timeInputStyle}
+                  className="focus:border-cyan-400"
+                  placeholder="--:--"
+                />
+              </div>
             </div>
 
-            {/* Duração — chips + input livre sempre visível */}
+            {/* Duração — atalhos rápidos (atualiza o "Término" automaticamente) */}
             <div>
               <label className="text-xs mb-1.5 block uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                Duração
+                Duração rápida
+                {duration ? (
+                  <span className="ml-2 normal-case tracking-normal text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    ({Math.floor(duration / 60)}h{duration % 60 ? String(duration % 60).padStart(2, '0') : ''})
+                  </span>
+                ) : null}
               </label>
               <div className="flex gap-1.5 flex-wrap items-center">
                 {[
@@ -361,36 +381,8 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
                     style={{ color: 'var(--text-muted)' }}
                     title="Sem duração definida"
                   >
-                    ✕
+                    ✕ limpar
                   </button>
-                )}
-              </div>
-
-              {/* OU termina às — alternativa: define hora de fim direto */}
-              <div className="flex items-center gap-2 mt-3">
-                <div className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-muted)' }}>
-                  ou termina às
-                </div>
-                <input
-                  type="time"
-                  value={endTime || ''}
-                  onChange={(e) => onEndTimeChange(e.target.value)}
-                  style={{
-                    background: 'var(--bg-elev1)',
-                    border: '1px solid var(--border-medium)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    borderRadius: 8,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    fontFamily: 'JetBrains Mono, monospace',
-                    width: 100,
-                  }}
-                />
-                {endTime && (
-                  <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
-                    = {duration ? `${Math.floor(duration / 60)}h${duration % 60 ? String(duration % 60).padStart(2, '0') : ''}` : ''}
-                  </span>
                 )}
               </div>
             </div>

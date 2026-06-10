@@ -4,7 +4,7 @@ import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
   ListChecks, Settings, Sun, Moon, Sparkles, Check, Trash2, Star, CalendarPlus,
-  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive,
+  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
@@ -2759,6 +2759,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [openProjects, setOpenProjects] = useState({})  // { [projectId]: true }
   const [editingProject, setEditingProject] = useState(null)
+  const newTitleRef = useRef(null)
 
   // Tarefas avulsas (sem project_id)
   const looseTasks = pending.filter((t) => !t.project_id)
@@ -2785,6 +2786,8 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
       await createTask({ title, priority: important })
       setNewTitle('')
       setImportant(false)
+      // Reseta altura do textarea (escapa do auto-resize)
+      if (newTitleRef.current) newTitleRef.current.style.height = 'auto'
     } catch (err) {
       console.error(err)
     } finally {
@@ -2796,7 +2799,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
 
   return (
     <div className="space-y-4">
-      {/* Explicação curta */}
+      {/* Explicação curta — reforça o "tira da cabeça" */}
       <div className="rounded-2xl p-3 px-4"
         style={{
           background: 'rgba(6,182,212,0.06)',
@@ -2804,27 +2807,44 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
         }}
       >
         <div className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          <strong style={{ color: AGENDA_ACCENT }}>💡 Tarefas e projetos</strong> — anote o que precisa
-          ser feito (avulso) ou organize em <strong>projetos</strong> (pastas de tarefas relacionadas).
-          Quando definir o dia, clica em 📅 pra virar compromisso.
+          <strong style={{ color: AGENDA_ACCENT }}>💭 Tire da cabeça</strong> — anote aqui qualquer coisa
+          que você precisa fazer mas ainda não sabe quando. Clica na tarefa pra adicionar <strong>notas</strong> (contato, prazo, link).
+          Quando souber o dia, vira compromisso com 📅. Use <strong>projetos</strong> pra agrupar tarefas relacionadas.
         </div>
       </div>
 
-      {/* Form rápido de tarefa avulsa */}
+      {/* Form rápido de tarefa avulsa — textarea pra aceitar texto longo */}
       <form
         onSubmit={handleAdd}
         className="rounded-2xl p-3"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}
       >
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
+        <div className="flex items-start gap-2">
+          <textarea
+            ref={newTitleRef}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="Ex: Ligar pro contador, comprar café…"
-            className="flex-1 bg-transparent text-sm outline-none px-2 py-2"
-            style={{ color: 'var(--text-primary)' }}
-            maxLength={200}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleAdd(e)
+              }
+            }}
+            placeholder="Ex: Ligar pro contador sobre o IR, comprar café da Lavazza, levar carro pra revisão…"
+            rows={1}
+            className="flex-1 bg-transparent text-sm outline-none px-2 py-2 resize-none"
+            style={{
+              color: 'var(--text-primary)',
+              lineHeight: 1.4,
+              minHeight: 38,
+              maxHeight: 140,
+            }}
+            maxLength={500}
+            onInput={(e) => {
+              // Auto-resize baseado no conteúdo
+              e.target.style.height = 'auto'
+              e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'
+            }}
           />
           <button
             type="button"
@@ -2843,6 +2863,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
             disabled={!newTitle.trim() || adding}
             className="px-3 py-2 rounded-lg text-sm font-semibold transition shrink-0 disabled:opacity-50"
             style={{ background: AGENDA_ACCENT, color: '#fff' }}
+            title="Enter pra adicionar, Shift+Enter pra quebrar linha"
           >
             {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
@@ -2922,6 +2943,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
                     onScheduleTask={(t) => onSchedule(t)}
                     onTogglePriority={(t) => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
                     onMoveTaskOut={(t) => updateTask(t.id, { project_id: null })}
+                    onUpdateTask={(id, patch) => updateTask(id, patch)}
                     onEditProject={() => setEditingProject(p)}
                   />
                 )
@@ -2945,6 +2967,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
                   onSchedule={() => onSchedule(t)}
                   onTogglePriority={() => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
                   onMoveToProject={(pid) => updateTask(t.id, { project_id: pid })}
+                  onUpdate={(patch) => updateTask(t.id, patch)}
                 />
               ))}
             </div>
@@ -2970,6 +2993,7 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
                   onSchedule={() => onSchedule(t)}
                   onTogglePriority={() => updateTask(t.id, { priority: t.priority ? 0 : 1 })}
                   onMoveToProject={(pid) => updateTask(t.id, { project_id: pid })}
+                  onUpdate={(patch) => updateTask(t.id, patch)}
                 />
               ))}
             </div>
@@ -3004,8 +3028,9 @@ function TasksView({ tasksHook, projectsHook, onSchedule }) {
 function ProjectCard({
   project, pendingTasks, completedTasks, isOpen, onToggleOpen,
   onAddTask, onToggleTask, onDeleteTask, onScheduleTask, onTogglePriority,
-  onMoveTaskOut, onEditProject,
+  onMoveTaskOut, onUpdateTask, onEditProject,
 }) {
+  const [prioritizing, setPrioritizing] = useState(false)
   const [newInside, setNewInside] = useState('')
   const [insideAdding, setInsideAdding] = useState(false)
   const tintBg = getColorTint(project.color, 'bg')
@@ -3083,30 +3108,61 @@ function ProjectCard({
         <div className="px-3 pb-3 space-y-2"
           style={{ borderTop: '1px solid var(--border-soft)', paddingTop: 10 }}
         >
-          {/* Form de adicionar dentro do projeto */}
+          {/* Form de adicionar dentro do projeto — aceita texto longo */}
           <form
             onSubmit={handleAddInside}
-            className="flex items-center gap-2 rounded-lg p-2"
+            className="flex items-start gap-2 rounded-lg p-2"
             style={{ background: 'var(--bg-elev2)' }}
           >
-            <input
-              type="text"
+            <textarea
               value={newInside}
               onChange={(e) => setNewInside(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleAddInside(e)
+                }
+              }}
               placeholder="Adicionar tarefa neste projeto…"
-              className="flex-1 bg-transparent text-sm outline-none px-1"
-              style={{ color: 'var(--text-primary)' }}
-              maxLength={200}
+              rows={1}
+              className="flex-1 bg-transparent text-sm outline-none px-1 py-1 resize-none"
+              style={{ color: 'var(--text-primary)', lineHeight: 1.4, minHeight: 30, maxHeight: 120 }}
+              maxLength={500}
+              onInput={(e) => {
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px'
+              }}
             />
             <button
               type="submit"
               disabled={!newInside.trim() || insideAdding}
-              className="p-1.5 rounded-md text-sm font-semibold transition disabled:opacity-50"
+              className="p-1.5 rounded-md text-sm font-semibold transition disabled:opacity-50 shrink-0"
               style={{ background: colorVar, color: '#fff' }}
             >
               {insideAdding ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
             </button>
           </form>
+
+          {/* Botão "Ajude-me a priorizar" — só aparece com 2+ pendentes */}
+          {pendingTasks.length >= 2 && !prioritizing && (
+            <button
+              onClick={() => setPrioritizing(true)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition hover:opacity-90 text-left"
+              style={{
+                background: `${colorVar}15`,
+                border: `1px dashed ${colorVar}50`,
+                color: colorVar,
+              }}
+            >
+              <div className="text-base shrink-0">🎯</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold">Me ajude a priorizar</div>
+                <div className="text-[10px] opacity-80">
+                  Alfred faz perguntas pra você definir o que vem primeiro
+                </div>
+              </div>
+            </button>
+          )}
 
           {/* Tarefas pendentes */}
           {pendingTasks.map((t) => (
@@ -3119,6 +3175,7 @@ function ProjectCard({
               onSchedule={() => onScheduleTask(t)}
               onTogglePriority={() => onTogglePriority(t)}
               onMoveOut={() => onMoveTaskOut(t)}
+              onUpdate={(patch) => onUpdateTask?.(t.id, patch)}
             />
           ))}
 
@@ -3139,6 +3196,246 @@ function ProjectCard({
           )}
         </div>
       )}
+
+      {/* Wizard de priorização */}
+      {prioritizing && (
+        <PrioritizeWizard
+          project={project}
+          tasks={pendingTasks}
+          colorVar={colorVar}
+          onClose={() => setPrioritizing(false)}
+          onUpdateTask={onUpdateTask}
+        />
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// PRIORITIZE WIZARD — Alfred faz perguntas pra você definir
+// o que precisa ser feito primeiro nesse projeto
+// ============================================================
+function PrioritizeWizard({ project, tasks, colorVar, onClose, onUpdateTask }) {
+  // 3 etapas:
+  //   0) "Qual destrava as outras?" → escolhe 1 (vira a top-1)
+  //   1) "Qual tem prazo curto ou bloqueia outra coisa?" → escolhe 1 (vira top-2, marca importante)
+  //   2) "O resto pode esperar — qual você gostaria de tirar do caminho rapidinho?" → escolhe 1
+  // Resultado: até 3 tarefas marcadas importantes, na ordem de seleção
+  const [step, setStep] = useState(0)
+  const [picks, setPicks] = useState([])  // [taskId, taskId, taskId]
+  const [saving, setSaving] = useState(false)
+
+  // Bloqueia scroll body enquanto aberto
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [])
+
+  const STEPS = [
+    {
+      icon: '🔓',
+      title: 'Qual destrava as outras?',
+      hint: 'Pense: se eu fizer só uma, qual abre caminho pro resto andar? Sem essa, o projeto trava.',
+    },
+    {
+      icon: '⏰',
+      title: 'Qual tem prazo curto?',
+      hint: 'Alguma tem data marcada, depende de outra pessoa, ou se você adiar vira problema?',
+    },
+    {
+      icon: '⚡',
+      title: 'Qual é rapidinha?',
+      hint: 'Alguma dessas dá pra resolver em 5-10 minutos? Tirar do caminho dá um alívio.',
+    },
+  ]
+
+  const remaining = tasks.filter((t) => !picks.includes(t.id))
+  const current = STEPS[step]
+  const totalSteps = Math.min(3, tasks.length)
+
+  const handlePick = (id) => {
+    setPicks((p) => [...p, id])
+    if (step + 1 >= totalSteps || remaining.length <= 1) {
+      finalize([...picks, id])
+    } else {
+      setStep((s) => s + 1)
+    }
+  }
+
+  const handleSkip = () => {
+    if (step + 1 >= totalSteps) {
+      finalize(picks)
+    } else {
+      setStep((s) => s + 1)
+    }
+  }
+
+  const finalize = async (finalPicks) => {
+    if (finalPicks.length === 0) {
+      onClose()
+      return
+    }
+    setSaving(true)
+    try {
+      // Marca as escolhidas como importantes
+      // (a ordem entre elas já reflete a prioridade da pergunta: destrava > prazo > rapidinha)
+      for (const id of finalPicks) {
+        await onUpdateTask?.(id, { priority: 1 })
+      }
+    } finally {
+      setSaving(false)
+      onClose()
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl"
+        style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+      >
+        {/* Header */}
+        <div className="px-5 pt-5 pb-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
+          <div className="flex items-start gap-3">
+            <img
+              src="/alfred.png"
+              alt="Alfred"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${colorVar}` }}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                Alfred · priorizando "{project.name}"
+              </div>
+              <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-lg leading-tight">
+                {current.icon} {current.title}
+              </h2>
+            </div>
+            <button onClick={onClose} className="p-1 rounded-lg transition hover:opacity-70 shrink-0"
+              style={{ color: 'var(--text-muted)' }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Progresso */}
+          <div className="flex items-center gap-1.5 mt-3">
+            {Array.from({ length: totalSteps }).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 h-1 rounded-full transition"
+                style={{ background: i <= step ? colorVar : 'var(--bg-elev3)' }}
+              />
+            ))}
+            <div className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>
+              {step + 1}/{totalSteps}
+            </div>
+          </div>
+        </div>
+
+        {/* Pergunta */}
+        <div className="px-5 py-4">
+          <div className="text-xs mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            🎩 {current.hint}
+          </div>
+
+          {remaining.length === 0 ? (
+            <div className="text-center py-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              Nenhuma tarefa restante.
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {remaining.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => handlePick(t.id)}
+                  disabled={saving}
+                  className="w-full text-left px-3 py-2.5 rounded-xl transition hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    background: 'var(--bg-elev2)',
+                    border: '1px solid var(--border-soft)',
+                  }}
+                >
+                  <div
+                    className="text-sm"
+                    style={{
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {t.title}
+                  </div>
+                  {t.notes && (
+                    <div
+                      className="text-[11px] mt-1"
+                      style={{
+                        color: 'var(--text-tertiary)',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {t.notes}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Já escolhidas */}
+          {picks.length > 0 && (
+            <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+              <div className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                Você já escolheu · {picks.length}
+              </div>
+              <div className="space-y-1">
+                {picks.map((id, idx) => {
+                  const pickedTask = tasks.find((tt) => tt.id === id)
+                  if (!pickedTask) return null
+                  return (
+                    <div key={id} className="text-[11px] flex items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
+                      <span className="font-semibold" style={{ color: colorVar }}>#{idx + 1}</span>
+                      <span className="truncate">{pickedTask.title}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 p-4 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+          <button
+            onClick={handleSkip}
+            disabled={saving}
+            className="text-xs px-3 py-2 rounded-lg transition hover:opacity-80 disabled:opacity-50"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            Pular essa pergunta
+          </button>
+          <button
+            onClick={() => finalize(picks)}
+            disabled={saving}
+            className="text-xs px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50 flex items-center gap-1.5"
+            style={{ background: colorVar, color: '#fff' }}
+          >
+            {saving ? <Loader2 size={11} className="animate-spin" /> : null}
+            Terminar agora
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -3167,130 +3464,266 @@ function CompletedSection({ tasks, insideProject, onToggle, onDelete }) {
   )
 }
 
-function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule, onTogglePriority, onMoveToProject, onMoveOut }) {
+function TaskRow({ task, projects, insideProject, onToggle, onDelete, onSchedule, onTogglePriority, onMoveToProject, onMoveOut, onUpdate }) {
   const done = !!task.completed_at
   const isImportant = task.priority === 1 && !done
+  const hasNotes = !!(task.notes && task.notes.trim())
   const [showMove, setShowMove] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title || '')
+  const [editNotes, setEditNotes] = useState(task.notes || '')
+  const [saving, setSaving] = useState(false)
+
+  // Sincroniza valores locais com mudanças externas (ex: reordenação)
+  useEffect(() => {
+    if (!expanded) {
+      setEditTitle(task.title || '')
+      setEditNotes(task.notes || '')
+    }
+  }, [task.title, task.notes, expanded])
+
+  const handleSave = async () => {
+    const t = editTitle.trim()
+    if (!t) return
+    const patch = {}
+    if (t !== task.title) patch.title = t
+    const newNotes = editNotes.trim() || null
+    if (newNotes !== (task.notes || null)) patch.notes = newNotes
+    if (Object.keys(patch).length === 0) { setExpanded(false); return }
+    setSaving(true)
+    try {
+      await onUpdate?.(patch)
+      setExpanded(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setEditTitle(task.title || '')
+    setEditNotes(task.notes || '')
+    setExpanded(false)
+  }
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition relative"
+      className="rounded-xl transition relative"
       style={{
-        background: isImportant ? 'rgba(245,158,11,0.06)' : (insideProject ? 'var(--bg-elev2)' : 'var(--bg-elev2)'),
-        border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : 'var(--border-soft)'}`,
+        background: isImportant ? 'rgba(245,158,11,0.06)' : 'var(--bg-elev2)',
+        border: `1px solid ${isImportant ? 'rgba(245,158,11,0.25)' : (expanded ? 'var(--border-medium)' : 'var(--border-soft)')}`,
         opacity: done ? 0.55 : 1,
       }}
     >
-      <button
-        onClick={onToggle}
-        className="shrink-0 flex items-center justify-center transition"
-        style={{
-          width: 22, height: 22, borderRadius: 6,
-          border: `1.5px solid ${done ? AGENDA_ACCENT : 'var(--border-medium)'}`,
-          background: done ? AGENDA_ACCENT : 'transparent',
-        }}
-        title={done ? 'Marcar como não feita' : 'Marcar como feita'}
-      >
-        {done && <Check size={14} color="#fff" strokeWidth={3} />}
-      </button>
-
-      <div className="flex-1 min-w-0">
-        <div
-          className="text-sm truncate"
+      <div className="flex items-start gap-2 px-3 py-2.5">
+        <button
+          onClick={onToggle}
+          className="shrink-0 flex items-center justify-center transition mt-0.5"
           style={{
-            color: 'var(--text-primary)',
-            textDecoration: done ? 'line-through' : 'none',
-            fontWeight: isImportant ? 600 : 400,
+            width: 22, height: 22, borderRadius: 6,
+            border: `1.5px solid ${done ? AGENDA_ACCENT : 'var(--border-medium)'}`,
+            background: done ? AGENDA_ACCENT : 'transparent',
           }}
+          title={done ? 'Marcar como não feita' : 'Marcar como feita'}
         >
-          {isImportant && <Star size={11} className="inline mr-1 mb-0.5" fill="currentColor" style={{ color: 'var(--accent-amber)' }} />}
-          {task.title}
+          {done && <Check size={14} color="#fff" strokeWidth={3} />}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => onUpdate && !done && setExpanded((v) => !v)}
+            className="w-full text-left"
+            disabled={!onUpdate || done}
+            style={{ cursor: onUpdate && !done ? 'pointer' : 'default' }}
+          >
+            <div
+              className="text-sm"
+              style={{
+                color: 'var(--text-primary)',
+                textDecoration: done ? 'line-through' : 'none',
+                fontWeight: isImportant ? 600 : 400,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                lineHeight: 1.4,
+              }}
+            >
+              {isImportant && <Star size={11} className="inline mr-1 mb-0.5" fill="currentColor" style={{ color: 'var(--accent-amber)' }} />}
+              {task.title}
+            </div>
+            {hasNotes && !expanded && (
+              <div
+                className="text-[11px] mt-1"
+                style={{
+                  color: 'var(--text-tertiary)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.4,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {task.notes}
+              </div>
+            )}
+          </button>
         </div>
+
+        {!done && !expanded && (
+          <div className="flex items-center gap-0 shrink-0">
+            {onTogglePriority && (
+              <button
+                onClick={onTogglePriority}
+                className="p-1.5 rounded-lg transition hover:opacity-70"
+                title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
+                style={{ color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)' }}
+              >
+                <Star size={14} fill={isImportant ? 'currentColor' : 'none'} />
+              </button>
+            )}
+            {onSchedule && (
+              <button
+                onClick={onSchedule}
+                className="p-1.5 rounded-lg transition hover:opacity-70"
+                title="Agendar pra um dia"
+                style={{ color: AGENDA_ACCENT }}
+              >
+                <CalendarPlus size={15} />
+              </button>
+            )}
+            {((projects && projects.length > 0) || onMoveOut) && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowMove((v) => !v)}
+                  className="p-1.5 rounded-lg transition hover:opacity-70"
+                  title="Mover"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <Folder size={14} />
+                </button>
+                {showMove && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
+                    <div
+                      className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg overflow-hidden min-w-[180px]"
+                      style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
+                    >
+                      {onMoveOut && (
+                        <button
+                          onClick={() => { onMoveOut(); setShowMove(false) }}
+                          className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
+                          style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-soft)' }}
+                        >
+                          <span>📤</span> Tirar do projeto
+                        </button>
+                      )}
+                      {projects && projects.length > 0 && (
+                        <>
+                          <div className="px-3 py-1.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                            Mover para:
+                          </div>
+                          {projects.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
+                              className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
+                              style={{ color: 'var(--text-primary)' }}
+                            >
+                              <Folder size={11} style={{ color: `var(--accent-${p.color})` }} />
+                              {p.icon && <span>{p.icon}</span>}
+                              <span className="truncate">{p.name}</span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={onDelete}
+          className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
+          title="Apagar"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
 
-      {!done && (
-        <>
-          {onTogglePriority && (
-            <button
-              onClick={onTogglePriority}
-              className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
-              title={isImportant ? 'Tirar destaque' : 'Marcar como importante'}
-              style={{ color: isImportant ? 'var(--accent-amber)' : 'var(--text-muted)' }}
-            >
-              <Star size={14} fill={isImportant ? 'currentColor' : 'none'} />
-            </button>
-          )}
-          {onSchedule && (
-            <button
-              onClick={onSchedule}
-              className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
-              title="Agendar pra um dia"
-              style={{ color: AGENDA_ACCENT }}
-            >
-              <CalendarPlus size={15} />
-            </button>
-          )}
-          {/* Mover entre projetos (só aparece se tem projetos pra mover) */}
-          {((projects && projects.length > 0) || onMoveOut) && (
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setShowMove((v) => !v)}
-                className="p-1.5 rounded-lg transition hover:opacity-70"
-                title="Mover"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <Folder size={14} />
-              </button>
-              {showMove && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowMove(false)} />
-                  <div
-                    className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg overflow-hidden min-w-[180px]"
-                    style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)' }}
-                  >
-                    {onMoveOut && (
-                      <button
-                        onClick={() => { onMoveOut(); setShowMove(false) }}
-                        className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
-                        style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-soft)' }}
-                      >
-                        <span>📤</span> Tirar do projeto
-                      </button>
-                    )}
-                    {projects && projects.length > 0 && (
-                      <>
-                        <div className="px-3 py-1.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                          Mover para:
-                        </div>
-                        {projects.map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => { onMoveToProject?.(p.id); setShowMove(false) }}
-                            className="w-full text-left px-3 py-2 text-xs transition hover:opacity-80 flex items-center gap-2"
-                            style={{ color: 'var(--text-primary)' }}
-                          >
-                            <Folder size={11} style={{ color: `var(--accent-${p.color})` }} />
-                            {p.icon && <span>{p.icon}</span>}
-                            <span className="truncate">{p.name}</span>
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
+      {/* ===== Modo expandido: editar título + notas ===== */}
+      {expanded && !done && (
+        <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: 'var(--border-soft)', paddingTop: 10 }}>
+          <div>
+            <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
+              Título
             </div>
-          )}
-        </>
+            <textarea
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              rows={2}
+              className="w-full text-sm outline-none rounded-lg px-2.5 py-2 resize-none"
+              style={{
+                background: 'var(--bg-elev1)',
+                border: '1px solid var(--border-medium)',
+                color: 'var(--text-primary)',
+                lineHeight: 1.4,
+              }}
+              maxLength={500}
+            />
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
+              Notas / contexto
+              <span className="ml-2 normal-case tracking-normal" style={{ color: 'var(--text-tertiary)' }}>
+                (tudo o que você precisa lembrar sobre essa tarefa)
+              </span>
+            </div>
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              rows={3}
+              placeholder="Ex: prazo até sexta, telefone do contador é 11 9999-8888, levar documento X…"
+              className="w-full text-sm outline-none rounded-lg px-2.5 py-2 resize-none"
+              style={{
+                background: 'var(--bg-elev1)',
+                border: '1px solid var(--border-medium)',
+                color: 'var(--text-primary)',
+                lineHeight: 1.5,
+              }}
+              maxLength={2000}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              {editNotes.length > 0 ? `${editNotes.length}/2000` : 'Anote pra tirar da cabeça'}
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleCancel}
+                disabled={saving}
+                className="px-3 py-1.5 rounded-lg text-xs transition hover:opacity-80 disabled:opacity-50"
+                style={{ color: 'var(--text-tertiary)', background: 'var(--bg-elev1)' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !editTitle.trim()}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50 flex items-center gap-1.5"
+                style={{ background: AGENDA_ACCENT, color: '#fff' }}
+              >
+                {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      <button
-        onClick={onDelete}
-        className="p-1.5 rounded-lg transition hover:opacity-70 shrink-0"
-        title="Apagar"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        <Trash2 size={14} />
-      </button>
     </div>
   )
 }
