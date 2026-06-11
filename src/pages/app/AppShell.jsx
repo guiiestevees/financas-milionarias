@@ -17,6 +17,7 @@ import ConfigTab from '../../features/config/ConfigTab'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import VerificationBanner from '../../components/VerificationBanner'
 import SubscriptionBlocked from '../../components/SubscriptionBlocked'
+import QuickAddExpense from '../../components/QuickAddExpense'
 // import WelcomeTour from '../../components/WelcomeTour'  // removido — agora usamos a página /tutorial acessível pelo painel
 import { useSubscription } from '../../hooks/useSubscription'
 import { useTheme } from '../../hooks/useTheme'
@@ -847,6 +848,14 @@ export default function AppShell() {
     navigate('/login')
   }
 
+  // Registro rápido de gasto (FAB) — adiciona no mês ativo com id + timestamp
+  const addQuickDespesa = useCallback((despesa) => {
+    setMonth((m) => ({
+      ...m,
+      despesas: [{ id: uid(), createdAt: Date.now(), ...despesa }, ...m.despesas],
+    }))
+  }, [setMonth])
+
   if (!data || !month) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#070912' }}>
@@ -900,6 +909,11 @@ export default function AppShell() {
           {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} whatsappPhone={data.whatsappPhone || ''} updateWhatsappPhone={updateWhatsappPhone} />}
         </ErrorBoundary>
       </main>
+
+      {/* FAB de gasto rápido — só nas abas onde faz sentido (não em config/cofres) */}
+      {(tab === 'painel' || tab === 'gastos' || tab === 'receitas') && (
+        <QuickAddExpense month={month} onAdd={addQuickDespesa} />
+      )}
 
       {/* Bottom navigation fixa — sempre visível durante o scroll */}
       <Tabs tab={tab} setTab={setTab} />

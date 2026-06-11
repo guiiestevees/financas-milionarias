@@ -48,6 +48,9 @@ export default function SubscriptionCard() {
   const [cancelling, setCancelling] = useState(false)
   const [changing, setChanging] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  // Pesquisa de saída — motivo escolhido + comentário livre (ambos opcionais)
+  const [cancelReason, setCancelReason] = useState(null)
+  const [cancelFeedback, setCancelFeedback] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,11 +82,17 @@ export default function SubscriptionCard() {
       const res = await fetch('/api/subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ action: 'cancel' }),
+        body: JSON.stringify({
+          action: 'cancel',
+          reason: cancelReason || undefined,
+          feedback: cancelFeedback.trim() || undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao cancelar')
       setShowCancelConfirm(false)
+      setCancelReason(null)
+      setCancelFeedback('')
       await load()
     } catch (err) {
       setError(err.message)
@@ -322,11 +331,57 @@ export default function SubscriptionCard() {
             </div>
 
             <p className="text-sm text-white/65 leading-relaxed mb-4">
-              🎩 Permita-me uma observação: ao cancelar, manterá o acesso até <strong className="text-white/85">{formatDateLongPT(info.until)}</strong>. Após essa data, não cobraremos mais.
+              🎩 Permita-me uma observação: ao cancelar, manterá o acesso até <strong className="text-white/85">{formatDateLongPT(info.until)}</strong>. Após essa data, não cobraremos mais. Seus dados permanecem salvos — pode reativar quando desejar.
             </p>
-            <p className="text-sm text-white/65 leading-relaxed mb-5">
-              Seus dados permanecem salvos — pode reativar quando desejar e tudo estará exatamente como deixou.
-            </p>
+
+            {/* Pesquisa de saída — 1 pergunta, opcional */}
+            <div className="mb-4 p-3.5 rounded-xl" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+              <div className="text-sm font-medium mb-2.5" style={{ color: 'var(--text-primary)' }}>
+                Antes de ir: o que faltou pra você?
+                <span className="text-xs font-normal ml-1.5" style={{ color: 'var(--text-muted)' }}>(opcional)</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
+                {[
+                  { id: 'price', label: '💰 Tá caro pra mim' },
+                  { id: 'usage', label: '🕐 Não uso o suficiente' },
+                  { id: 'missing_feature', label: '🧩 Faltou alguma função' },
+                  { id: 'technical', label: '🐛 Problemas técnicos' },
+                  { id: 'other', label: '💬 Outro motivo' },
+                ].map((opt) => {
+                  const sel = cancelReason === opt.id
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCancelReason(sel ? null : opt.id)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs transition"
+                      style={{
+                        background: sel ? 'rgba(201,169,97,0.15)' : 'var(--bg-elev1)',
+                        color: sel ? '#c9a961' : 'var(--text-secondary)',
+                        border: `1px solid ${sel ? 'rgba(201,169,97,0.45)' : 'var(--border-soft)'}`,
+                        fontWeight: sel ? 600 : 400,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <textarea
+                value={cancelFeedback}
+                onChange={(e) => setCancelFeedback(e.target.value)}
+                rows={2}
+                placeholder="Quer contar mais? Sua resposta ajuda a melhorar o Domus…"
+                className="w-full text-xs outline-none rounded-lg px-2.5 py-2 resize-none placeholder:text-white/30"
+                style={{
+                  background: 'var(--bg-elev1)',
+                  border: '1px solid var(--border-soft)',
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.5,
+                }}
+                maxLength={1000}
+              />
+            </div>
 
             <div className="flex gap-2 justify-end">
               <Btn variant="ghost" onClick={() => setShowCancelConfirm(false)} disabled={cancelling}>Manter assinatura</Btn>

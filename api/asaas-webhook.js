@@ -68,6 +68,13 @@ export default async function handler(req, res) {
         break
       }
 
+      // Cartão de crédito recusado na cobrança recorrente — avisa NA HORA
+      // (não espera virar OVERDUE; a pessoa pode trocar o cartão antes)
+      case 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED': {
+        await handleCardRefused(admin, payment)
+        break
+      }
+
       // Cliente estornou ou Asaas reembolsou
       case 'PAYMENT_REFUNDED':
       case 'PAYMENT_DELETED': {
@@ -251,6 +258,8 @@ async function handlePaymentOverdue(admin, payment) {
   // ===== Manda notificação =====
   const valueLabel = `R$ ${value.toFixed(2).replace('.', ',')}`
   const regularizeUrl = `https://project-s3mj5.vercel.app/app`
+  // Link DIRETO da fatura no Asaas — paga em 1 toque (PIX/boleto/cartão)
+  const invoiceUrl = payment.invoiceUrl || null
 
   await admin
     .from('user_profiles')
@@ -260,16 +269,84 @@ async function handlePaymentOverdue(admin, payment) {
     })
     .eq('user_id', profile.user_id)
 
+  const payLine = invoiceUrl
+    ? `*Para regularizar agora, basta um toque:*\n${invoiceUrl}`
+    : `_Para regularizar pelo aplicativo, basta abrir Configurações → Assinatura → Trocar forma de pagamento._`
+
   await Promise.allSettled([
     profile.whatsapp_phone && sendWhatsApp(profile.whatsapp_phone, `🎩 *Permita-me uma observação.*
 
 A cobrança de *${valueLabel}* consta em aberto. Sua assinatura permanece ativa por mais 3 dias — tempo suficiente para regularizar com tranquilidade.
 
-Se já pagou, ignore esta mensagem — a confirmação chega em poucos minutos.
+${payLine}
 
-_Para regularizar pelo aplicativo, basta abrir Configurações → Assinatura → Trocar forma de pagamento._`, { respectQuietHours: true }),
-    sendOverdueEmail({ admin, userId: profile.user_id, value, regularizeUrl }),
+Se já pagou, ignore esta mensagem — a confirmação chega em poucos minutos.`, { respectQuietHours: true }),
+    sendOverdueEmail({ admin, userId: profile.user_id, value, regularizeUrl: invoiceUrl || regularizeUrl }),
   ])
+}
+
+// ---------- Cartão recusado na renovação ----------
+// Diferente do OVERDUE: aqui sabemos que o motivo é o CARTÃO (expirou,
+// sem limite, bloqueado). Avisar na hora aumenta muito a recuperação —
+// a pessoa troca o cartão antes mesmo do vencimento.
+async function handleCardRefused(admin, payment) {
+  if (!payment) return
+  const customerId = payment.customer
+  const paymentId = payment.id
+  const value = Number(payment.value) || 0
+
+  const { data: profile } = await admin
+    .from('user_profiles')
+    .select('user_id, whatsapp_phone, last_overdue_notice_at, last_overdue_payment_id')
+    .eq('asaas_customer_id', customerId)
+    .maybeSingle()
+
+  if (!profile) return
+
+  console.log(`💳❌ Cartão recusado: user ${profile.user_id}, payment ${paymentId}`)
+
+  // Mesmas proteções anti-spam do overdue (compartilha os campos de tracking)
+  if (profile.last_overdue_payment_id === paymentId) {
+    console.log(`🔁 Recusa ${paymentId} já notificada, skip`)
+    return
+  }
+  if (profile.last_overdue_notice_at) {
+    const hoursSince = (Date.now() - new Date(profile.last_overdue_notice_at).getTime()) / 3600000
+    if (hoursSince < 24) {
+      await admin.from('user_profiles')
+        .update({ last_overdue_payment_id: paymentId })
+        .eq('user_id', profile.user_id)
+      return
+    }
+  }
+  if (isQuietHours()) {
+    console.log('🌙 Quiet hours — adia notificação de cartão recusado')
+    return
+  }
+
+  const valueLabel = `R$ ${value.toFixed(2).replace('.', ',')}`
+  const invoiceUrl = payment.invoiceUrl || null
+  const payLine = invoiceUrl
+    ? `*Pode pagar esta cobrança por PIX ou outro cartão em um toque:*\n${invoiceUrl}`
+    : `_No aplicativo: Configurações → Assinatura → Trocar forma de pagamento._`
+
+  await admin
+    .from('user_profiles')
+    .update({
+      last_overdue_notice_at: new Date().toISOString(),
+      last_overdue_payment_id: paymentId,
+    })
+    .eq('user_id', profile.user_id)
+
+  if (profile.whatsapp_phone) {
+    await sendWhatsApp(profile.whatsapp_phone, `🎩 *Um aviso discreto sobre seu cartão.*
+
+Tentei processar a renovação de *${valueLabel}*, mas o cartão cadastrado recusou a cobrança — costuma ser limite, validade ou bloqueio temporário do banco.
+
+Sua assinatura segue ativa. ${payLine}
+
+_Resolvo a confirmação em minutos assim que o pagamento entrar._`, { respectQuietHours: true })
+  }
 }
 
 async function sendOverdueEmail({ admin, userId, value, regularizeUrl }) {

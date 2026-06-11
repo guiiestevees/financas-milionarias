@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      if (action === 'cancel') return handleCancel(user, res)
+      if (action === 'cancel') return handleCancel(user, req, res)
       if (action === 'change-payment') return handleChangePayment(user, res)
       return res.status(400).json({ error: 'Action inválida (use: cancel, change-payment)' })
     }
@@ -126,32 +126,47 @@ async function handleGet(user, res) {
 }
 
 // ---------- POST action=cancel ----------
-async function handleCancel(user, res) {
+// Aceita opcionalmente reason/feedback da pesquisa de saída.
+const VALID_CANCEL_REASONS = ['price', 'usage', 'missing_feature', 'technical', 'other']
+
+async function handleCancel(user, req, res) {
   const profile = await loadProfile(user.id)
   const now = new Date().toISOString()
 
-  if (!profile?.asaas_subscription_id) {
-    // Sem assinatura ativa — só atualiza local
-    await admin().from('user_profiles').update({
-      subscription_status: 'cancelled',
-      subscription_cancelled_at: profile?.subscription_cancelled_at || now,
-      updated_at: now,
-    }).eq('user_id', user.id)
-    return res.status(200).json({ ok: true, cancelled: true })
+  // Cancela no Asaas (se tiver assinatura lá)
+  if (profile?.asaas_subscription_id) {
+    try {
+      await cancelSubscription(profile.asaas_subscription_id)
+    } catch (err) {
+      console.error('Asaas cancel error:', err)
+      // Continua e marca como cancelado localmente — pode estar já cancelado lá
+    }
   }
 
-  try {
-    await cancelSubscription(profile.asaas_subscription_id)
-  } catch (err) {
-    console.error('Asaas cancel error:', err)
-    // Continua e marca como cancelado localmente — pode estar já cancelado lá
-  }
-
+  // Update CRÍTICO — status do cancelamento (sempre roda)
   await admin().from('user_profiles').update({
     subscription_status: 'cancelled',
-    subscription_cancelled_at: profile.subscription_cancelled_at || now,
+    subscription_cancelled_at: profile?.subscription_cancelled_at || now,
     updated_at: now,
   }).eq('user_id', user.id)
+
+  // Pesquisa de saída — best-effort em update separado.
+  // Se as colunas não existirem (migration não rodada), só loga.
+  const rawReason = req.body?.reason
+  const rawFeedback = req.body?.feedback
+  const surveyFields = {}
+  if (VALID_CANCEL_REASONS.includes(rawReason)) surveyFields.cancel_reason = rawReason
+  if (typeof rawFeedback === 'string' && rawFeedback.trim()) {
+    surveyFields.cancel_feedback = rawFeedback.trim().slice(0, 1000)
+  }
+  if (Object.keys(surveyFields).length > 0) {
+    const { error: surveyErr } = await admin()
+      .from('user_profiles')
+      .update(surveyFields)
+      .eq('user_id', user.id)
+    if (surveyErr) console.warn('cancel survey não salvou (migration?):', surveyErr.message)
+    else console.log(`📋 Cancel survey: user ${user.id} → ${rawReason}`)
+  }
 
   return res.status(200).json({ ok: true, cancelled: true })
 }
