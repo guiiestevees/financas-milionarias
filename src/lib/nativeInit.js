@@ -4,9 +4,32 @@
 // Chamado em src/main.jsx logo no boot. Em web puro, faz nada.
 
 import { Capacitor } from '@capacitor/core'
+import { WEB_APP_URL_FULL } from './platform'
+
+// No app nativo o webview roda em capacitor://localhost, então chamadas
+// relativas como fetch('/api/...') apontariam pra um host local inexistente.
+// Reescrevemos essas chamadas pro backend de produção (meudomus.com), que
+// agora libera CORS (ver api/_cors.js). Cobre TODAS as chamadas /api de uma vez.
+function patchApiFetch() {
+  if (typeof window === 'undefined' || window.__domusApiFetchPatched) return
+  const orig = window.fetch.bind(window)
+  window.fetch = (input, init) => {
+    try {
+      if (typeof input === 'string' && input.startsWith('/api/')) {
+        input = WEB_APP_URL_FULL + input
+      }
+    } catch (e) { /* ignore */ }
+    return orig(input, init)
+  }
+  window.__domusApiFetchPatched = true
+}
 
 export async function initNativeApp() {
   if (!Capacitor.isNativePlatform()) return
+
+  // Redireciona chamadas /api pro backend de produção (precisa rodar antes
+  // de qualquer fetch — por isso é a primeira coisa no init nativo).
+  patchApiFetch()
 
   try {
     // ===== STATUS BAR =====

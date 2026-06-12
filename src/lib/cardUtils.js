@@ -61,7 +61,7 @@ export function validateCardNumber(number) {
 
 // Valida validade (MM/AA não pode ser passado)
 export function validateCardExpiry(mmyy) {
-  const m = mmyy.match(/^(\d{2})\/(\d{2})$/)
+  const m = String(mmyy || '').match(/^(\d{2})\/(\d{2})$/)
   if (!m) return false
   const month = parseInt(m[1], 10)
   const year = 2000 + parseInt(m[2], 10)
@@ -72,7 +72,7 @@ export function validateCardExpiry(mmyy) {
 }
 
 export function parseExpiry(mmyy) {
-  const m = mmyy.match(/^(\d{2})\/(\d{2})$/)
+  const m = String(mmyy || '').match(/^(\d{2})\/(\d{2})$/)
   if (!m) return null
   return {
     month: m[1],

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { AuthProvider } from './hooks/useAuth'
 import { bootstrapTheme } from './hooks/useTheme'
 import { initNativeApp } from './lib/nativeInit'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App'
 import './index.css'
 
@@ -16,8 +17,10 @@ initNativeApp()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 )

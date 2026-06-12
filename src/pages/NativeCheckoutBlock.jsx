@@ -51,21 +51,20 @@ export default function NativeCheckoutBlock({ variant = 'manage', backTo }) {
             style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }}
             className="text-2xl sm:text-3xl mb-2"
           >
-            {isSignup ? 'Criação de conta no site' : 'Sua assinatura é gerenciada no site'}
+            {isSignup ? 'Entre com sua conta' : 'Assinatura gerenciada fora do app'}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
             {isSignup
-              ? '🎩 A primeira vez é rápida: crie sua conta no nosso site e, em seguida, faça login aqui no app.'
-              : '🎩 Para sua segurança e melhor controle, planos, pagamentos e renovações são gerenciados diretamente em nosso site.'}
+              ? '🎩 Já tem uma conta? É só entrar para começar a usar.'
+              : '🎩 Por aqui você usa o app normalmente. A gestão de planos não acontece dentro do aplicativo.'}
           </p>
         </div>
 
         <NativeReaderNotice
-          action={isSignup ? 'criar sua conta' : 'gerenciar sua assinatura ou contratar um plano'}
           subtitle={
             isSignup
-              ? "Depois é só voltar aqui e tocar em 'Entrar' — sua conta já estará pronta."
-              : 'Depois de confirmar lá, sua conta no app é atualizada automaticamente — pode voltar e usar normalmente.'
+              ? 'Assim que entrar com uma conta ativa, tudo aparece por aqui.'
+              : 'Se você já tem um plano ativo, o acesso aparece automaticamente após entrar.'
           }
         />
 

@@ -232,7 +232,9 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
   const negative = balance < 0
   const last = lastMov(cofre)
   const goal = cofre.goal
-  const pct = goal && goal.amount > 0 ? Math.min(100, (balance / goal.amount) * 100) : null
+  // pct sempre numérico quando há meta (evita crash em pct.toFixed/Math.max
+  // se a meta existir com amount 0 ou inválido — dado legado/migração).
+  const pct = goal && goal.amount > 0 ? Math.min(100, (balance / goal.amount) * 100) : 0
   const monthsLeft = goal?.targetDate ? monthsUntil(goal.targetDate) : null
 
   return (

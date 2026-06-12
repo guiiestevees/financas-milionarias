@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { storage } from '../../lib/storage'
 import { migrateData } from '../../lib/migrate'
 import { createEmptyMonth, createEmptyConfig, safeConfig, computeEffectiveConfig } from '../../lib/constants'
-import { getCurrentMonth, shiftMonth, formatMonthLabel, uid } from '../../lib/utils'
+import { getCurrentMonth, shiftMonth, formatMonthLabel, uid, dateInMonth } from '../../lib/utils'
 import { Header } from '../../components/layout/Header'
 import { Footer } from '../../components/layout/Footer'
 import { Tabs } from '../../components/layout/Tabs'
@@ -64,6 +64,9 @@ export default function AppShell() {
   const saveTimer = useRef(null)
   const initialized = useRef(false)
   const loadedUserId = useRef(null)
+  const mounted = useRef(true)            // evita setState após desmontar
+  const pendingSave = useRef(false)       // há um save no debounce ainda não persistido?
+  const dataRef = useRef(null)            // versão mais recente de `data` pro flush final
 
   // Tour inicial removido — tutorial agora é acessível via página /tutorial.
 
@@ -97,14 +100,32 @@ export default function AppShell() {
 
   useEffect(() => {
     if (!initialized.current || data === null) return
+    dataRef.current = data
+    pendingSave.current = true
     clearTimeout(saveTimer.current)
     setSaving(true)
     saveTimer.current = setTimeout(async () => {
       await storage.save(data)
-      setSaving(false)
+      pendingSave.current = false
+      if (mounted.current) setSaving(false)
     }, 600)
     return () => clearTimeout(saveTimer.current)
   }, [data])
+
+  // Ao desmontar (sair da tela), garante que uma edição ainda no debounce
+  // seja persistida — sem isso, a última alteração feita logo antes de
+  // navegar pra outra aba/app era perdida.
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      clearTimeout(saveTimer.current)
+      if (pendingSave.current && dataRef.current !== null) {
+        storage.save(dataRef.current)  // cleanup não permite await — dispara o save final
+        pendingSave.current = false
+      }
+    }
+  }, [])
 
   const rawMonth = data ? (data.months?.[activeMonth] ?? createEmptyMonth()) : null
   // The displayed config is the GLOBAL effective config — same in every month.
@@ -279,7 +300,7 @@ export default function AppShell() {
         const fm = shiftMonth(activeMonth, i)
         const fmData = next.months[fm]
         const day = despesa.date?.slice(8)
-        const futureDate = fm + (day ? '-' + day : '-01')
+        const futureDate = dateInMonth(fm, day)
 
         if (fmData) {
           // Month already exists — just add the installment
@@ -346,7 +367,7 @@ export default function AppShell() {
         )
         if (already) continue
 
-        const futureDate = fm + (day ? '-' + day : '-01')
+        const futureDate = dateInMonth(fm, day)
         const newEntry = {
           ...despesa,
           id: uid(),
@@ -804,7 +825,7 @@ export default function AppShell() {
               (d) => d && d.description === finalData.description && Number(d.installmentCurrent) === inst
             )
             if (already) continue
-            const futureDate = fm + (day ? '-' + day : '-01')
+            const futureDate = dateInMonth(fm, day)
             const futureDespesa = {
               ...finalData,
               id: uid(),

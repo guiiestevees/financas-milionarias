@@ -179,10 +179,15 @@ function eventOccursOnDate(event, targetIso) {
     case 'weekly':   return diffDays >= 0 && diffDays % 7 === 0
     case 'biweekly': return diffDays >= 0 && diffDays % 14 === 0
     case 'monthly':  {
-      if (startDate.getDate() !== targetDate.getDate()) return false
       const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12
         + (targetDate.getMonth() - startDate.getMonth())
-      return monthsDiff >= 0
+      if (monthsDiff < 0) return false
+      // Grampeia o dia ao último dia do mês alvo: um evento no dia 31 ocorre
+      // em 28/fev, 30/abr, etc. — em vez de simplesmente sumir nesses meses.
+      const startDay = startDate.getDate()
+      const lastDayOfTarget = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate()
+      const expectedDay = Math.min(startDay, lastDayOfTarget)
+      return targetDate.getDate() === expectedDay
     }
     case 'weekdays': {
       // Acontece nos dias da semana listados em recurring_weekdays
