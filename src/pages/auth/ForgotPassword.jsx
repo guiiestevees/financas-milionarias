@@ -163,10 +163,10 @@ function PhoneRecover() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/recover-phone', {
+      const res = await fetch('/api/verify-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send', phone }),
+        body: JSON.stringify({ action: 'recover-send', phone }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Falha ao enviar o código.')
@@ -186,10 +186,10 @@ function PhoneRecover() {
     if (pw !== pw2) { setError('As senhas não conferem.'); return }
     setLoading(true)
     try {
-      const res = await fetch('/api/recover-phone', {
+      const res = await fetch('/api/verify-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset', phone, code, newPassword: pw }),
+        body: JSON.stringify({ action: 'recover-reset', phone, code, newPassword: pw }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Falha ao trocar a senha.')
