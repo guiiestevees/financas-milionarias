@@ -12,6 +12,7 @@ import { useAgendaProjects } from '../../hooks/useAgendaProjects'
 import { useAgendaTags } from '../../hooks/useAgendaTags'
 import { useAgendaCompletions } from '../../hooks/useAgendaCompletions'
 import { useTheme } from '../../hooks/useTheme'
+import { supabase } from '../../lib/supabase'
 import AppSwitcher from '../../components/AppSwitcher'
 import EventForm from './EventForm'
 import {
@@ -4650,11 +4651,6 @@ function SettingsView() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
 
-  // Alfred no WhatsApp (mesmo número usado no app de Finanças)
-  const BOT_PHONE = '5519997472896'
-  const BOT_PHONE_DISPLAY = '+55 (19) 99747-2896'
-  const waLink = `https://wa.me/${BOT_PHONE}?text=${encodeURIComponent('Oi, quero começar')}`
-
   return (
     <div className="space-y-4">
       {/* Tema */}
@@ -4673,32 +4669,7 @@ function SettingsView() {
       </div>
 
       {/* Alfred no WhatsApp */}
-      <div className="rounded-2xl p-4 sm:p-5"
-        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
-          Alfred no WhatsApp
-        </div>
-        <div className="flex items-center gap-3 mb-3">
-          <img
-            src="/alfred.png"
-            alt="Alfred"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-            style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(37,211,102,0.35)' }}
-          />
-          <div className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            Converse com o <strong style={{ color: '#25D366' }}>Alfred</strong> 🎩 em <strong style={{ color: '#25D366' }}>{BOT_PHONE_DISPLAY}</strong> — ele também marca compromissos por mensagem, ex: <em>"reunião amanhã 15h"</em>.
-          </div>
-        </div>
-        <a
-          href={waLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition w-full"
-          style={{ background: '#25D366', color: 'white', boxShadow: '0 4px 14px rgba(37,211,102,0.25)' }}
-        >
-          <MessageCircle size={16} /> Abrir conversa com Alfred
-        </a>
-      </div>
+      <AgendaWhatsAppCard />
 
       {/* Info */}
       <div className="rounded-2xl p-4 sm:p-5"
@@ -4725,6 +4696,145 @@ function SettingsView() {
       <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
         Tem sugestão? Mande pra <strong>alquimiadigital08@gmail.com</strong>
       </div>
+    </div>
+  )
+}
+
+// Cadastro do número do WhatsApp pra falar com o Alfred — auto-contido
+// (lê/grava user_profiles.whatsapp_phone direto, mesmo campo do app de Finanças,
+// então fica sincronizado entre os dois).
+function AgendaWhatsAppCard() {
+  const BOT_PHONE = '5519997472896'
+  const waLink = `https://wa.me/${BOT_PHONE}?text=${encodeURIComponent('Oi, quero começar')}`
+
+  const [phone, setPhone] = useState(null)
+  const [draft, setDraft] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savedJustNow, setSavedJustNow] = useState(false)
+
+  const normalize = (input) => {
+    const digits = (input || '').replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.startsWith('55') && digits.length >= 12) return digits
+    if (digits.length === 10 || digits.length === 11) return '55' + digits
+    if (digits.length >= 10) return digits
+    return null
+  }
+  const formatBR = (digits) => {
+    if (!digits) return ''
+    const d = digits.replace(/\D/g, '')
+    if (d.length === 13 && d.startsWith('55')) return `+55 (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`
+    if (d.length === 12 && d.startsWith('55')) return `+55 (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`
+    return '+' + d
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('whatsapp_phone')
+            .eq('user_id', user.id)
+            .maybeSingle()
+          if (!cancelled) {
+            const v = data?.whatsapp_phone || null
+            setPhone(v)
+            setDraft(v ? formatBR(v) : '')
+          }
+        }
+      } catch (e) { console.warn('load whatsapp (agenda):', e) }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const persist = async (value) => {
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase
+          .from('user_profiles')
+          .upsert({ user_id: user.id, whatsapp_phone: value }, { onConflict: 'user_id' })
+        setPhone(value)
+      }
+    } catch (e) { console.warn('save whatsapp (agenda):', e) }
+    setSaving(false)
+  }
+
+  const save = async () => {
+    await persist(normalize(draft))
+    setSavedJustNow(true)
+    setTimeout(() => setSavedJustNow(false), 2500)
+  }
+  const remove = async () => { setDraft(''); await persist(null) }
+
+  return (
+    <div className="rounded-2xl p-4 sm:p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+        Alfred no WhatsApp
+      </div>
+      <div className="flex items-center gap-3 mb-3">
+        <img
+          src="/alfred.png"
+          alt="Alfred"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+          style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(37,211,102,0.35)' }}
+        />
+        <div className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          Cadastre seu número pra falar com o <strong style={{ color: '#25D366' }}>Alfred</strong> 🎩 — ele anota compromissos e gastos por mensagem ou áudio.
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+      ) : phone ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-soft)' }}>
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{formatBR(phone)}</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>vinculado a essa conta</div>
+            </div>
+            <button onClick={remove} disabled={saving} className="text-xs transition shrink-0 disabled:opacity-50" style={{ color: 'var(--text-muted)' }}>Desvincular</button>
+          </div>
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition w-full"
+            style={{ background: '#25D366', color: 'white', boxShadow: '0 4px 14px rgba(37,211,102,0.25)' }}
+          >
+            <MessageCircle size={16} /> Abrir conversa com Alfred
+          </a>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            type="tel"
+            inputMode="numeric"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Seu número com DDD (ex: 11 99999-8888)"
+            className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+          />
+          <button
+            onClick={save}
+            disabled={saving || !draft.trim()}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition w-full disabled:opacity-50"
+            style={{ background: AGENDA_ACCENT, color: '#06121a' }}
+          >
+            {saving ? 'Salvando…' : savedJustNow ? 'Salvo!' : 'Salvar número'}
+          </button>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Depois de salvar, é só mandar mensagem pro Alfred desse número.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
