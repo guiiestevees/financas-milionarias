@@ -4,7 +4,7 @@ import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
   ListChecks, Settings, Sun, Moon, Sparkles, Check, Trash2, Star, CalendarPlus,
-  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X,
+  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X, MessageCircle,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
@@ -54,9 +54,8 @@ export default function AgendaShell() {
   const tagsHook = useAgendaTags()
   const completionsHook = useAgendaCompletions()
 
-  // Aplica o tema específico da Agenda (lê 'domus:theme:agenda' do localStorage)
-  // Quando o user troca em Ajustes, vale só pra Agenda; Finanças mantém o seu tema.
-  useTheme('agenda')
+  // Aplica o tema do app (tema único — vale pra Finanças e Agenda).
+  useTheme()
 
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
@@ -4649,7 +4648,12 @@ function ProjectForm({ project, onSave, onDelete, onClose }) {
 // ============================================================
 function SettingsView() {
   const navigate = useNavigate()
-  const { theme, setTheme } = useTheme('agenda')
+  const { theme, setTheme } = useTheme()
+
+  // Alfred no WhatsApp (mesmo número usado no app de Finanças)
+  const BOT_PHONE = '5519997472896'
+  const BOT_PHONE_DISPLAY = '+55 (19) 99747-2896'
+  const waLink = `https://wa.me/${BOT_PHONE}?text=${encodeURIComponent('Oi, quero começar')}`
 
   return (
     <div className="space-y-4">
@@ -4660,12 +4664,40 @@ function SettingsView() {
           Aparência
         </div>
         <div className="text-[11px] mb-3" style={{ color: 'var(--text-tertiary)' }}>
-          🎩 Tema específico da Agenda — pode ser diferente do app de Finanças.
+          🎩 Tema do app — vale para a Agenda e o Finanças.
         </div>
         <div className="flex gap-3">
           <ThemeOption current={theme} value="light" icon={Sun} label="Claro" onSelect={() => setTheme('light')} />
           <ThemeOption current={theme} value="dark" icon={Moon} label="Escuro" onSelect={() => setTheme('dark')} />
         </div>
+      </div>
+
+      {/* Alfred no WhatsApp */}
+      <div className="rounded-2xl p-4 sm:p-5"
+        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+          Alfred no WhatsApp
+        </div>
+        <div className="flex items-center gap-3 mb-3">
+          <img
+            src="/alfred.png"
+            alt="Alfred"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+            style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(37,211,102,0.35)' }}
+          />
+          <div className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+            Converse com o <strong style={{ color: '#25D366' }}>Alfred</strong> 🎩 em <strong style={{ color: '#25D366' }}>{BOT_PHONE_DISPLAY}</strong> — ele também marca compromissos por mensagem, ex: <em>"reunião amanhã 15h"</em>.
+          </div>
+        </div>
+        <a
+          href={waLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition w-full"
+          style={{ background: '#25D366', color: 'white', boxShadow: '0 4px 14px rgba(37,211,102,0.25)' }}
+        >
+          <MessageCircle size={16} /> Abrir conversa com Alfred
+        </a>
       </div>
 
       {/* Info */}
