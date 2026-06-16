@@ -416,10 +416,17 @@ function BudgetInput({ value, onChange }) {
 }
 
 // ---------- CategoriesConfig ----------
-function CategoriesConfig({ config, setConfig }) {
+function CategoriesConfig({ config, setConfig, renameCategory }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [budget, setBudget] = useState('')  // string com vírgula ou ponto — OPCIONAL
+  const [editingName, setEditingName] = useState(null)  // categoria sendo renomeada
+  const [editDraft, setEditDraft] = useState('')
+  const saveRename = (oldName) => {
+    const nn = editDraft.trim()
+    if (nn && nn !== oldName) renameCategory?.(oldName, nn)
+    setEditingName(null)
+  }
   const reset = () => { setName(''); setBudget(''); setAdding(false) }
   const parsedBudget = parseMoneyBR(budget)
   // Limite é opcional — basta o nome pra criar
@@ -468,12 +475,33 @@ function CategoriesConfig({ config, setConfig }) {
           return (
             <div key={c.name} className="p-3 rounded-lg bg-white/5">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Target size={13} /></div>
-                  <span className="font-medium truncate">{c.name}</span>
-                  {!hasBudget && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-elev3)', color: 'var(--text-muted)' }}>sem limite</span>}
-                </div>
-                <DeleteIconBtn onClick={() => setConfig({ categories: config.categories.filter((x) => x.name !== c.name) })} />
+                {editingName === c.name ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveRename(c.name); if (e.key === 'Escape') setEditingName(null) }}
+                      style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', flex: 1, minWidth: 0, borderRadius: 8, padding: '6px 10px', fontSize: 14, outline: 'none' }}
+                      className="placeholder:text-white/30 focus:border-rose-400"
+                    />
+                    <button onClick={() => saveRename(c.name)} title="Salvar nome" className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 transition shrink-0"><Check size={14} /></button>
+                    <button onClick={() => setEditingName(null)} title="Cancelar" className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition shrink-0"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Target size={13} /></div>
+                      <span className="font-medium truncate">{c.name}</span>
+                      {!hasBudget && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-elev3)', color: 'var(--text-muted)' }}>sem limite</span>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => { setEditingName(c.name); setEditDraft(c.name) }} title="Renomear categoria" className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition"><Pencil size={13} /></button>
+                      <DeleteIconBtn onClick={() => setConfig({ categories: config.categories.filter((x) => x.name !== c.name) })} />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1">
@@ -969,7 +997,7 @@ function DangerZone() {
 }
 
 // ---------- ConfigTab (export) ----------
-export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig, whatsappPhone, updateWhatsappPhone }) {
+export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig, renameCategory, whatsappPhone, updateWhatsappPhone }) {
   return (
     <div className="space-y-6">
       <Card className="p-4 sm:p-6">
@@ -993,7 +1021,7 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CardsConfig config={month.config} setConfig={setConfig} />
         <PaymentMethodsConfig config={month.config} setConfig={setConfig} />
-        <CategoriesConfig config={month.config} setConfig={setConfig} />
+        <CategoriesConfig config={month.config} setConfig={setConfig} renameCategory={renameCategory} />
         <AttributedConfig config={month.config} setConfig={setConfig} />
         <IncomeSourcesConfig config={month.config} setConfig={setConfig} />
       </div>

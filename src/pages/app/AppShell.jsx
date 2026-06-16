@@ -156,6 +156,35 @@ export default function AppShell() {
     })
   }, [activeMonth])
 
+  // Renomeia uma categoria E migra todos os gastos antigos que usavam o nome
+  // antigo (a categoria é guardada como texto em cada despesa). Sem isso, os
+  // gastos ficariam "órfãos" após renomear.
+  const renameCategory = useCallback((oldName, newName) => {
+    const nn = (newName || '').trim()
+    if (!nn || nn === oldName) return
+    setData((prev) => {
+      const curCfg = computeEffectiveConfig(prev)
+      // Não renomeia se já existir uma categoria com o novo nome (evita duplicar)
+      if ((curCfg.categories || []).some((c) => c.name === nn)) return prev
+      const newCfg = {
+        ...curCfg,
+        categories: (curCfg.categories || []).map((c) => c.name === oldName ? { ...c, name: nn } : c),
+      }
+      const updatedMonths = { ...(prev.months || {}) }
+      for (const ym of Object.keys(updatedMonths)) {
+        const m = updatedMonths[ym]
+        updatedMonths[ym] = {
+          ...m,
+          config: newCfg,
+          despesas: Array.isArray(m.despesas)
+            ? m.despesas.map((d) => (d && d.category === oldName ? { ...d, category: nn } : d))
+            : m.despesas,
+        }
+      }
+      return { ...prev, config: newCfg, months: updatedMonths }
+    })
+  }, [])
+
   const setMonth = useCallback((updater) => {
     setData((prev) => {
       const raw = prev.months?.[activeMonth] ?? createEmptyMonth()
@@ -927,7 +956,7 @@ export default function AppShell() {
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
           {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} transferCofreToCaixa={transferCofreToCaixa} updateMovement={updateMovement} removeMovement={removeMovement} />}
-          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} whatsappPhone={data.whatsappPhone || ''} updateWhatsappPhone={updateWhatsappPhone} />}
+          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} renameCategory={renameCategory} whatsappPhone={data.whatsappPhone || ''} updateWhatsappPhone={updateWhatsappPhone} />}
         </ErrorBoundary>
       </main>
 
