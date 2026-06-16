@@ -355,13 +355,13 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
           />
         )}
 
-        {/* Action buttons */}
-        {!editing && !movKind && (
+        {/* Ações — sempre visíveis (funcionam como abas: clica e o formulário troca na hora) */}
+        {!editing && (
           <div className="flex gap-2 flex-wrap">
-            <Btn icon={ArrowUpRight} onClick={() => { setEditingMovId(null); setMovKind('entrada') }}>Entrada</Btn>
-            <Btn icon={ArrowDownRight} onClick={() => { setEditingMovId(null); setMovKind('saida') }} variant="ghost">Saída</Btn>
-            <Btn icon={Wallet} onClick={() => { setEditingMovId(null); setMovKind('caixa') }} variant="ghost">Devolver pro caixa</Btn>
-            {cofres.length > 1 && <Btn icon={ArrowLeftRight} onClick={() => { setEditingMovId(null); setMovKind('transferencia') }} variant="ghost">Transferir</Btn>}
+            <Btn icon={ArrowUpRight} onClick={() => { setEditingMovId(null); setMovKind('entrada') }} variant={movKind === 'entrada' ? 'primary' : 'ghost'}>Entrada</Btn>
+            <Btn icon={ArrowDownRight} onClick={() => { setEditingMovId(null); setMovKind('saida') }} variant={movKind === 'saida' ? 'primary' : 'ghost'}>Saída</Btn>
+            <Btn icon={Wallet} onClick={() => { setEditingMovId(null); setMovKind('caixa') }} variant={movKind === 'caixa' ? 'primary' : 'ghost'}>Devolver pro caixa</Btn>
+            {cofres.length > 1 && <Btn icon={ArrowLeftRight} onClick={() => { setEditingMovId(null); setMovKind('transferencia') }} variant={movKind === 'transferencia' ? 'primary' : 'ghost'}>Transferir</Btn>}
           </div>
         )}
 
