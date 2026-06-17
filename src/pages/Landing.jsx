@@ -105,7 +105,7 @@ function Hero() {
         style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)' }}>
         <Crown size={11} style={{ color: 'var(--accent-gold)' }} />
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent-gold)' }}>
-          Controle financeiro · Sem complicação
+          Finanças e Agenda · Sem complicação
         </span>
       </div>
 
@@ -458,6 +458,12 @@ function Features() {
       accent: 'gold',
     },
     {
+      icon: Calendar,
+      title: 'Agenda integrada',
+      desc: 'Não é só dinheiro: marque compromissos e lembretes no mesmo app — até por mensagem no WhatsApp. Visão de dia, semana e mês, com recorrência e a Reflexão do Dia pra focar no que importa.',
+      accent: 'cyan',
+    },
+    {
       icon: Target,
       title: 'Categorias com limite mensal',
       desc: 'Defina quanto pode gastar com Mercado, Lazer, Saídas. Veja em tempo real quando tá apertando — antes do fim do mês.',
@@ -482,7 +488,7 @@ function Features() {
       accent: 'violet',
     },
     {
-      icon: Calendar,
+      icon: Zap,
       title: 'Gastos fixos automáticos',
       desc: 'Aluguel, Netflix, academia — uma vez cadastrado, rola todo mês sem você fazer nada. Foco no que é variável.',
       accent: 'emerald',
