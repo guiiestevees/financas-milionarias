@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, PlayCircle, Sparkles, Rocket, MessageCircle, CreditCard,
@@ -209,6 +209,13 @@ export default function Tutorial() {
 
 // ---------- VideoModal ----------
 function VideoModal({ video, onClose }) {
+  const videoRef = useRef(null)
+  const [rate, setRate] = useState(1)
+  const SPEEDS = [1, 1.5, 2]
+  const changeSpeed = (r) => {
+    setRate(r)
+    if (videoRef.current) videoRef.current.playbackRate = r
+  }
   return (
     <div
       onClick={onClose}
@@ -242,14 +249,40 @@ function VideoModal({ video, onClose }) {
         {/* Vídeo vertical (9:16) — nativo, sem marca de terceiro */}
         <div className="bg-black w-full" style={{ aspectRatio: '9 / 16' }}>
           <video
+            ref={videoRef}
             src={video.videoUrl}
             title={video.title}
             controls
             playsInline
             preload="metadata"
+            onLoadedMetadata={() => { if (videoRef.current) videoRef.current.playbackRate = rate }}
             className="w-full h-full"
             style={{ objectFit: 'cover' }}
           />
+        </div>
+
+        {/* Velocidade — fácil de achar, um toque */}
+        <div className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Velocidade</span>
+          <div className="flex gap-1.5">
+            {SPEEDS.map((s) => {
+              const active = rate === s
+              return (
+                <button
+                  key={s}
+                  onClick={() => changeSpeed(s)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold transition"
+                  style={{
+                    background: active ? 'var(--accent-gold)' : 'var(--bg-elev2)',
+                    color: active ? '#070912' : 'var(--text-secondary)',
+                    border: `1px solid ${active ? 'var(--accent-gold)' : 'var(--border-soft)'}`,
+                  }}
+                >
+                  {String(s).replace('.', ',')}x
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {video.description && (
