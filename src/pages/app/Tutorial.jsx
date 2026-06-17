@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, PlayCircle, Sparkles, Rocket, MessageCircle, CreditCard,
   Target, Coins, Settings, Lightbulb, Clock, Crown, Wallet, Calendar,
@@ -26,6 +26,7 @@ const VIDEO_BASE = 'https://rtiehvkvbjblaulyupkv.supabase.co/storage/v1/object/p
 const TUTORIAL_SECTIONS = [
   {
     title: 'Finanças',
+    app: 'financas',
     icon: Wallet,
     accent: '#10b981',
     items: [
@@ -39,6 +40,7 @@ const TUTORIAL_SECTIONS = [
   },
   {
     title: 'Agenda',
+    app: 'agenda',
     icon: Calendar,
     accent: '#06b6d4',
     items: [
@@ -52,7 +54,12 @@ const TUTORIAL_SECTIONS = [
 
 export default function Tutorial() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [openVideo, setOpenVideo] = useState(null)
+
+  // Cada app abre só o SEU tutorial via ?app=financas | agenda. Sem param, mostra tudo.
+  const appFilter = searchParams.get('app')
+  const sections = appFilter ? TUTORIAL_SECTIONS.filter((s) => s.app === appFilter) : TUTORIAL_SECTIONS
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -60,11 +67,11 @@ export default function Tutorial() {
 
         {/* Voltar */}
         <button
-          onClick={() => navigate('/app')}
+          onClick={() => navigate(appFilter === 'agenda' ? '/agenda' : '/app')}
           className="flex items-center gap-2 text-sm mb-6 transition hover:opacity-80"
           style={{ color: 'var(--text-tertiary)' }}
         >
-          <ArrowLeft size={16} /> Voltar pro painel
+          <ArrowLeft size={16} /> Voltar{appFilter === 'agenda' ? ' pra agenda' : ' pro painel'}
         </button>
 
         {/* Header */}
@@ -86,7 +93,7 @@ export default function Tutorial() {
 
         {/* Seções */}
         <div className="space-y-8">
-          {TUTORIAL_SECTIONS.map((section, sIdx) => {
+          {sections.map((section, sIdx) => {
             const SectionIcon = section.icon
             // Só mostra itens COM vídeo — e some com a seção inteira se não tiver
             // nenhum (sem cards "Em breve"/placeholder).

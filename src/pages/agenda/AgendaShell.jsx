@@ -4,7 +4,7 @@ import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
   ListChecks, Settings, Sun, Moon, Sparkles, Check, Trash2, Star, CalendarPlus,
-  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X, MessageCircle,
+  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X, MessageCircle, PlayCircle, ArrowRight,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
@@ -4653,6 +4653,24 @@ function SettingsView() {
 
   return (
     <div className="space-y-4">
+      {/* Como usar a Agenda */}
+      <button
+        onClick={() => navigate('/tutorial?app=agenda')}
+        className="w-full flex items-center justify-between gap-3 rounded-2xl p-4 sm:p-5 transition hover:opacity-90"
+        style={{ background: 'rgba(6,182,212,0.1)', border: `1px solid color-mix(in srgb, ${AGENDA_ACCENT} 30%, transparent)` }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl" style={{ background: 'rgba(6,182,212,0.15)', color: AGENDA_ACCENT }}>
+            <PlayCircle size={18} />
+          </div>
+          <div className="text-left">
+            <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Como usar a Agenda</div>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Vídeos curtos pra dominar a agenda</div>
+          </div>
+        </div>
+        <ArrowRight size={16} style={{ color: AGENDA_ACCENT }} />
+      </button>
+
       {/* Tema */}
       <div className="rounded-2xl p-4 sm:p-5"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>

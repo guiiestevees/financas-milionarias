@@ -744,7 +744,7 @@ function HelpSection() {
     <Card className="p-4 sm:p-6">
       <SectionTitle icon={PlayCircle} title="Ajuda & tutoriais" subtitle="Vídeos pra você dominar o app." accent="gold" />
       <Link
-        to="/tutorial"
+        to="/tutorial?app=financas"
         className="flex items-center gap-3 p-4 rounded-xl transition hover:opacity-95"
         style={{
           background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',

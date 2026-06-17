@@ -1519,7 +1519,7 @@ function TutorialBanner() {
   // --- Banner padrão ---
   return (
     <Link
-      to="/tutorial"
+      to="/tutorial?app=financas"
       className="block rounded-2xl p-4 sm:p-5 transition hover:opacity-95 relative group"
       style={{
         background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
