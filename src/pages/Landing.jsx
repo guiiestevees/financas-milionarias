@@ -43,6 +43,7 @@ export default function Landing() {
         <Demo />
         <HowItWorks />
         <Features />
+        <Screens />
         <WhoFor />
         <Pricing />
         <Guarantee />
@@ -161,6 +162,46 @@ function Hero() {
         <span className="flex items-center gap-1.5"><Mic size={11} /> Aceita áudio</span>
         <span className="flex items-center gap-1.5"><Smartphone size={11} /> Funciona em qualquer celular</span>
         <span className="flex items-center gap-1.5"><Lock size={11} /> Dados criptografados (LGPD)</span>
+      </div>
+    </section>
+  )
+}
+
+// ============================================================
+// SCREENS — mostra o app de verdade (Finanças + Agenda)
+// ============================================================
+function Screens() {
+  const shots = [
+    { src: '/screens/painel.png', label: 'Painel — pra onde vai o dinheiro' },
+    { src: '/screens/cofres.png', label: 'Cofres com metas' },
+    { src: '/screens/agenda-dia.png', label: 'Agenda do dia + Reflexão' },
+    { src: '/screens/agenda-semana.png', label: 'Sua semana, organizada' },
+  ]
+  return (
+    <section className="mb-20 sm:mb-28">
+      <div className="text-center mb-10">
+        <div className="text-[11px] uppercase tracking-widest font-semibold mb-3" style={{ color: 'var(--accent-gold)' }}>
+          Veja por dentro
+        </div>
+        <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
+          Bonito de usar. Simples de entender.
+        </h2>
+        <p className="max-w-xl mx-auto text-sm sm:text-base" style={{ color: 'var(--text-tertiary)' }}>
+          Finanças e Agenda no mesmo app — claro, elegante e direto ao ponto.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {shots.map((s, i) => (
+          <div key={i} className="flex flex-col items-center">
+            <div
+              className="rounded-[1.6rem] overflow-hidden w-full"
+              style={{ border: '1px solid var(--border-soft)', boxShadow: '0 18px 40px rgba(0,0,0,0.18)', background: 'var(--bg-elev2)' }}
+            >
+              <img src={s.src} alt={s.label} loading="lazy" className="w-full block" />
+            </div>
+            <div className="text-xs mt-3 text-center" style={{ color: 'var(--text-tertiary)' }}>{s.label}</div>
+          </div>
+        ))}
       </div>
     </section>
   )
