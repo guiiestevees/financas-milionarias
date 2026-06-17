@@ -198,7 +198,7 @@ function CardsConfig({ config, setConfig }) {
           if (isEditing) {
             const editAccent = editKind === 'person' ? accents.amber : accents.cyan
             return (
-              <div key={c.name} className="p-3 rounded-lg" style={{ background: editAccent.soft, border: `1px solid ${editAccent.hex}40` }}>
+              <div key={c.name} className="p-3 rounded-lg" style={{ background: editAccent.soft, border: `1px solid color-mix(in srgb, ${editAccent.hex} 25%, transparent)` }}>
                 <div className="space-y-2.5">
                   {/* Toggle tipo */}
                   <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-medium)' }}>
@@ -358,7 +358,7 @@ function PaymentMethodsConfig({ config, setConfig }) {
         {cashOnly.map((p) => {
           const a = accents[hashAccent(p)]
           return (
-            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
               <span className="text-sm" style={{ color: a.hex }}>{p}</span>
               <button onClick={() => setConfig({ paymentMethods: config.paymentMethods.filter((x) => x !== p) })} className="p-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition"><X size={12} /></button>
             </div>
@@ -562,10 +562,10 @@ function AttributedConfig({ config, setConfig }) {
           const a = accents[p.accent || accentKeys[idx % accentKeys.length]] || accents.gold
           const mine = p.isMine !== false
           return (
-            <div key={p.name} className="flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
+            <div key={p.name} className="flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 15%, transparent)` }}>
               <div className="flex items-center gap-3 min-w-0"><span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: a.hex }} /><span className="font-medium truncate">{p.name}</span></div>
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => setConfig({ attributedTo: config.attributedTo.map((x) => x.name === p.name ? { ...x, isMine: x.isMine === false ? true : false } : x) })} className="text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition shrink-0" style={{ background: mine ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: mine ? accents.emerald.hex : accents.amber.hex, border: `1px solid ${mine ? accents.emerald.hex : accents.amber.hex}30` }}>
+                <button onClick={() => setConfig({ attributedTo: config.attributedTo.map((x) => x.name === p.name ? { ...x, isMine: x.isMine === false ? true : false } : x) })} className="text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition shrink-0" style={{ background: mine ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: mine ? accents.emerald.hex : accents.amber.hex, border: `1px solid color-mix(in srgb, ${mine ? accents.emerald.hex : accents.amber.hex} 19%, transparent)` }}>
                   {mine ? '👤 É meu' : '🤝 Adiantamento'}
                 </button>
                 <DeleteIconBtn onClick={() => setConfig({ attributedTo: config.attributedTo.filter((x) => x.name !== p.name) })} />
@@ -603,7 +603,7 @@ function IncomeSourcesConfig({ config, setConfig }) {
         {config.incomeSources.map((p) => {
           const a = accents[hashAccent(p)]
           return (
-            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
               <span className="text-sm">{p}</span>
               <button onClick={() => setConfig({ incomeSources: config.incomeSources.filter((x) => x !== p) })} className="p-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition"><X size={12} /></button>
             </div>
@@ -943,7 +943,7 @@ function DangerZone() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="p-3 rounded-lg text-sm leading-relaxed" style={{ background: accents.rose.soft, border: `1px solid ${accents.rose.hex}40`, color: 'rgba(255,255,255,0.85)' }}>
+          <div className="p-3 rounded-lg text-sm leading-relaxed" style={{ background: accents.rose.soft, border: `1px solid color-mix(in srgb, ${accents.rose.hex} 25%, transparent)`, color: 'rgba(255,255,255,0.85)' }}>
             <strong className="text-rose-200">Tem certeza?</strong> Todos os seus dados serão apagados imediatamente
             e não há como recuperar. Para confirmar, digite <strong className="text-white">EXCLUIR</strong> no campo abaixo.
           </div>
@@ -956,7 +956,7 @@ function DangerZone() {
             placeholder='Digite "EXCLUIR" para confirmar'
             style={{
               background: 'rgba(244,63,94,0.06)',
-              border: `1px solid ${accents.rose.hex}40`,
+              border: `1px solid color-mix(in srgb, ${accents.rose.hex} 25%, transparent)`,
               color: 'var(--text-primary)',
               width: '100%',
               outline: 'none',

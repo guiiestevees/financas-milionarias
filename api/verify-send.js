@@ -325,7 +325,7 @@ async function handleRecover(req, res, action) {
       const today = new Date().toISOString().slice(0, 10)
       const newSendCount = (existing?.send_count_day === today) ? (existing.send_count || 0) + 1 : 1
       const { error: upErr } = await a.from('phone_verifications').upsert({
-        user_id: userId, phone, code_hash: hashCode(code), expires_at: expiresAt,
+        user_id: userId, phone, code_hash: hashCode('recover:' + code), expires_at: expiresAt,
         attempts: 0, last_sent_at: new Date().toISOString(), send_count: newSendCount, send_count_day: today,
       }, { onConflict: 'user_id' })
       if (upErr) { console.error('recover upsert error:', upErr); return res.status(500).json({ error: 'Falha interna ao salvar código' }) }
@@ -342,7 +342,7 @@ async function handleRecover(req, res, action) {
     if (!rec) return res.status(400).json({ error: 'Nenhum código pendente. Peça um novo código.' })
     if (new Date(rec.expires_at).getTime() < Date.now()) return res.status(400).json({ error: 'Código expirado. Peça um novo.' })
     if ((rec.attempts || 0) >= 3) return res.status(429).json({ error: 'Muitas tentativas. Peça um novo código.' })
-    if (hashCode(code) !== rec.code_hash) {
+    if (hashCode('recover:' + code) !== rec.code_hash) {
       await a.from('phone_verifications').update({ attempts: (rec.attempts || 0) + 1 }).eq('user_id', userId)
       const restantes = Math.max(0, 2 - (rec.attempts || 0))
       return res.status(400).json({ error: restantes > 0 ? `Código incorreto. ${restantes} tentativa(s) restante(s).` : 'Código incorreto. Peça um novo código.' })

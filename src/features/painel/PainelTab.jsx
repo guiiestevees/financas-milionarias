@@ -105,11 +105,11 @@ function HeroBalance({ agg }) {
   return (
     <Card className="p-6 sm:p-8 relative overflow-hidden" style={{
       background: `linear-gradient(135deg, ${heroColor.soft}, rgba(255,255,255,0.02) 60%)`,
-      border: `1px solid ${heroColor.hex}30`,
+      border: `1px solid color-mix(in srgb, ${heroColor.hex} 19%, transparent)`,
       boxShadow: `0 20px 60px -25px ${heroColor.glow}`,
     }}>
       <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full pointer-events-none"
-           style={{ background: `radial-gradient(circle, ${heroColor.hex}22, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle, color-mix(in srgb, ${heroColor.hex} 13%, transparent), transparent 70%)` }} />
       <div className="relative">
         <div className="flex items-center gap-2 text-xs uppercase text-white/55 mb-3" style={{ letterSpacing: '0.22em' }}>
           <Sparkles size={12} style={{ color: heroColor.hex }} />
@@ -206,8 +206,8 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                 key={c.name}
                 className="p-3 rounded-lg relative overflow-hidden"
                 style={{
-                  background: isPaid ? `${accents.emerald.hex}10` : 'var(--bg-elev2)',
-                  border: `1px solid ${isPaid ? `${accents.emerald.hex}40` : 'transparent'}`,
+                  background: isPaid ? `color-mix(in srgb, ${accents.emerald.hex} 6%, transparent)` : 'var(--bg-elev2)',
+                  border: `1px solid ${isPaid ? `color-mix(in srgb, ${accents.emerald.hex} 25%, transparent)` : 'transparent'}`,
                 }}
               >
                 {/* Barra lateral verde quando paga (cue visual forte) */}
@@ -240,7 +240,7 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                             style={{
                               background: accents.emerald.hex,
                               color: '#fff',
-                              boxShadow: `0 2px 6px ${accents.emerald.hex}60`,
+                              boxShadow: `0 2px 6px color-mix(in srgb, ${accents.emerald.hex} 38%, transparent)`,
                             }}
                           >
                             <Check size={9} strokeWidth={3.5} /> Paga
@@ -292,7 +292,7 @@ function CardsPanel({ cards, setMonth, activeMonth, setPaidBulk }) {
                         border: `2px solid ${isPaid ? accents.emerald.hex : 'var(--text-tertiary)'}`,
                         background: isPaid ? accents.emerald.hex : 'var(--bg-elev1)',
                         boxShadow: isPaid
-                          ? `0 0 0 3px ${accents.emerald.hex}25, 0 2px 8px ${accents.emerald.hex}55`
+                          ? `0 0 0 3px color-mix(in srgb, ${accents.emerald.hex} 15%, transparent), 0 2px 8px color-mix(in srgb, ${accents.emerald.hex} 33%, transparent)`
                           : '0 1px 3px rgba(0,0,0,0.10)',
                       }}
                     >
@@ -323,7 +323,7 @@ function AReceberPanel({ list, total, setMonth, onEdit, onRemove }) {
           const allPaid = p.pending === 0
           const sorted = [...p.items].sort((a, b) => (a.reimbursed === b.reimbursed ? 0 : a.reimbursed ? 1 : -1))
           return (
-            <div key={p.name} className="p-3 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
+            <div key={p.name} className="p-3 rounded-lg" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 15%, transparent)` }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full" style={{ background: a.hex }} />
@@ -458,7 +458,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
             onClick={() => setMode('reforco')}
             className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition"
             style={mode === 'reforco'
-              ? { background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}50` }
+              ? { background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid color-mix(in srgb, ${accents.emerald.hex} 31%, transparent)` }
               : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
             title="Adiciona dinheiro novo nesta categoria, só pra este mês"
@@ -470,7 +470,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
             disabled={others.length === 0 || sobraDisp <= 0}
             className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition disabled:opacity-30"
             style={mode === 'outro'
-              ? { background: accents.rose.soft, color: accents.rose.hex, border: `1px solid ${accents.rose.hex}50` }
+              ? { background: accents.rose.soft, color: accents.rose.hex, border: `1px solid color-mix(in srgb, ${accents.rose.hex} 31%, transparent)` }
               : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
             title={sobraDisp <= 0 ? 'Sem sobra pra transferir' : 'Transfere a sobra desta categoria pra outra'}
@@ -482,7 +482,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
             disabled={sobraDisp <= 0}
             className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition disabled:opacity-30"
             style={mode === 'caixa'
-              ? { background: accents.gold.soft, color: accents.gold.hex, border: `1px solid ${accents.gold.hex}50` }
+              ? { background: accents.gold.soft, color: accents.gold.hex, border: `1px solid color-mix(in srgb, ${accents.gold.hex} 31%, transparent)` }
               : { background: 'var(--bg-elev2)', color: 'var(--text-tertiary)', border: '1px solid var(--border-medium)' }
             }
             title={sobraDisp <= 0 ? 'Sem sobra pra liberar' : 'Devolve a sobra desta categoria pro disponível'}
@@ -493,7 +493,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
 
         {/* Mensagem explicativa por modo */}
         {mode === 'reforco' && (
-          <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.emerald.soft, border: `1px solid ${accents.emerald.hex}25` }}>
+          <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.emerald.soft, border: `1px solid color-mix(in srgb, ${accents.emerald.hex} 15%, transparent)` }}>
             💰 Aumenta o orçamento de <strong className="text-white/85">{fromCat.name}</strong> sem mexer em outras categorias.
             Use quando você quiser destinar mais dinheiro do seu caixa pra esta categoria neste mês (ex: viajou, mês de festa, etc).
           </div>
@@ -501,7 +501,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
 
         {mode === 'outro' && (
           others.length === 0 ? (
-            <div className="text-sm text-amber-300/80 p-3 rounded-lg" style={{ background: accents.amber.soft, border: `1px solid ${accents.amber.hex}25` }}>
+            <div className="text-sm text-amber-300/80 p-3 rounded-lg" style={{ background: accents.amber.soft, border: `1px solid color-mix(in srgb, ${accents.amber.hex} 15%, transparent)` }}>
               Você precisa de pelo menos 2 categorias com limite definido pra transferir entre elas.
             </div>
           ) : (
@@ -512,7 +512,7 @@ function BudgetTransferModal({ fromCat, allCategories, onTransfer, onRelease, on
         )}
 
         {mode === 'caixa' && (
-          <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid ${accents.gold.hex}25` }}>
+          <div className="text-xs text-white/65 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid color-mix(in srgb, ${accents.gold.hex} 15%, transparent)` }}>
             Ao devolver pro caixa, o orçamento de <strong className="text-white/85">{fromCat.name}</strong> diminui só nesse mês e o valor entra no <strong className="text-white/85">disponível pra gastar</strong>. Não cria receita nem mexe nos gastos.
           </div>
         )}
@@ -692,7 +692,7 @@ function CategoryPieChart({ categories, totalGeral }) {
             >
               <div
                 className="w-3 h-3 rounded shrink-0"
-                style={{ background: arc.color, boxShadow: hovered === i ? `0 0 0 2px ${arc.color}40` : 'none' }}
+                style={{ background: arc.color, boxShadow: hovered === i ? `0 0 0 2px color-mix(in srgb, ${arc.color} 25%, transparent)` : 'none' }}
               />
               <span className="truncate flex-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {arc.name}
@@ -838,9 +838,9 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
                     onClick={() => { setQuickName(quickOpen ? null : c.name); setQuickAmount(''); setQuickDesc('') }}
                     className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition"
                     style={{
-                      background: quickOpen ? a.soft : `${a.soft}80`,
+                      background: a.soft,
                       color: a.hex,
-                      border: `1px solid ${a.hex}30`,
+                      border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)`,
                     }}
                   >
                     {quickOpen ? <><X size={15} /> Fechar</> : <><Plus size={15} /> Adicionar gasto</>}
@@ -859,7 +859,7 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
                   </button>
                 </div>
                 {quickOpen && (
-                  <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+                  <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
                     <input
                       type="text"
                       value={quickDesc}
@@ -957,7 +957,7 @@ function CategoriesPanel({ categories, addQuickDespesa, onEdit, onRemove, onTran
         </div>
 
         {quickOpen && (
-          <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+          <div className="mt-2.5 p-2.5 rounded-lg space-y-2" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
             <input
               type="text"
               value={quickDesc}
@@ -1117,7 +1117,7 @@ function CashPanel({ aVista, total }) {
           {aVista.map((m) => {
             const a = accents[hashAccent(m.name)]
             return (
-              <div key={m.name} className="p-4 rounded-xl" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+              <div key={m.name} className="p-4 rounded-xl" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
                 <div style={{ letterSpacing: '0.12em' }} className="text-xs text-white/55 uppercase mb-1.5">{m.name}</div>
                 <div style={{ fontFamily: 'Fraunces, serif', color: a.hex }} className="text-2xl font-medium tabular-nums">{fmtBRL(m.total)}</div>
               </div>
@@ -1210,7 +1210,7 @@ function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
           }
 
           return (
-            <div key={p.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${accent.hex}30` }}>
+            <div key={p.id} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid color-mix(in srgb, ${accent.hex} 19%, transparent)` }}>
               <div className="flex items-start justify-between gap-2 mb-2.5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1240,7 +1240,7 @@ function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
                 <button
                   onClick={() => onConfirm(p)}
                   className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
-                  style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}30` }}
+                  style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid color-mix(in srgb, ${accents.emerald.hex} 19%, transparent)` }}
                 >
                   <Check size={13} /> Confirmar
                 </button>
@@ -1248,7 +1248,7 @@ function PendingPanel({ pendings, onConfirm, onEdit, onDiscard }) {
                   <button
                     onClick={() => onEdit(p)}
                     className="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition"
-                    style={{ background: 'rgba(245,158,11,0.1)', color: accents.amber.hex, border: `1px solid ${accents.amber.hex}30` }}
+                    style={{ background: 'rgba(245,158,11,0.1)', color: accents.amber.hex, border: `1px solid color-mix(in srgb, ${accents.amber.hex} 19%, transparent)` }}
                   >
                     <Pencil size={13} /> Editar
                   </button>

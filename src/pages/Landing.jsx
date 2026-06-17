@@ -529,7 +529,7 @@ function Features() {
                 <div
                   className="inline-flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
                   style={{
-                    background: `${colorVar}1a`,  // 10% opacity hex
+                    background: `color-mix(in srgb, ${colorVar} 10%, transparent)`,
                     color: colorVar,
                   }}
                 >

@@ -148,7 +148,7 @@ export default function DespesaForm({ config, cofres = [], initial, onSubmit, on
       )}
 
       {chosenCard && cardDue && (
-        <div className="rounded-lg p-3" style={{ background: `${accents[chosenCard.accent]?.soft || 'rgba(212,175,55,0.10)'}`, border: `1px solid ${accents[chosenCard.accent]?.hex || accents.gold.hex}25` }}>
+        <div className="rounded-lg p-3" style={{ background: `${accents[chosenCard.accent]?.soft || 'rgba(212,175,55,0.10)'}`, border: `1px solid color-mix(in srgb, ${accents[chosenCard.accent]?.hex || accents.gold.hex} 15%, transparent)` }}>
           <div className="text-xs flex items-start gap-2 text-white/75">
             <CreditCard size={13} className="mt-0.5 shrink-0" style={{ color: accents[chosenCard.accent]?.hex }} />
             Cartão <strong className="text-white/90">{chosenCard.name}</strong> · fatura vence dia <strong className="text-white/90">{cardDue}</strong>

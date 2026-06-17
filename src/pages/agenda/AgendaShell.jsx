@@ -1095,7 +1095,7 @@ function CompletionBurst({ colorVar }) {
           fontSize: 12,
           fontWeight: 800,
           color: colorVar,
-          textShadow: `0 2px 8px ${colorVar}, 0 0 20px ${colorVar}66`,
+          textShadow: `0 2px 8px ${colorVar}, 0 0 20px color-mix(in srgb, ${colorVar} 40%, transparent)`,
           animation: 'floatUp 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
           fontFamily: 'JetBrains Mono, monospace',
           letterSpacing: '-0.02em',
@@ -2458,7 +2458,7 @@ function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
         height: height - 2,
         background: getColorTint(colorKey, 'bg'),
         border: `2px solid ${colorVar}`,
-        boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+        boxShadow: `0 8px 24px color-mix(in srgb, ${colorVar} 40%, transparent), 0 0 0 4px rgba(6,182,212,0.15)`,
         animation: 'dragGhostPulse 1.2s ease-in-out infinite',
       }}
     >
@@ -2505,7 +2505,7 @@ function DayDragGuide({ dragging, startHour, pxPerHour, hoursColWidth }) {
           height: height - 2,
           background: getColorTint(event.color || 'cyan', 'bg'),
           border: `2px solid ${colorVar}`,
-          boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+          boxShadow: `0 8px 24px color-mix(in srgb, ${colorVar} 40%, transparent), 0 0 0 4px rgba(6,182,212,0.15)`,
           animation: 'dragGhostPulse 1.2s ease-in-out infinite',
         }}
       >
@@ -2631,7 +2631,7 @@ function DragFloatingIndicator({ dragging }) {
           background: 'rgba(15, 23, 42, 0.92)',
           backdropFilter: 'blur(16px)',
           border: `2px solid ${colorVar}`,
-          boxShadow: `0 12px 40px rgba(0,0,0,0.5), 0 0 0 4px ${colorVar}33`,
+          boxShadow: `0 12px 40px rgba(0,0,0,0.5), 0 0 0 4px color-mix(in srgb, ${colorVar} 20%, transparent)`,
           minWidth: 240,
           maxWidth: 'calc(100vw - 32px)',
         }}
@@ -3687,8 +3687,8 @@ function ProjectCard({
               onClick={() => setPrioritizing(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition hover:opacity-90 text-left"
               style={{
-                background: `${colorVar}15`,
-                border: `1px dashed ${colorVar}50`,
+                background: `color-mix(in srgb, ${colorVar} 8%, transparent)`,
+                border: `1px dashed color-mix(in srgb, ${colorVar} 31%, transparent)`,
                 color: colorVar,
               }}
             >
