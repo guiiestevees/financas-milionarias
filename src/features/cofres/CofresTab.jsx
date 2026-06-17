@@ -268,7 +268,7 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
             </span>
           </div>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
-            <div className="h-full transition-all" style={{ width: `${Math.max(0, pct)}%`, background: `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`, boxShadow: `0 0 12px ${a.glow}` }} />
+            <div className="h-full transition-all" style={{ width: `${Math.max(0, pct)}%`, background: a.hex, boxShadow: `0 0 12px ${a.glow}` }} />
           </div>
         </div>
       )}
