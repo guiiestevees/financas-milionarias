@@ -21,7 +21,7 @@ import {
 
 // Vídeos hospedados no Supabase Storage (bucket público "tutorial").
 // Pra adicionar/editar: suba o MP4 no bucket e ajuste o videoUrl abaixo.
-const VIDEO_BASE = 'https://rtiehvkvbjblaulyupkv.supabase.co/storage/v1/object/public/tutorial'
+const VIDEO_BASE = 'https://rtiehvkvbjblaulyupkv.supabase.co/storage/v1/object/public/Tutorial'
 
 const TUTORIAL_SECTIONS = [
   {
