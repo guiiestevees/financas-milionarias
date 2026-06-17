@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, PlayCircle, Sparkles, Rocket, MessageCircle, CreditCard,
-  Target, Coins, Settings, Lightbulb, Clock, Crown,
+  Target, Coins, Settings, Lightbulb, Clock, Crown, Wallet, Calendar,
 } from 'lucide-react'
 
 // ===========================================================================
@@ -19,173 +19,33 @@ import {
 // o array TUTORIAL_SECTIONS abaixo conforme for produzindo os vídeos.
 // ===========================================================================
 
-// 👇 PRA ADICIONAR UM VÍDEO REAL DEPOIS:
-// 1. Faça upload no YouTube (privado/não-listado se quiser)
-// 2. Pegue o embed URL: https://www.youtube.com/embed/VIDEO_ID
-// 3. Cole no campo videoUrl do item correspondente
-// 4. Atualize duration com o tempo real
+// Vídeos hospedados no Supabase Storage (bucket público "tutorial").
+// Pra adicionar/editar: suba o MP4 no bucket e ajuste o videoUrl abaixo.
+const VIDEO_BASE = 'https://rtiehvkvbjblaulyupkv.supabase.co/storage/v1/object/public/tutorial'
+
 const TUTORIAL_SECTIONS = [
   {
-    title: 'Primeiros passos',
-    icon: Rocket,
+    title: 'Finanças',
+    icon: Wallet,
     accent: '#10b981',
     items: [
-      {
-        title: 'Boas-vindas ao Domus',
-        duration: 'Em breve',
-        description: 'Um tour rápido pelas principais áreas do app — Painel, Gastos, Cofres e Configurações.',
-        videoUrl: null,
-      },
-      {
-        title: 'Cadastrando seus cartões',
-        duration: 'Em breve',
-        description: 'Como adicionar seus cartões de crédito com data de vencimento pra organização automática.',
-        videoUrl: null,
-      },
-      {
-        title: 'Criando categorias com limite',
-        duration: 'Em breve',
-        description: 'Por que categorias com limite vão pro topo do painel e como definir seus limites mensais.',
-        videoUrl: null,
-      },
+      { title: 'Configurações iniciais', description: 'Comece por aqui: ajuste o essencial pra deixar o app com a sua cara.', videoUrl: `${VIDEO_BASE}/financas-aula-1.mp4` },
+      { title: 'Entradas', description: 'Como registrar suas receitas e manter o mês no azul.', videoUrl: `${VIDEO_BASE}/financas-aula-2.mp4` },
+      { title: 'Gastos', description: 'Lançando despesas — no app e pelo Alfred, parcelados e fixos.', videoUrl: `${VIDEO_BASE}/financas-aula-3.mp4` },
+      { title: 'Atribuídos a terceiros', description: 'Comprou pra alguém? Marque como "a receber" e saiba quem te deve.', videoUrl: `${VIDEO_BASE}/financas-aula-4.mp4` },
+      { title: 'Dança das categorias', description: 'Limites por categoria e como transferir saldo entre elas.', videoUrl: `${VIDEO_BASE}/financas-aula-5.mp4` },
+      { title: 'Cofres', description: 'Crie cofres com metas e acompanhe seus objetivos visualmente.', videoUrl: `${VIDEO_BASE}/financas-aula-6.mp4` },
     ],
   },
   {
-    title: 'Alfred no WhatsApp',
-    icon: MessageCircle,
-    accent: '#25D366',
-    items: [
-      {
-        title: 'Vinculando seu WhatsApp ao Alfred',
-        duration: 'Em breve',
-        description: 'Como salvar o contato do Alfred e começar a usar pelo seu WhatsApp.',
-        videoUrl: null,
-      },
-      {
-        title: 'Lançando gastos por mensagem',
-        duration: 'Em breve',
-        description: 'Exemplos práticos de como mandar mensagens que o Alfred entende.',
-        videoUrl: null,
-      },
-      {
-        title: 'Mandando por áudio',
-        duration: 'Em breve',
-        description: 'Grave um áudio falando o que comprou — o Alfred transcreve e classifica.',
-        videoUrl: null,
-      },
-      {
-        title: 'Consultando seu painel pelo WhatsApp',
-        duration: 'Em breve',
-        description: '"Quanto sobra esse mês?", "Quanto gastei no mercado?" — pergunte ao Alfred.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Gastos do dia a dia',
-    icon: CreditCard,
-    accent: '#a78bfa',
-    items: [
-      {
-        title: 'Lançando um gasto manualmente',
-        duration: 'Em breve',
-        description: 'Direto no app, sem o Alfred — quando preferir digitar tudo de uma vez.',
-        videoUrl: null,
-      },
-      {
-        title: 'Parcelados — como cadastrar',
-        duration: 'Em breve',
-        description: 'Marcou "10x de R$ 200"? O Domus cria todas as parcelas automaticamente.',
-        videoUrl: null,
-      },
-      {
-        title: 'Gastos fixos (Netflix, aluguel, etc)',
-        duration: 'Em breve',
-        description: 'Cadastre uma vez e ele aparece todo mês automaticamente.',
-        videoUrl: null,
-      },
-      {
-        title: 'Apagando gastos — só esse mês ou pra sempre',
-        duration: 'Em breve',
-        description: 'A diferença entre apagar um gasto fixo só de um mês ou permanente.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Categorias e Orçamento',
-    icon: Target,
-    accent: '#f43f5e',
-    items: [
-      {
-        title: 'Limite mensal vs. categoria simples',
-        duration: 'Em breve',
-        description: 'Diferença entre categorias que aparecem no topo (com limite) e as que só agrupam.',
-        videoUrl: null,
-      },
-      {
-        title: 'Transferindo saldo entre categorias',
-        duration: 'Em breve',
-        description: 'Sobrou no Mercado e faltou em Lazer? Mova o orçamento sem perder o controle.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Cofres e Metas',
-    icon: Coins,
+    title: 'Agenda',
+    icon: Calendar,
     accent: '#06b6d4',
     items: [
-      {
-        title: 'Criando um cofre com meta',
-        duration: 'Em breve',
-        description: 'Reserva de emergência, casamento, viagem — defina o alvo e acompanhe.',
-        videoUrl: null,
-      },
-      {
-        title: 'Movimentando dinheiro entre cofres',
-        duration: 'Em breve',
-        description: 'Transferências, entradas, saídas — como movimentar dentro dos cofres.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Assinatura e Conta',
-    icon: Crown,
-    accent: '#d4af37',
-    items: [
-      {
-        title: 'Mudando o método de pagamento',
-        duration: 'Em breve',
-        description: 'Como trocar de PIX pra cartão (ou vice-versa) sem perder o acesso.',
-        videoUrl: null,
-      },
-      {
-        title: 'Cancelando ou reativando assinatura',
-        duration: 'Em breve',
-        description: 'Como cancelar pelo app — você mantém acesso até o fim do período já pago.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Dicas avançadas',
-    icon: Lightbulb,
-    accent: '#f59e0b',
-    items: [
-      {
-        title: 'Gastos compartilhados com terceiros',
-        duration: 'Em breve',
-        description: 'Comprou pra outra pessoa? Marque como "a receber" e acompanhe quem deve.',
-        videoUrl: null,
-      },
-      {
-        title: 'Recuperando acesso (esqueci a senha)',
-        duration: 'Em breve',
-        description: 'Como entrar usando CPF ou celular quando esquecer o email/senha.',
-        videoUrl: null,
-      },
+      { title: 'Como cadastrar compromissos', description: 'O básico pra anotar e organizar seus compromissos.', videoUrl: `${VIDEO_BASE}/agenda-aula-1.mp4` },
+      { title: 'Cronograma semanal e mensal', description: 'Visões de semana e mês pra enxergar tudo de uma vez.', videoUrl: `${VIDEO_BASE}/agenda-aula-2.mp4` },
+      { title: 'Tarefas, projetos e configurações', description: 'Organize tarefas e projetos, e ajuste a agenda do seu jeito.', videoUrl: `${VIDEO_BASE}/agenda-aula-3.mp4` },
+      { title: 'Como usar o Alfred', description: 'Marque compromissos e receba lembretes pelo WhatsApp com o Alfred.', videoUrl: `${VIDEO_BASE}/agenda-aula-4.mp4` },
     ],
   },
 ]
