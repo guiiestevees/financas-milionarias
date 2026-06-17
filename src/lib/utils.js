@@ -8,6 +8,11 @@ export const uid = () =>
 export const fmtBRL = (n) =>
   (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
+// Normaliza texto pra busca: minúsculo + SEM acento ("Ômega 3" → "omega 3").
+// Assim "omega" encontra "ômega".
+export const normalizeText = (s) =>
+  (s == null ? '' : String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
 export const todayISO = () => {
   // Data LOCAL (não UTC). Com toISOString, à noite no Brasil (UTC-3) caía no
   // dia seguinte — lançamentos da noite ganhavam a data errada (e às vezes o mês errado).

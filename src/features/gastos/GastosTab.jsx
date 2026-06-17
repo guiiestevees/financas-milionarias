@@ -6,7 +6,7 @@ import DespesaRow from './DespesaRow'
 import FilterBar from './FilterBar'
 import EditDespesaModal from './EditDespesaModal'
 import RecurringDeleteConfirm from '../../components/RecurringDeleteConfirm'
-import { uid, fmtBRL, isMineFor } from '../../lib/utils'
+import { uid, fmtBRL, isMineFor, normalizeText } from '../../lib/utils'
 
 export default function GastosTab({ month, setMonth, addDespesaPropagated, activeMonth, expandInstallments, cofres = [], togglePaidDespesa, setPaidBulk, removeDespesaCentral }) {
   const [adding, setAdding] = useState(false)
@@ -31,7 +31,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
   }, [month.despesas])
 
   const filtered = useMemo(() => {
-    const q = (filters.text || '').trim().toLowerCase()
+    const q = normalizeText((filters.text || '').trim())
     return month.despesas.filter((d) => {
       if (filters.paymentMethods.length > 0 && !filters.paymentMethods.includes(d.paymentMethod)) return false
       if (filters.categories.length > 0 && !filters.categories.includes(d.category)) return false
@@ -39,7 +39,7 @@ export default function GastosTab({ month, setMonth, addDespesaPropagated, activ
       if (filters.types.includes('parcelado') && !(Number(d.installmentTotal) > 1)) return false
       if (filters.types.includes('fixo') && !d.recurring) return false
       if (filters.types.includes('recente') && !(d.createdAt && (Date.now() - d.createdAt) < 3 * 24 * 60 * 60 * 1000)) return false
-      if (q && !(d.description || '').toLowerCase().includes(q)) return false
+      if (q && !normalizeText(d.description).includes(q)) return false
       return true
     })
   }, [month.despesas, filters])
