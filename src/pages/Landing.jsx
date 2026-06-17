@@ -35,7 +35,7 @@ export default function Landing() {
         }}
       />
 
-      <div className="relative max-w-5xl mx-auto px-5 sm:px-6 py-6 sm:py-10">
+      <div className="relative max-w-5xl mx-auto px-5 sm:px-6 pt-3 pb-6 sm:pt-5 sm:pb-10">
         <Nav />
         <Hero />
         <ProblemSection />
@@ -88,7 +88,7 @@ function Hero() {
   return (
     <section className="text-center mb-24 sm:mb-32">
       {/* Logo grande e centralizada — compacto, sem muito espaço em branco */}
-      <div className="flex justify-center mb-4 sm:mb-5 -mt-2">
+      <div className="flex justify-center mb-3 sm:mb-4 -mt-3">
         <img
           src="/domus-logo-512.png"
           alt="Domus"
@@ -111,7 +111,7 @@ function Hero() {
 
       <h1
         style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.025em', lineHeight: 1.0 }}
-        className="text-5xl sm:text-7xl lg:text-8xl mb-7 max-w-4xl mx-auto"
+        className="text-5xl sm:text-6xl lg:text-7xl mb-7 max-w-4xl mx-auto"
       >
         Quem controla o dinheiro,{' '}
         <em
