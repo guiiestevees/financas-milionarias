@@ -224,20 +224,14 @@ export default function Tutorial() {
           </p>
         </div>
 
-        {/* Aviso de "em produção" enquanto não tem vídeos */}
-        <div className="rounded-2xl p-4 mb-8 flex items-start gap-3"
-          style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)' }}>
-          <Sparkles size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--accent-gold)' }} />
-          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Tutoriais em produção.</strong>
-            {' '}Estamos gravando os vídeos com calma pra entregar conteúdo de qualidade. Em breve cada item abaixo terá um vídeo curto e direto pra você.
-          </div>
-        </div>
-
         {/* Seções */}
         <div className="space-y-8">
           {TUTORIAL_SECTIONS.map((section, sIdx) => {
             const SectionIcon = section.icon
+            // Só mostra itens COM vídeo — e some com a seção inteira se não tiver
+            // nenhum (sem cards "Em breve"/placeholder).
+            const items = section.items.filter((i) => i.videoUrl)
+            if (items.length === 0) return null
             return (
               <section key={sIdx}>
                 {/* Título da seção */}
@@ -253,14 +247,14 @@ export default function Tutorial() {
                       {section.title}
                     </h2>
                     <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {section.items.length} {section.items.length === 1 ? 'vídeo' : 'vídeos'}
+                      {items.length} {items.length === 1 ? 'vídeo' : 'vídeos'}
                     </div>
                   </div>
                 </div>
 
                 {/* Cards dos vídeos */}
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {section.items.map((item, iIdx) => {
+                  {items.map((item, iIdx) => {
                     const hasVideo = !!item.videoUrl
                     return (
                       <button
@@ -356,7 +350,7 @@ function VideoModal({ video, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="rounded-2xl overflow-hidden w-full max-w-3xl"
+        className="rounded-2xl overflow-hidden w-full max-w-[380px]"
         style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)' }}
       >
         {/* Header */}
@@ -378,14 +372,16 @@ function VideoModal({ video, onClose }) {
           </button>
         </div>
 
-        {/* Vídeo embed */}
-        <div className="aspect-video bg-black">
-          <iframe
+        {/* Vídeo vertical (9:16) — nativo, sem marca de terceiro */}
+        <div className="bg-black w-full" style={{ aspectRatio: '9 / 16' }}>
+          <video
             src={video.videoUrl}
             title={video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            style={{ width: '100%', height: '100%', border: 0 }}
+            controls
+            playsInline
+            preload="metadata"
+            className="w-full h-full"
+            style={{ objectFit: 'cover' }}
           />
         </div>
 
