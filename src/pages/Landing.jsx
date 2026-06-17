@@ -191,6 +191,16 @@ function ProblemSection() {
       title: 'O cartão fechou — e veio surpresa',
       desc: 'Esqueceu daquela compra parcelada, do streaming que cobrou sem avisar, do almoço daquela quarta. Fatura virou ansiedade.',
     },
+    {
+      icon: Calendar,
+      title: 'Compromisso que escapou da memória',
+      desc: 'A consulta, o aniversário, aquela reunião marcada às pressas. "Depois eu anoto" virou "perdi" — e a desculpa nunca soa bem.',
+    },
+    {
+      icon: Smartphone,
+      title: 'Sua agenda vive espalhada',
+      desc: 'Um compromisso no WhatsApp, outro na cabeça, um lembrete na geladeira. Nada num lugar só — e sempre escapa alguma coisa.',
+    },
   ]
 
   return (
@@ -200,7 +210,7 @@ function ProblemSection() {
           Você reconhece isso?
         </div>
         <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
-          Cuidar do dinheiro <em style={{ fontStyle: 'italic', color: 'var(--accent-rose)' }}>não devia</em> ser tão difícil.
+          Cuidar do dinheiro e da rotina <em style={{ fontStyle: 'italic', color: 'var(--accent-rose)' }}>não devia</em> ser tão difícil.
         </h2>
         <p className="max-w-xl mx-auto text-sm sm:text-base" style={{ color: 'var(--text-tertiary)' }}>
           A maioria dos métodos exige disciplina demais, tempo demais ou conhecimento demais.
