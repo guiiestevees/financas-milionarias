@@ -793,7 +793,7 @@ function FAQ() {
     },
     {
       q: 'Preciso instalar algum aplicativo?',
-      a: 'Não. O Domus funciona direto no navegador (Chrome, Safari, Edge) de qualquer celular ou computador. Você pode adicionar à tela inicial pra parecer um app, mas é opcional. Em breve teremos versão Android na Play Store.',
+      a: 'Você escolhe! O Domus funciona direto no navegador (Chrome, Safari, Edge) em qualquer celular ou computador — e dá pra adicionar à tela inicial pra usar como um app. Também estamos chegando às lojas como app nativo: App Store (iPhone) e Play Store (Android). Sua conta é a mesma em qualquer um deles — use do jeito que for mais confortável pra você.',
     },
     {
       q: 'Meus dados ficam seguros?',
