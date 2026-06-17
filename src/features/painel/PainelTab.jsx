@@ -40,7 +40,9 @@ function useMonthAggregates(month) {
     minhas.forEach((d) => { const k = d.paymentMethod || '—'; byPayment[k] = (byPayment[k] || 0) + Number(d.amount || 0) })
 
     const byCard = cfg.cards.map((c) => {
-      const items = minhas.filter((d) => d.paymentMethod === c.name)
+      // Fatura usa TODOS os gastos do cartão (inclusive os atribuídos a terceiros):
+      // você deve o valor cheio pro cartão. Quem te deve fica rastreado em "a receber".
+      const items = month.despesas.filter((d) => d.paymentMethod === c.name)
       const total = items.reduce((s, d) => s + Number(d.amount || 0), 0)
       const aPagar = items.filter((d) => !d.paid).reduce((s, d) => s + Number(d.amount || 0), 0)
       return { name: c.name, accent: c.accent, dueDay: c.dueDay ? Number(c.dueDay) : null, kind: c.kind || 'card', total, aPagar, count: items.length, items }
