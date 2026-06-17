@@ -4671,28 +4671,6 @@ function SettingsView() {
       {/* Alfred no WhatsApp */}
       <AgendaWhatsAppCard />
 
-      {/* Info */}
-      <div className="rounded-2xl p-4 sm:p-5"
-        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
-          Em breve
-        </div>
-        <ul className="space-y-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Lembrete via WhatsApp pelo Alfred no dia/hora do compromisso
-          </li>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Sincronização com Google Calendar
-          </li>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Editar uma ocorrência específica de evento recorrente
-          </li>
-        </ul>
-      </div>
-
       <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
         Tem sugestão? Mande pra <strong>alquimiadigital08@gmail.com</strong>
       </div>
