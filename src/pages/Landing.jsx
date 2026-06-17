@@ -290,7 +290,7 @@ function Demo() {
           Conversa natural. Resultados precisos.
         </h2>
         <p className="max-w-xl mx-auto text-sm sm:text-base" style={{ color: 'var(--text-tertiary)' }}>
-          Mande como falaria com um amigo. Alfred entende, classifica e registra.
+          Gastos ou compromissos — mande como falaria com um amigo. Alfred entende, registra e te lembra.
         </p>
       </div>
 
@@ -312,10 +312,10 @@ function Demo() {
         />
 
         <ChatExample
-          title="Compras do dia a dia"
+          title="Marque compromissos"
           messages={[
-            { from: 'user', text: 'Acabei de comprar um guaraná no pix por 8 reais' },
-            { from: 'alfred', text: '🎩 Registrado. R$ 8 no Pix — categoria "Lazer". Que aproveite, senhor.' },
+            { from: 'user', text: 'Alfred, marca dentista terça 9h' },
+            { from: 'alfred', text: '🎩 Agendado: dentista na terça, 9h. Avisarei com antecedência, senhor.' },
           ]}
         />
 
@@ -336,10 +336,10 @@ function Demo() {
         />
 
         <ChatExample
-          title="Veja onde está o dinheiro"
+          title="Lembretes que não falham"
           messages={[
-            { from: 'user', text: 'Quanto gastei de assinaturas?' },
-            { from: 'alfred', text: 'Suas assinaturas somam *R$ 187/mês* — Netflix, Spotify, Domus, academia e mais 2. Posso listar todas se desejar.' },
+            { from: 'user', text: 'me lembra de pagar o aluguel todo dia 5' },
+            { from: 'alfred', text: '🎩 Lembrete criado: pagar o aluguel, todo dia 5. Pode contar comigo, senhor.' },
           ]}
         />
 
@@ -352,10 +352,10 @@ function Demo() {
         />
 
         <ChatExample
-          title="Acompanhe metas"
+          title="Sua agenda na ponta da língua"
           messages={[
-            { from: 'user', text: 'Como tá meu cofre de viagem?' },
-            { from: 'alfred', text: 'Cofre Viagem com *R$ 4.200,00* — 42% da meta de R$ 10.000. Cada vez mais perto. Admirável.' },
+            { from: 'user', text: 'o que tenho amanhã?' },
+            { from: 'alfred', text: 'Amanhã: reunião 10h, almoço com o João 13h e academia 19h. Dia produtivo à frente, senhor.' },
           ]}
         />
       </div>
