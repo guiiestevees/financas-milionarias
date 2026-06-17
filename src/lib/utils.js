@@ -8,7 +8,12 @@ export const uid = () =>
 export const fmtBRL = (n) =>
   (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export const todayISO = () => new Date().toISOString().slice(0, 10)
+export const todayISO = () => {
+  // Data LOCAL (não UTC). Com toISOString, à noite no Brasil (UTC-3) caía no
+  // dia seguinte — lançamentos da noite ganhavam a data errada (e às vezes o mês errado).
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 export const todayDay = () => new Date().getDate()
 
 export const getCurrentMonth = () => {

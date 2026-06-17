@@ -382,8 +382,8 @@ body {
   padding-bottom: var(--safe-bottom);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  /* Cor de fundo que aparece nas safe areas (combina com o app) */
-  background-color: #0a0e1a;
+  /* Cor de fundo que aparece nas safe areas (combina com o app, por tema) */
+  background-color: var(--bg-app);
 }
 
 /* Quando o teclado abre no iOS, evita layout shift bizarro */

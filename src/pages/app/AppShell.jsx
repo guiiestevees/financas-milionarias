@@ -908,7 +908,7 @@ export default function AppShell() {
 
   if (!data || !month) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#070912' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
         <div className="text-white/30 text-sm">Carregando…</div>
       </div>
     )
