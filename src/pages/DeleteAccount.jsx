@@ -11,11 +11,11 @@ const SectionTitle = ({ children }) => (
 )
 
 const P = ({ children }) => (
-  <p className="text-sm sm:text-[15px] text-white/70 leading-relaxed mb-3">{children}</p>
+  <p className="text-sm sm:text-[15px] text-white/85 leading-relaxed mb-3">{children}</p>
 )
 
 const Item = ({ children }) => (
-  <li className="text-sm sm:text-[15px] text-white/70 leading-relaxed mb-1.5">{children}</li>
+  <li className="text-sm sm:text-[15px] text-white/85 leading-relaxed mb-1.5">{children}</li>
 )
 
 // Página dedicada à exclusão de conta — exigida pela Google Play
@@ -41,7 +41,7 @@ export default function DeleteAccount() {
         >
           Como excluir sua conta do Domus
         </h1>
-        <p className="text-sm text-white/45">
+        <p className="text-sm text-white/60">
           Domus — Mordomo Financeiro · desenvolvido por Guilherme Esteves (Alquimia Digital)
         </p>
 
@@ -67,8 +67,8 @@ export default function DeleteAccount() {
         </P>
         <P>
           <strong className="text-white/90">E-mail:</strong>{' '}
-          <a href="mailto:contato@financasmilionarias.com.br" className="text-amber-300 hover:underline">
-            contato@financasmilionarias.com.br
+          <a href="mailto:alquimiadigital08@gmail.com" className="text-amber-300 hover:underline">
+            alquimiadigital08@gmail.com
           </a>
         </P>
 
