@@ -96,11 +96,16 @@ export function useSubscription() {
   // - status 'cancelled' E data já passou
   // - overdue há mais de 3 dias
   // - trial vencido
+  // Nunca bloqueia enquanto ainda está carregando: o estado inicial
+  // (status 'trial' + until null) derivaria isBlocked=true e causaria um
+  // flash da tela de "assine pra continuar" pra quem está em dia.
   const isBlocked =
-    isExpired ||
-    (isCancelled && !hasTimeLeft) ||
-    (isOverdue && daysLeft === 0) ||
-    (isTrial && !hasTimeLeft)
+    !state.loading && (
+      isExpired ||
+      (isCancelled && !hasTimeLeft) ||
+      (isOverdue && daysLeft === 0) ||
+      (isTrial && !hasTimeLeft)
+    )
 
   return {
     ...state,

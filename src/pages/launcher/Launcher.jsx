@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Wallet, Calendar, ShoppingCart, ArrowRight, LogOut, Check,
+  Wallet, Calendar, ArrowRight, LogOut, Check,
   ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -31,16 +31,6 @@ const APPS = [
     color: '#06b6d4',
     route: '/agenda',
     available: true,
-  },
-  {
-    id: 'mercado',
-    name: 'Mercado',
-    description: 'Listas de compras inteligentes.',
-    icon: ShoppingCart,
-    color: '#a78bfa',
-    route: null,
-    available: false,
-    comingSoon: true,
   },
 ]
 

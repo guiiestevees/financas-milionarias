@@ -1,10 +1,24 @@
+// Usa crypto.randomUUID quando disponível (contexto seguro — sempre no
+// Capacitor e em https), com fallback pro esquema antigo. Evita colisões de
+// id quando muitos são gerados no mesmo milissegundo (parcelas, recorrências).
 export const uid = () =>
-  Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4)
+  globalThis.crypto?.randomUUID?.() ||
+  (Math.random().toString(36).slice(2, 11) + Date.now().toString(36).slice(-4))
 
 export const fmtBRL = (n) =>
   (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export const todayISO = () => new Date().toISOString().slice(0, 10)
+// Normaliza texto pra busca: minúsculo + SEM acento ("Ômega 3" → "omega 3").
+// Assim "omega" encontra "ômega".
+export const normalizeText = (s) =>
+  (s == null ? '' : String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+export const todayISO = () => {
+  // Data LOCAL (não UTC). Com toISOString, à noite no Brasil (UTC-3) caía no
+  // dia seguinte — lançamentos da noite ganhavam a data errada (e às vezes o mês errado).
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 export const todayDay = () => new Date().getDate()
 
 export const getCurrentMonth = () => {
@@ -13,12 +27,25 @@ export const getCurrentMonth = () => {
 }
 
 export const formatMonthLabel = (ym) => {
-  const [y, m] = ym.split('-')
+  const [y, m] = String(ym || '').split('-')
   const months = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
   ]
-  return `${months[Number(m) - 1]} ${y}`
+  const idx = Number(m) - 1
+  if (!y || !(idx >= 0 && idx <= 11)) return String(ym || '')
+  return `${months[idx]} ${y}`
+}
+
+// Monta uma data YYYY-MM-DD válida dentro do mês `ym`, grampeando o dia ao
+// último dia do mês (ex.: dia 31 em fevereiro vira 28/29). Sem isso, parcelas
+// geravam datas inválidas como "2026-02-31", que o JS rola pra março.
+export const dateInMonth = (ym, day) => {
+  const [y, m] = String(ym || '').split('-').map(Number)
+  if (!y || !m) return ym
+  const lastDay = new Date(y, m, 0).getDate()
+  const d = Math.min(Math.max(1, Number(day) || 1), lastDay)
+  return `${ym}-${String(d).padStart(2, '0')}`
 }
 
 export const shiftMonth = (ym, delta) => {

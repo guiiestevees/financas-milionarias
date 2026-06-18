@@ -33,7 +33,7 @@ export default function FilterBar({ used, filters, toggleFilter, setTextFilter, 
           return (
             <button key={name} onClick={() => toggleFilter(dim, name)}
                     className="px-2.5 py-1 rounded-full text-xs transition flex items-center gap-1"
-                    style={{ background: sel ? a.hex : a.soft, color: sel ? '#0a0a0c' : a.hex, border: sel ? `1px solid ${a.hex}` : `1px solid ${a.hex}30`, fontWeight: sel ? 600 : 400 }}>
+                    style={{ background: sel ? a.hex : a.soft, color: sel ? '#0a0a0c' : a.hex, border: sel ? `1px solid ${a.hex}` : `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)`, fontWeight: sel ? 600 : 400 }}>
               {sel && <Check size={11} />}{label}
             </button>
           )

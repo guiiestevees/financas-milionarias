@@ -15,8 +15,8 @@ export default function DespesaRow({ d, config, activeMonth, onTogglePaid, onEdi
 
   let bg = d.paid ? 'var(--bg-elev2)' : 'var(--bg-elev1)'
   let border = '1px solid transparent'
-  if (overdue) { bg = 'rgba(244,63,94,0.06)'; border = `1px solid ${accents.rose.hex}40` }
-  else if (dueToday) { bg = 'rgba(245,158,11,0.06)'; border = `1px solid ${accents.amber.hex}40` }
+  if (overdue) { bg = 'rgba(244,63,94,0.06)'; border = `1px solid color-mix(in srgb, ${accents.rose.hex} 25%, transparent)` }
+  else if (dueToday) { bg = 'rgba(245,158,11,0.06)'; border = `1px solid color-mix(in srgb, ${accents.amber.hex} 25%, transparent)` }
 
   return (
     <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg group transition" style={{ background: bg, border, opacity: d.paid ? 0.7 : 1 }}>
@@ -36,7 +36,7 @@ export default function DespesaRow({ d, config, activeMonth, onTogglePaid, onEdi
       </div>
       {d.paymentMethod && (
         <div className="shrink-0 hidden sm:block">
-          <span className="text-xs px-2 py-1 rounded inline-flex items-center gap-1" style={{ background: pmA.soft, color: pmA.hex, border: `1px solid ${pmA.hex}25` }}>
+          <span className="text-xs px-2 py-1 rounded inline-flex items-center gap-1" style={{ background: pmA.soft, color: pmA.hex, border: `1px solid color-mix(in srgb, ${pmA.hex} 15%, transparent)` }}>
             {cardObj ? <CreditCard size={11} /> : <Banknote size={11} />}{d.paymentMethod}
           </span>
         </div>

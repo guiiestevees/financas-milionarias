@@ -198,7 +198,7 @@ function CardsConfig({ config, setConfig }) {
           if (isEditing) {
             const editAccent = editKind === 'person' ? accents.amber : accents.cyan
             return (
-              <div key={c.name} className="p-3 rounded-lg" style={{ background: editAccent.soft, border: `1px solid ${editAccent.hex}40` }}>
+              <div key={c.name} className="p-3 rounded-lg" style={{ background: editAccent.soft, border: `1px solid color-mix(in srgb, ${editAccent.hex} 25%, transparent)` }}>
                 <div className="space-y-2.5">
                   {/* Toggle tipo */}
                   <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-medium)' }}>
@@ -358,7 +358,7 @@ function PaymentMethodsConfig({ config, setConfig }) {
         {cashOnly.map((p) => {
           const a = accents[hashAccent(p)]
           return (
-            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
               <span className="text-sm" style={{ color: a.hex }}>{p}</span>
               <button onClick={() => setConfig({ paymentMethods: config.paymentMethods.filter((x) => x !== p) })} className="p-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition"><X size={12} /></button>
             </div>
@@ -416,10 +416,17 @@ function BudgetInput({ value, onChange }) {
 }
 
 // ---------- CategoriesConfig ----------
-function CategoriesConfig({ config, setConfig }) {
+function CategoriesConfig({ config, setConfig, renameCategory }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [budget, setBudget] = useState('')  // string com vírgula ou ponto — OPCIONAL
+  const [editingName, setEditingName] = useState(null)  // categoria sendo renomeada
+  const [editDraft, setEditDraft] = useState('')
+  const saveRename = (oldName) => {
+    const nn = editDraft.trim()
+    if (nn && nn !== oldName) renameCategory?.(oldName, nn)
+    setEditingName(null)
+  }
   const reset = () => { setName(''); setBudget(''); setAdding(false) }
   const parsedBudget = parseMoneyBR(budget)
   // Limite é opcional — basta o nome pra criar
@@ -468,12 +475,33 @@ function CategoriesConfig({ config, setConfig }) {
           return (
             <div key={c.name} className="p-3 rounded-lg bg-white/5">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Target size={13} /></div>
-                  <span className="font-medium truncate">{c.name}</span>
-                  {!hasBudget && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-elev3)', color: 'var(--text-muted)' }}>sem limite</span>}
-                </div>
-                <DeleteIconBtn onClick={() => setConfig({ categories: config.categories.filter((x) => x.name !== c.name) })} />
+                {editingName === c.name ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveRename(c.name); if (e.key === 'Escape') setEditingName(null) }}
+                      style={{ background: 'var(--bg-elev3)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', flex: 1, minWidth: 0, borderRadius: 8, padding: '6px 10px', fontSize: 14, outline: 'none' }}
+                      className="placeholder:text-white/30 focus:border-rose-400"
+                    />
+                    <button onClick={() => saveRename(c.name)} title="Salvar nome" className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 transition shrink-0"><Check size={14} /></button>
+                    <button onClick={() => setEditingName(null)} title="Cancelar" className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition shrink-0"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div style={{ background: a.soft, color: a.hex }} className="p-1.5 rounded-md shrink-0"><Target size={13} /></div>
+                      <span className="font-medium truncate">{c.name}</span>
+                      {!hasBudget && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-elev3)', color: 'var(--text-muted)' }}>sem limite</span>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => { setEditingName(c.name); setEditDraft(c.name) }} title="Renomear categoria" className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/5 transition"><Pencil size={13} /></button>
+                      <DeleteIconBtn onClick={() => setConfig({ categories: config.categories.filter((x) => x.name !== c.name) })} />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-1">
@@ -534,10 +562,10 @@ function AttributedConfig({ config, setConfig }) {
           const a = accents[p.accent || accentKeys[idx % accentKeys.length]] || accents.gold
           const mine = p.isMine !== false
           return (
-            <div key={p.name} className="flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap" style={{ background: a.soft, border: `1px solid ${a.hex}25` }}>
+            <div key={p.name} className="flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 15%, transparent)` }}>
               <div className="flex items-center gap-3 min-w-0"><span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: a.hex }} /><span className="font-medium truncate">{p.name}</span></div>
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => setConfig({ attributedTo: config.attributedTo.map((x) => x.name === p.name ? { ...x, isMine: x.isMine === false ? true : false } : x) })} className="text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition shrink-0" style={{ background: mine ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: mine ? accents.emerald.hex : accents.amber.hex, border: `1px solid ${mine ? accents.emerald.hex : accents.amber.hex}30` }}>
+                <button onClick={() => setConfig({ attributedTo: config.attributedTo.map((x) => x.name === p.name ? { ...x, isMine: x.isMine === false ? true : false } : x) })} className="text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition shrink-0" style={{ background: mine ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: mine ? accents.emerald.hex : accents.amber.hex, border: `1px solid color-mix(in srgb, ${mine ? accents.emerald.hex : accents.amber.hex} 19%, transparent)` }}>
                   {mine ? '👤 É meu' : '🤝 Adiantamento'}
                 </button>
                 <DeleteIconBtn onClick={() => setConfig({ attributedTo: config.attributedTo.filter((x) => x.name !== p.name) })} />
@@ -575,7 +603,7 @@ function IncomeSourcesConfig({ config, setConfig }) {
         {config.incomeSources.map((p) => {
           const a = accents[hashAccent(p)]
           return (
-            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid ${a.hex}30` }}>
+            <div key={p} className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg" style={{ background: a.soft, border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)` }}>
               <span className="text-sm">{p}</span>
               <button onClick={() => setConfig({ incomeSources: config.incomeSources.filter((x) => x !== p) })} className="p-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition"><X size={12} /></button>
             </div>
@@ -716,7 +744,7 @@ function HelpSection() {
     <Card className="p-4 sm:p-6">
       <SectionTitle icon={PlayCircle} title="Ajuda & tutoriais" subtitle="Vídeos pra você dominar o app." accent="gold" />
       <Link
-        to="/tutorial"
+        to="/tutorial?app=financas"
         className="flex items-center gap-3 p-4 rounded-xl transition hover:opacity-95"
         style={{
           background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.04))',
@@ -741,8 +769,8 @@ function HelpSection() {
 }
 
 function AppearanceSection() {
-  // Tema específico do app de Finanças — separado da Agenda
-  const { theme, setTheme } = useTheme('financas')
+  // Tema único do app (vale pra Finanças e Agenda)
+  const { theme, setTheme } = useTheme()
 
   const Option = ({ value, label, icon: Icon, description }) => {
     const isActive = theme === value
@@ -779,7 +807,7 @@ function AppearanceSection() {
 
   return (
     <Card className="p-4 sm:p-6">
-      <SectionTitle icon={Palette} title="Aparência" subtitle="Tema específico do app de Finanças." accent="gold" />
+      <SectionTitle icon={Palette} title="Aparência" subtitle="Tema do app — vale pra Finanças e Agenda." accent="gold" />
       <div className="flex flex-col sm:flex-row gap-3">
         <Option
           value="dark"
@@ -795,7 +823,7 @@ function AppearanceSection() {
         />
       </div>
       <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-        🎩 Vale apenas pra Finanças — a Agenda pode ter um tema próprio (configure lá).
+        🎩 O tema vale pro app inteiro — Finanças e Agenda juntos.
       </div>
     </Card>
   )
@@ -915,7 +943,7 @@ function DangerZone() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="p-3 rounded-lg text-sm leading-relaxed" style={{ background: accents.rose.soft, border: `1px solid ${accents.rose.hex}40`, color: 'rgba(255,255,255,0.85)' }}>
+          <div className="p-3 rounded-lg text-sm leading-relaxed" style={{ background: accents.rose.soft, border: `1px solid color-mix(in srgb, ${accents.rose.hex} 25%, transparent)`, color: 'rgba(255,255,255,0.85)' }}>
             <strong className="text-rose-200">Tem certeza?</strong> Todos os seus dados serão apagados imediatamente
             e não há como recuperar. Para confirmar, digite <strong className="text-white">EXCLUIR</strong> no campo abaixo.
           </div>
@@ -928,7 +956,7 @@ function DangerZone() {
             placeholder='Digite "EXCLUIR" para confirmar'
             style={{
               background: 'rgba(244,63,94,0.06)',
-              border: `1px solid ${accents.rose.hex}40`,
+              border: `1px solid color-mix(in srgb, ${accents.rose.hex} 25%, transparent)`,
               color: 'var(--text-primary)',
               width: '100%',
               outline: 'none',
@@ -969,7 +997,7 @@ function DangerZone() {
 }
 
 // ---------- ConfigTab (export) ----------
-export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig, whatsappPhone, updateWhatsappPhone }) {
+export default function ConfigTab({ month, setMonth, brand, updateBrand, setConfig, renameCategory, whatsappPhone, updateWhatsappPhone }) {
   return (
     <div className="space-y-6">
       <Card className="p-4 sm:p-6">
@@ -993,7 +1021,7 @@ export default function ConfigTab({ month, setMonth, brand, updateBrand, setConf
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CardsConfig config={month.config} setConfig={setConfig} />
         <PaymentMethodsConfig config={month.config} setConfig={setConfig} />
-        <CategoriesConfig config={month.config} setConfig={setConfig} />
+        <CategoriesConfig config={month.config} setConfig={setConfig} renameCategory={renameCategory} />
         <AttributedConfig config={month.config} setConfig={setConfig} />
         <IncomeSourcesConfig config={month.config} setConfig={setConfig} />
       </div>

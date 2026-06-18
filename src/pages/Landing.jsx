@@ -35,7 +35,7 @@ export default function Landing() {
         }}
       />
 
-      <div className="relative max-w-5xl mx-auto px-5 sm:px-6 py-6 sm:py-10">
+      <div className="relative max-w-5xl mx-auto px-5 sm:px-6 pt-3 pb-6 sm:pt-5 sm:pb-10">
         <Nav />
         <Hero />
         <ProblemSection />
@@ -43,6 +43,7 @@ export default function Landing() {
         <Demo />
         <HowItWorks />
         <Features />
+        <Screens />
         <WhoFor />
         <Pricing />
         <Guarantee />
@@ -88,7 +89,7 @@ function Hero() {
   return (
     <section className="text-center mb-24 sm:mb-32">
       {/* Logo grande e centralizada — compacto, sem muito espaço em branco */}
-      <div className="flex justify-center mb-4 sm:mb-5 -mt-2">
+      <div className="flex justify-center mb-3 sm:mb-4 -mt-3">
         <img
           src="/domus-logo-512.png"
           alt="Domus"
@@ -105,13 +106,13 @@ function Hero() {
         style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)' }}>
         <Crown size={11} style={{ color: 'var(--accent-gold)' }} />
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent-gold)' }}>
-          Controle financeiro · Sem complicação
+          Finanças e Agenda · Sem complicação
         </span>
       </div>
 
       <h1
         style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.025em', lineHeight: 1.0 }}
-        className="text-5xl sm:text-7xl lg:text-8xl mb-7 max-w-4xl mx-auto"
+        className="text-5xl sm:text-6xl lg:text-7xl mb-7 max-w-4xl mx-auto"
       >
         Quem controla o dinheiro,{' '}
         <em
@@ -167,6 +168,46 @@ function Hero() {
 }
 
 // ============================================================
+// SCREENS — mostra o app de verdade (Finanças + Agenda)
+// ============================================================
+function Screens() {
+  const shots = [
+    { src: '/screens/painel.png', label: 'Painel — pra onde vai o dinheiro' },
+    { src: '/screens/cofres.png', label: 'Cofres com metas' },
+    { src: '/screens/agenda-dia.png', label: 'Agenda do dia + Reflexão' },
+    { src: '/screens/agenda-semana.png', label: 'Sua semana, organizada' },
+  ]
+  return (
+    <section className="mb-20 sm:mb-28">
+      <div className="text-center mb-10">
+        <div className="text-[11px] uppercase tracking-widest font-semibold mb-3" style={{ color: 'var(--accent-gold)' }}>
+          Veja por dentro
+        </div>
+        <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
+          Bonito de usar. Simples de entender.
+        </h2>
+        <p className="max-w-xl mx-auto text-sm sm:text-base" style={{ color: 'var(--text-tertiary)' }}>
+          Finanças e Agenda no mesmo app — claro, elegante e direto ao ponto.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {shots.map((s, i) => (
+          <div key={i} className="flex flex-col items-center">
+            <div
+              className="rounded-[1.6rem] overflow-hidden w-full"
+              style={{ border: '1px solid var(--border-soft)', boxShadow: '0 18px 40px rgba(0,0,0,0.18)', background: 'var(--bg-elev2)' }}
+            >
+              <img src={s.src} alt={s.label} loading="lazy" className="w-full block" />
+            </div>
+            <div className="text-xs mt-3 text-center" style={{ color: 'var(--text-tertiary)' }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================================
 // PROBLEMA — gera identificação antes de oferecer solução
 // ============================================================
 function ProblemSection() {
@@ -191,6 +232,16 @@ function ProblemSection() {
       title: 'O cartão fechou — e veio surpresa',
       desc: 'Esqueceu daquela compra parcelada, do streaming que cobrou sem avisar, do almoço daquela quarta. Fatura virou ansiedade.',
     },
+    {
+      icon: Calendar,
+      title: 'Compromisso que escapou da memória',
+      desc: 'A consulta, o aniversário, aquela reunião marcada às pressas. "Depois eu anoto" virou "perdi" — e a desculpa nunca soa bem.',
+    },
+    {
+      icon: Smartphone,
+      title: 'Sua agenda vive espalhada',
+      desc: 'Um compromisso no WhatsApp, outro na cabeça, um lembrete na geladeira. Nada num lugar só — e sempre escapa alguma coisa.',
+    },
   ]
 
   return (
@@ -200,7 +251,7 @@ function ProblemSection() {
           Você reconhece isso?
         </div>
         <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500 }} className="text-3xl sm:text-4xl mb-3">
-          Cuidar do dinheiro <em style={{ fontStyle: 'italic', color: 'var(--accent-rose)' }}>não devia</em> ser tão difícil.
+          Cuidar do dinheiro e da rotina <em style={{ fontStyle: 'italic', color: 'var(--accent-rose)' }}>não devia</em> ser tão difícil.
         </h2>
         <p className="max-w-xl mx-auto text-sm sm:text-base" style={{ color: 'var(--text-tertiary)' }}>
           A maioria dos métodos exige disciplina demais, tempo demais ou conhecimento demais.
@@ -290,7 +341,7 @@ function Demo() {
           Conversa natural. Resultados precisos.
         </h2>
         <p className="max-w-xl mx-auto text-sm sm:text-base" style={{ color: 'var(--text-tertiary)' }}>
-          Mande como falaria com um amigo. Alfred entende, classifica e registra.
+          Gastos ou compromissos — mande como falaria com um amigo. Alfred entende, registra e te lembra.
         </p>
       </div>
 
@@ -312,10 +363,10 @@ function Demo() {
         />
 
         <ChatExample
-          title="Compras do dia a dia"
+          title="Marque compromissos"
           messages={[
-            { from: 'user', text: 'Acabei de comprar um guaraná no pix por 8 reais' },
-            { from: 'alfred', text: '🎩 Registrado. R$ 8 no Pix — categoria "Lazer". Que aproveite, senhor.' },
+            { from: 'user', text: 'Alfred, marca dentista terça 9h' },
+            { from: 'alfred', text: '🎩 Agendado: dentista na terça, 9h. Avisarei com antecedência, senhor.' },
           ]}
         />
 
@@ -336,10 +387,10 @@ function Demo() {
         />
 
         <ChatExample
-          title="Veja onde está o dinheiro"
+          title="Lembretes que não falham"
           messages={[
-            { from: 'user', text: 'Quanto gastei de assinaturas?' },
-            { from: 'alfred', text: 'Suas assinaturas somam *R$ 187/mês* — Netflix, Spotify, Domus, academia e mais 2. Posso listar todas se desejar.' },
+            { from: 'user', text: 'me lembra de pagar o aluguel todo dia 5' },
+            { from: 'alfred', text: '🎩 Lembrete criado: pagar o aluguel, todo dia 5. Pode contar comigo, senhor.' },
           ]}
         />
 
@@ -352,10 +403,10 @@ function Demo() {
         />
 
         <ChatExample
-          title="Acompanhe metas"
+          title="Sua agenda na ponta da língua"
           messages={[
-            { from: 'user', text: 'Como tá meu cofre de viagem?' },
-            { from: 'alfred', text: 'Cofre Viagem com *R$ 4.200,00* — 42% da meta de R$ 10.000. Cada vez mais perto. Admirável.' },
+            { from: 'user', text: 'o que tenho amanhã?' },
+            { from: 'alfred', text: 'Amanhã: reunião 10h, almoço com o João 13h e academia 19h. Dia produtivo à frente, senhor.' },
           ]}
         />
       </div>
@@ -458,6 +509,12 @@ function Features() {
       accent: 'gold',
     },
     {
+      icon: Calendar,
+      title: 'Agenda integrada',
+      desc: 'Não é só dinheiro: marque compromissos e lembretes no mesmo app — até por mensagem no WhatsApp. Visão de dia, semana e mês, com recorrência e a Reflexão do Dia pra focar no que importa.',
+      accent: 'cyan',
+    },
+    {
       icon: Target,
       title: 'Categorias com limite mensal',
       desc: 'Defina quanto pode gastar com Mercado, Lazer, Saídas. Veja em tempo real quando tá apertando — antes do fim do mês.',
@@ -482,7 +539,7 @@ function Features() {
       accent: 'violet',
     },
     {
-      icon: Calendar,
+      icon: Zap,
       title: 'Gastos fixos automáticos',
       desc: 'Aluguel, Netflix, academia — uma vez cadastrado, rola todo mês sem você fazer nada. Foco no que é variável.',
       accent: 'emerald',
@@ -529,7 +586,7 @@ function Features() {
                 <div
                   className="inline-flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
                   style={{
-                    background: `${colorVar}1a`,  // 10% opacity hex
+                    background: `color-mix(in srgb, ${colorVar} 10%, transparent)`,
                     color: colorVar,
                   }}
                 >
@@ -736,7 +793,7 @@ function FAQ() {
     },
     {
       q: 'Preciso instalar algum aplicativo?',
-      a: 'Não. O Domus funciona direto no navegador (Chrome, Safari, Edge) de qualquer celular ou computador. Você pode adicionar à tela inicial pra parecer um app, mas é opcional. Em breve teremos versão Android na Play Store.',
+      a: 'Você escolhe! O Domus funciona direto no navegador (Chrome, Safari, Edge) em qualquer celular ou computador — e dá pra adicionar à tela inicial pra usar como um app. Também estamos chegando às lojas como app nativo: App Store (iPhone) e Play Store (Android). Sua conta é a mesma em qualquer um deles — use do jeito que for mais confortável pra você.',
     },
     {
       q: 'Meus dados ficam seguros?',

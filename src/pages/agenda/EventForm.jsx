@@ -21,7 +21,9 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
 
   // Campo único — substitui título + descrição
   const [text, setText] = useState(event?.title || initialTitle || '')
-  const [date, setDate] = useState(event?.date || occurrenceDate || initialDate || todayISO())
+  // Ao editar, a data deve ser a do DIA CLICADO (occurrenceDate), não a data de
+  // início da recorrência — senão "só nesta ocorrência" cria a cópia no dia errado.
+  const [date, setDate] = useState(occurrenceDate || event?.date || initialDate || todayISO())
   const [time, setTime] = useState(event?.time?.slice(0, 5) || initialTime || nextRoundHour())
   // Duração padrão: 1h quando criando novo (se já tem time mas não tem end_time)
   const computeDefaultEndTime = () => {
@@ -196,7 +198,7 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
     setError('')
     setSaving(true)
     try {
-      await onSaveOccurrence(buildPayload({ recurring: 'none', recurring_weekdays: null, ends_at: null }))
+      await onSaveOccurrence(buildPayload({ recurring: 'none', recurring_weekdays: null, ends_at: null, date: occurrenceDate || date }))
     } catch (e) {
       setError(e.message || 'Erro ao salvar')
       setSaving(false)
@@ -722,7 +724,7 @@ export default function EventForm({ event, initialDate, initialTitle, initialTim
                 </button>
 
                 <button
-                  onClick={() => { setScopeDialog(false); doSave(buildPayload()) }}
+                  onClick={() => { setScopeDialog(false); doSave(buildPayload({ date: event?.date || date })) }}
                   disabled={saving}
                   className="w-full text-left px-4 py-3 rounded-xl transition hover:opacity-90 disabled:opacity-50"
                   style={{

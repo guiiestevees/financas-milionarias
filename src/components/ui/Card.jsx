@@ -44,7 +44,7 @@ export function Empty({ text, icon: Icon, description, action, accent = 'gold' }
           style={{
             background: a.soft,
             color: a.hex,
-            border: `1px solid ${a.hex}30`,
+            border: `1px solid color-mix(in srgb, ${a.hex} 19%, transparent)`,
           }}
         >
           {action.icon ? <action.icon size={14} /> : null}

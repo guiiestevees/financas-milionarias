@@ -18,7 +18,7 @@ export function ModePicker({ value, onChange, options }) {
             style={{
               background: sel ? a.soft : 'transparent',
               color: sel ? a.hex : 'var(--text-tertiary)',
-              border: sel ? `1px solid ${a.hex}50` : '1px solid transparent',
+              border: sel ? `1px solid color-mix(in srgb, ${a.hex} 31%, transparent)` : '1px solid transparent',
               boxShadow: sel ? `0 4px 14px -6px ${a.glow}` : 'none',
             }}
             className="px-3 py-2.5 rounded-lg text-left transition-all flex items-center gap-3 w-full"
@@ -26,7 +26,7 @@ export function ModePicker({ value, onChange, options }) {
             {Icon && (
               <div
                 className="shrink-0 p-1.5 rounded-md"
-                style={{ background: sel ? `${a.hex}20` : 'var(--bg-elev1)' }}
+                style={{ background: sel ? `color-mix(in srgb, ${a.hex} 12%, transparent)` : 'var(--bg-elev1)' }}
               >
                 <Icon size={14} />
               </div>
@@ -34,7 +34,7 @@ export function ModePicker({ value, onChange, options }) {
             <div className="min-w-0 flex-1">
               <div className="font-medium text-sm">{opt.label}</div>
               {opt.description && (
-                <div className="text-xs" style={{ color: sel ? `${a.hex}cc` : 'var(--text-muted)' }}>
+                <div className="text-xs" style={{ color: sel ? `color-mix(in srgb, ${a.hex} 80%, transparent)` : 'var(--text-muted)' }}>
                   {opt.description}
                 </div>
               )}

@@ -247,7 +247,7 @@ export default function QuickAddExpense({ month, onAdd }) {
                   className="rounded-lg p-3 text-xs flex items-start gap-2"
                   style={{
                     background: accents[chosenCard.accent]?.soft || 'rgba(212,175,55,0.10)',
-                    border: `1px solid ${accents[chosenCard.accent]?.hex || '#d4af37'}30`,
+                    border: `1px solid color-mix(in srgb, ${accents[chosenCard.accent]?.hex || '#d4af37'} 19%, transparent)`,
                     color: 'var(--text-secondary)',
                   }}
                 >

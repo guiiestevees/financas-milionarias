@@ -156,7 +156,7 @@ export default async function handler(req, res) {
         paymentId: authorization.id,  // usamos authorization.id pra polling
         authorizationId: authorization.id,
         method,
-        value: plan.value,
+        value: PLANS[planId].value,
         qrCode: {
           encodedImage: qrCode.encodedImage || null,
           payload: qrCode.payload || null,

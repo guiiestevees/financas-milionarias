@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Crown, AlertTriangle, Clock, X } from 'lucide-react'
 import { useSubscription } from '../hooks/useSubscription'
-import { isNativeApp, WEB_APP_URL } from '../lib/platform'
+import { isNativeApp } from '../lib/platform'
 
 // Banner que aparece no topo do app durante trial / overdue / cancelled-active.
 // Some quando assinatura tá ativa.
@@ -119,12 +119,14 @@ function BannerShell({
             <span className="hidden sm:inline text-white/55 ml-2">{text}</span>
           </div>
         </div>
-        <div
-          className={`shrink-0 text-xs sm:text-sm font-semibold whitespace-nowrap ${ctaColor}`}
-          style={ctaStyle}
-        >
-          {native ? `via ${WEB_APP_URL}` : cta}
-        </div>
+        {!native && (
+          <div
+            className={`shrink-0 text-xs sm:text-sm font-semibold whitespace-nowrap ${ctaColor}`}
+            style={ctaStyle}
+          >
+            {cta}
+          </div>
+        )}
       </div>
     </Component>
   )

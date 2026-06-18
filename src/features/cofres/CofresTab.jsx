@@ -197,7 +197,7 @@ function MovementForm({ kind, cofres, currentCofreId, onSave, onCancel }) {
       )}
 
       {kind === 'caixa' && (
-        <div className="text-xs text-white/60 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid ${accents.gold.hex}25` }}>
+        <div className="text-xs text-white/60 leading-relaxed p-3 rounded-lg" style={{ background: accents.gold.soft, border: `1px solid color-mix(in srgb, ${accents.gold.hex} 15%, transparent)` }}>
           O valor sai do cofre e entra como <strong className="text-white/85">receita do mês</strong> da data escolhida — aumentando a sua sobra disponível.
         </div>
       )}
@@ -232,7 +232,9 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
   const negative = balance < 0
   const last = lastMov(cofre)
   const goal = cofre.goal
-  const pct = goal && goal.amount > 0 ? Math.min(100, (balance / goal.amount) * 100) : null
+  // pct sempre numérico quando há meta (evita crash em pct.toFixed/Math.max
+  // se a meta existir com amount 0 ou inválido — dado legado/migração).
+  const pct = goal && goal.amount > 0 ? Math.min(100, (balance / goal.amount) * 100) : 0
   const monthsLeft = goal?.targetDate ? monthsUntil(goal.targetDate) : null
 
   return (
@@ -266,7 +268,7 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
             </span>
           </div>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
-            <div className="h-full transition-all" style={{ width: `${Math.max(0, pct)}%`, background: `linear-gradient(90deg, ${a.hex}, ${a.hex}cc)`, boxShadow: `0 0 12px ${a.glow}` }} />
+            <div className="h-full transition-all" style={{ width: `${Math.max(0, pct)}%`, background: a.hex, boxShadow: `0 0 12px ${a.glow}` }} />
           </div>
         </div>
       )}
@@ -275,14 +277,14 @@ function CofreCard({ cofre, onOpen, onEdit, onQuickEntrada, onQuickSaida }) {
         <button
           onClick={(e) => { e.stopPropagation(); onQuickEntrada() }}
           className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
-          style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid ${accents.emerald.hex}25` }}
+          style={{ background: accents.emerald.soft, color: accents.emerald.hex, border: `1px solid color-mix(in srgb, ${accents.emerald.hex} 15%, transparent)` }}
         >
           <Plus size={15} /> Entrada
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onQuickSaida() }}
           className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition"
-          style={{ background: accents.rose.soft, color: accents.rose.hex, border: `1px solid ${accents.rose.hex}25` }}
+          style={{ background: accents.rose.soft, color: accents.rose.hex, border: `1px solid color-mix(in srgb, ${accents.rose.hex} 15%, transparent)` }}
         >
           <ArrowDownRight size={15} /> Saída
         </button>
@@ -324,7 +326,7 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
         </div>
 
         {confirmDelete && (
-          <div className="p-3 rounded-lg flex items-center justify-between" style={{ background: accents.rose.soft, border: `1px solid ${accents.rose.hex}30` }}>
+          <div className="p-3 rounded-lg flex items-center justify-between" style={{ background: accents.rose.soft, border: `1px solid color-mix(in srgb, ${accents.rose.hex} 19%, transparent)` }}>
             <span className="text-sm text-rose-200">Excluir esse cofre? O histórico se perde.</span>
             <div className="flex gap-2">
               <button onClick={() => setConfirmDelete(false)} className="px-3 py-1 rounded text-xs text-white/70 hover:bg-white/5">Cancelar</button>
@@ -353,13 +355,13 @@ function CofreDetail({ cofre, cofres, initialAction, onClose, onSave, onRemove, 
           />
         )}
 
-        {/* Action buttons */}
-        {!editing && !movKind && (
+        {/* Ações — sempre visíveis (funcionam como abas: clica e o formulário troca na hora) */}
+        {!editing && (
           <div className="flex gap-2 flex-wrap">
-            <Btn icon={ArrowUpRight} onClick={() => { setEditingMovId(null); setMovKind('entrada') }}>Entrada</Btn>
-            <Btn icon={ArrowDownRight} onClick={() => { setEditingMovId(null); setMovKind('saida') }} variant="ghost">Saída</Btn>
-            <Btn icon={Wallet} onClick={() => { setEditingMovId(null); setMovKind('caixa') }} variant="ghost">Devolver pro caixa</Btn>
-            {cofres.length > 1 && <Btn icon={ArrowLeftRight} onClick={() => { setEditingMovId(null); setMovKind('transferencia') }} variant="ghost">Transferir</Btn>}
+            <Btn icon={ArrowUpRight} onClick={() => { setEditingMovId(null); setMovKind('entrada') }} variant={movKind === 'entrada' ? 'primary' : 'ghost'}>Entrada</Btn>
+            <Btn icon={ArrowDownRight} onClick={() => { setEditingMovId(null); setMovKind('saida') }} variant={movKind === 'saida' ? 'primary' : 'ghost'}>Saída</Btn>
+            <Btn icon={Wallet} onClick={() => { setEditingMovId(null); setMovKind('caixa') }} variant={movKind === 'caixa' ? 'primary' : 'ghost'}>Devolver pro caixa</Btn>
+            {cofres.length > 1 && <Btn icon={ArrowLeftRight} onClick={() => { setEditingMovId(null); setMovKind('transferencia') }} variant={movKind === 'transferencia' ? 'primary' : 'ghost'}>Transferir</Btn>}
           </div>
         )}
 

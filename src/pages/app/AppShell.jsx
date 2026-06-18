@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { storage } from '../../lib/storage'
 import { migrateData } from '../../lib/migrate'
 import { createEmptyMonth, createEmptyConfig, safeConfig, computeEffectiveConfig } from '../../lib/constants'
-import { getCurrentMonth, shiftMonth, formatMonthLabel, uid } from '../../lib/utils'
+import { getCurrentMonth, shiftMonth, formatMonthLabel, uid, dateInMonth } from '../../lib/utils'
 import { Header } from '../../components/layout/Header'
 import { Footer } from '../../components/layout/Footer'
 import { Tabs } from '../../components/layout/Tabs'
@@ -64,6 +64,9 @@ export default function AppShell() {
   const saveTimer = useRef(null)
   const initialized = useRef(false)
   const loadedUserId = useRef(null)
+  const mounted = useRef(true)            // evita setState após desmontar
+  const pendingSave = useRef(false)       // há um save no debounce ainda não persistido?
+  const dataRef = useRef(null)            // versão mais recente de `data` pro flush final
 
   // Tour inicial removido — tutorial agora é acessível via página /tutorial.
 
@@ -97,14 +100,32 @@ export default function AppShell() {
 
   useEffect(() => {
     if (!initialized.current || data === null) return
+    dataRef.current = data
+    pendingSave.current = true
     clearTimeout(saveTimer.current)
     setSaving(true)
     saveTimer.current = setTimeout(async () => {
       await storage.save(data)
-      setSaving(false)
+      pendingSave.current = false
+      if (mounted.current) setSaving(false)
     }, 600)
     return () => clearTimeout(saveTimer.current)
   }, [data])
+
+  // Ao desmontar (sair da tela), garante que uma edição ainda no debounce
+  // seja persistida — sem isso, a última alteração feita logo antes de
+  // navegar pra outra aba/app era perdida.
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      clearTimeout(saveTimer.current)
+      if (pendingSave.current && dataRef.current !== null) {
+        storage.save(dataRef.current)  // cleanup não permite await — dispara o save final
+        pendingSave.current = false
+      }
+    }
+  }, [])
 
   const rawMonth = data ? (data.months?.[activeMonth] ?? createEmptyMonth()) : null
   // The displayed config is the GLOBAL effective config — same in every month.
@@ -134,6 +155,35 @@ export default function AppShell() {
       return { ...prev, config: newCfg, months: updatedMonths }
     })
   }, [activeMonth])
+
+  // Renomeia uma categoria E migra todos os gastos antigos que usavam o nome
+  // antigo (a categoria é guardada como texto em cada despesa). Sem isso, os
+  // gastos ficariam "órfãos" após renomear.
+  const renameCategory = useCallback((oldName, newName) => {
+    const nn = (newName || '').trim()
+    if (!nn || nn === oldName) return
+    setData((prev) => {
+      const curCfg = computeEffectiveConfig(prev)
+      // Não renomeia se já existir uma categoria com o novo nome (evita duplicar)
+      if ((curCfg.categories || []).some((c) => c.name === nn)) return prev
+      const newCfg = {
+        ...curCfg,
+        categories: (curCfg.categories || []).map((c) => c.name === oldName ? { ...c, name: nn } : c),
+      }
+      const updatedMonths = { ...(prev.months || {}) }
+      for (const ym of Object.keys(updatedMonths)) {
+        const m = updatedMonths[ym]
+        updatedMonths[ym] = {
+          ...m,
+          config: newCfg,
+          despesas: Array.isArray(m.despesas)
+            ? m.despesas.map((d) => (d && d.category === oldName ? { ...d, category: nn } : d))
+            : m.despesas,
+        }
+      }
+      return { ...prev, config: newCfg, months: updatedMonths }
+    })
+  }, [])
 
   const setMonth = useCallback((updater) => {
     setData((prev) => {
@@ -279,7 +329,7 @@ export default function AppShell() {
         const fm = shiftMonth(activeMonth, i)
         const fmData = next.months[fm]
         const day = despesa.date?.slice(8)
-        const futureDate = fm + (day ? '-' + day : '-01')
+        const futureDate = dateInMonth(fm, day)
 
         if (fmData) {
           // Month already exists — just add the installment
@@ -346,7 +396,7 @@ export default function AppShell() {
         )
         if (already) continue
 
-        const futureDate = fm + (day ? '-' + day : '-01')
+        const futureDate = dateInMonth(fm, day)
         const newEntry = {
           ...despesa,
           id: uid(),
@@ -804,7 +854,7 @@ export default function AppShell() {
               (d) => d && d.description === finalData.description && Number(d.installmentCurrent) === inst
             )
             if (already) continue
-            const futureDate = fm + (day ? '-' + day : '-01')
+            const futureDate = dateInMonth(fm, day)
             const futureDespesa = {
               ...finalData,
               id: uid(),
@@ -858,7 +908,7 @@ export default function AppShell() {
 
   if (!data || !month) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#070912' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
         <div className="text-white/30 text-sm">Carregando…</div>
       </div>
     )
@@ -906,7 +956,7 @@ export default function AppShell() {
           {tab === 'receitas' && <ReceitasTab month={month} setMonth={setMonth} />}
           {tab === 'gastos'   && <GastosTab month={month} setMonth={setMonth} addDespesaPropagated={addDespesaPropagated} activeMonth={activeMonth} expandInstallments={expandInstallments} cofres={data.cofres || []} togglePaidDespesa={togglePaidDespesa} setPaidBulk={setPaidBulk} removeDespesaCentral={removeDespesa} />}
           {tab === 'cofres'   && <CofresTab cofres={data.cofres || []} addCofre={addCofre} updateCofre={updateCofre} removeCofre={removeCofre} addMovement={addMovement} transferBetweenCofres={transferBetweenCofres} transferCofreToCaixa={transferCofreToCaixa} updateMovement={updateMovement} removeMovement={removeMovement} />}
-          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} whatsappPhone={data.whatsappPhone || ''} updateWhatsappPhone={updateWhatsappPhone} />}
+          {tab === 'config'   && <ConfigTab month={month} setMonth={setMonth} brand={brand} updateBrand={updateBrand} setConfig={setConfig} renameCategory={renameCategory} whatsappPhone={data.whatsappPhone || ''} updateWhatsappPhone={updateWhatsappPhone} />}
         </ErrorBoundary>
       </main>
 

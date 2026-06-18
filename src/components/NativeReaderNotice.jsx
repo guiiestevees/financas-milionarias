@@ -1,33 +1,20 @@
-import { useState } from 'react'
-import { Copy, Check, ExternalLink } from 'lucide-react'
-import { WEB_APP_URL, WEB_APP_URL_FULL, isNativeApp } from '../lib/platform'
+import { Info } from 'lucide-react'
+import { isNativeApp } from '../lib/platform'
 
-// Mensagem neutra que substitui CTAs de pagamento quando rodando como app nativo.
-// Cumpre as regras Apple/Google "Reader App":
-// - Não mostra preços
-// - Não tem botão clicável que leve a checkout
-// - Apenas indica que existe gerenciamento externo (sem "vá comprar")
-// - Botão "Copiar endereço" é aceito pela Apple (não direciona)
+// Aviso neutro mostrado no app nativo no lugar de qualquer CTA de pagamento.
 //
-// Props:
-//   action — string descrevendo o que precisa ser feito (default: "gerencie sua assinatura")
+// Regras Apple/Google (Guideline 3.1.1): o app NÃO pode mostrar preços, links,
+// botões ou qualquer "chamada pra ação" que direcione o usuário a comprar fora
+// da loja. Por isso este aviso é estritamente factual ("modelo Netflix"):
+//   - Não mostra preços
+//   - Não nomeia o site nem mostra URL
+//   - Não tem botão/link que leve a checkout ou cadastro externo
+//   - Apenas informa que a gestão de plano não acontece dentro do app
+//
+// Props (mantidas por compatibilidade com quem já usa o componente):
 //   subtitle — texto extra opcional
-//   compact — versão menor pra usar em banners
-export default function NativeReaderNotice({
-  action = 'gerencie sua assinatura',
-  subtitle,
-  compact = false,
-}) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(WEB_APP_URL_FULL)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
-    } catch (e) { /* ignore */ }
-  }
-
+//   compact  — versão menor pra usar em banners/cards
+export default function NativeReaderNotice({ subtitle, compact = false }) {
   if (compact) {
     return (
       <div
@@ -38,7 +25,7 @@ export default function NativeReaderNotice({
           color: 'var(--text-secondary)',
         }}
       >
-        Para {action}, acesse <strong style={{ color: 'var(--text-primary)' }}>{WEB_APP_URL}</strong> no seu navegador.
+        Sua assinatura é gerenciada fora do aplicativo. Se já tem um plano ativo, basta entrar com sua conta.
       </div>
     )
   }
@@ -51,7 +38,7 @@ export default function NativeReaderNotice({
         border: '1px solid var(--border-soft)',
       }}
     >
-      <div className="flex items-start gap-3 mb-3">
+      <div className="flex items-start gap-3">
         <div
           className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
           style={{
@@ -59,18 +46,18 @@ export default function NativeReaderNotice({
             color: 'var(--accent-gold)',
           }}
         >
-          <ExternalLink size={18} />
+          <Info size={18} />
         </div>
         <div className="min-w-0">
           <h3
             style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: 'var(--text-primary)' }}
             className="text-base mb-1"
           >
-            Acesse pelo seu navegador
+            Assinatura gerenciada fora do app
           </h3>
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            Pra {action}, abra <strong style={{ color: 'var(--text-secondary)' }}>{WEB_APP_URL}</strong> no
-            navegador do seu celular ou computador.
+            No momento, planos e pagamentos não são feitos por aqui. Se você já tem um plano ativo,
+            é só entrar com sua conta que o acesso aparece automaticamente.
           </p>
           {subtitle && (
             <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
@@ -79,26 +66,6 @@ export default function NativeReaderNotice({
           )}
         </div>
       </div>
-
-      <button
-        onClick={handleCopy}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition hover:opacity-90"
-        style={{
-          background: copied ? 'rgba(16,185,129,0.15)' : 'var(--bg-elev1)',
-          border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : 'var(--border-soft)'}`,
-          color: copied ? 'var(--accent-emerald)' : 'var(--text-secondary)',
-        }}
-      >
-        {copied ? (
-          <>
-            <Check size={15} /> Endereço copiado
-          </>
-        ) : (
-          <>
-            <Copy size={15} /> Copiar endereço
-          </>
-        )}
-      </button>
     </div>
   )
 }

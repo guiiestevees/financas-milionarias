@@ -38,7 +38,7 @@ export function Chip({ children, selected, onClick, accent = 'violet', icon: Ico
         background: selected ? a.soft : 'var(--bg-elev1)',
         border: `1px solid ${selected ? a.hex + '60' : 'var(--border-medium)'}`,
         color: selected ? a.hex : 'var(--text-secondary)',
-        boxShadow: selected ? `0 0 0 2px ${a.hex}15, 0 4px 12px -4px ${a.glow}` : 'none',
+        boxShadow: selected ? `0 0 0 2px color-mix(in srgb, ${a.hex} 8%, transparent), 0 4px 12px -4px ${a.glow}` : 'none',
       }}
     >
       {Icon && <Icon size={12} />}

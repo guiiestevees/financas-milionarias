@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, PlayCircle, Sparkles, Rocket, MessageCircle, CreditCard,
-  Target, Coins, Settings, Lightbulb, Clock, Crown,
+  Target, Coins, Settings, Lightbulb, Clock, Crown, Wallet, Calendar,
 } from 'lucide-react'
 
 // ===========================================================================
@@ -19,180 +19,47 @@ import {
 // o array TUTORIAL_SECTIONS abaixo conforme for produzindo os vídeos.
 // ===========================================================================
 
-// 👇 PRA ADICIONAR UM VÍDEO REAL DEPOIS:
-// 1. Faça upload no YouTube (privado/não-listado se quiser)
-// 2. Pegue o embed URL: https://www.youtube.com/embed/VIDEO_ID
-// 3. Cole no campo videoUrl do item correspondente
-// 4. Atualize duration com o tempo real
+// Vídeos hospedados no Supabase Storage (bucket público "tutorial").
+// Pra adicionar/editar: suba o MP4 no bucket e ajuste o videoUrl abaixo.
+const VIDEO_BASE = 'https://rtiehvkvbjblaulyupkv.supabase.co/storage/v1/object/public/Tutorial'
+
 const TUTORIAL_SECTIONS = [
   {
-    title: 'Primeiros passos',
-    icon: Rocket,
+    title: 'Finanças',
+    app: 'financas',
+    icon: Wallet,
     accent: '#10b981',
     items: [
-      {
-        title: 'Boas-vindas ao Domus',
-        duration: 'Em breve',
-        description: 'Um tour rápido pelas principais áreas do app — Painel, Gastos, Cofres e Configurações.',
-        videoUrl: null,
-      },
-      {
-        title: 'Cadastrando seus cartões',
-        duration: 'Em breve',
-        description: 'Como adicionar seus cartões de crédito com data de vencimento pra organização automática.',
-        videoUrl: null,
-      },
-      {
-        title: 'Criando categorias com limite',
-        duration: 'Em breve',
-        description: 'Por que categorias com limite vão pro topo do painel e como definir seus limites mensais.',
-        videoUrl: null,
-      },
+      { title: 'Configurações iniciais', description: 'Comece por aqui: ajuste o essencial pra deixar o app com a sua cara.', videoUrl: `${VIDEO_BASE}/financas-aula-1.mp4` },
+      { title: 'Entradas', description: 'Como registrar suas receitas e manter o mês no azul.', videoUrl: `${VIDEO_BASE}/financas-aula-2.mp4` },
+      { title: 'Gastos', description: 'Lançando despesas — no app e pelo Alfred, parcelados e fixos.', videoUrl: `${VIDEO_BASE}/financas-aula-3.mp4` },
+      { title: 'Atribuídos a terceiros', description: 'Comprou pra alguém? Marque como "a receber" e saiba quem te deve.', videoUrl: `${VIDEO_BASE}/financas-aula-4.mp4` },
+      { title: 'Dança das categorias', description: 'Limites por categoria e como transferir saldo entre elas.', videoUrl: `${VIDEO_BASE}/financas-aula-5.mp4` },
+      { title: 'Cofres', description: 'Crie cofres com metas e acompanhe seus objetivos visualmente.', videoUrl: `${VIDEO_BASE}/financas-aula-6.mp4` },
     ],
   },
   {
-    title: 'Alfred no WhatsApp',
-    icon: MessageCircle,
-    accent: '#25D366',
-    items: [
-      {
-        title: 'Vinculando seu WhatsApp ao Alfred',
-        duration: 'Em breve',
-        description: 'Como salvar o contato do Alfred e começar a usar pelo seu WhatsApp.',
-        videoUrl: null,
-      },
-      {
-        title: 'Lançando gastos por mensagem',
-        duration: 'Em breve',
-        description: 'Exemplos práticos de como mandar mensagens que o Alfred entende.',
-        videoUrl: null,
-      },
-      {
-        title: 'Mandando por áudio',
-        duration: 'Em breve',
-        description: 'Grave um áudio falando o que comprou — o Alfred transcreve e classifica.',
-        videoUrl: null,
-      },
-      {
-        title: 'Consultando seu painel pelo WhatsApp',
-        duration: 'Em breve',
-        description: '"Quanto sobra esse mês?", "Quanto gastei no mercado?" — pergunte ao Alfred.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Gastos do dia a dia',
-    icon: CreditCard,
-    accent: '#a78bfa',
-    items: [
-      {
-        title: 'Lançando um gasto manualmente',
-        duration: 'Em breve',
-        description: 'Direto no app, sem o Alfred — quando preferir digitar tudo de uma vez.',
-        videoUrl: null,
-      },
-      {
-        title: 'Parcelados — como cadastrar',
-        duration: 'Em breve',
-        description: 'Marcou "10x de R$ 200"? O Domus cria todas as parcelas automaticamente.',
-        videoUrl: null,
-      },
-      {
-        title: 'Gastos fixos (Netflix, aluguel, etc)',
-        duration: 'Em breve',
-        description: 'Cadastre uma vez e ele aparece todo mês automaticamente.',
-        videoUrl: null,
-      },
-      {
-        title: 'Apagando gastos — só esse mês ou pra sempre',
-        duration: 'Em breve',
-        description: 'A diferença entre apagar um gasto fixo só de um mês ou permanente.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Categorias e Orçamento',
-    icon: Target,
-    accent: '#f43f5e',
-    items: [
-      {
-        title: 'Limite mensal vs. categoria simples',
-        duration: 'Em breve',
-        description: 'Diferença entre categorias que aparecem no topo (com limite) e as que só agrupam.',
-        videoUrl: null,
-      },
-      {
-        title: 'Transferindo saldo entre categorias',
-        duration: 'Em breve',
-        description: 'Sobrou no Mercado e faltou em Lazer? Mova o orçamento sem perder o controle.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Cofres e Metas',
-    icon: Coins,
+    title: 'Agenda',
+    app: 'agenda',
+    icon: Calendar,
     accent: '#06b6d4',
     items: [
-      {
-        title: 'Criando um cofre com meta',
-        duration: 'Em breve',
-        description: 'Reserva de emergência, casamento, viagem — defina o alvo e acompanhe.',
-        videoUrl: null,
-      },
-      {
-        title: 'Movimentando dinheiro entre cofres',
-        duration: 'Em breve',
-        description: 'Transferências, entradas, saídas — como movimentar dentro dos cofres.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Assinatura e Conta',
-    icon: Crown,
-    accent: '#d4af37',
-    items: [
-      {
-        title: 'Mudando o método de pagamento',
-        duration: 'Em breve',
-        description: 'Como trocar de PIX pra cartão (ou vice-versa) sem perder o acesso.',
-        videoUrl: null,
-      },
-      {
-        title: 'Cancelando ou reativando assinatura',
-        duration: 'Em breve',
-        description: 'Como cancelar pelo app — você mantém acesso até o fim do período já pago.',
-        videoUrl: null,
-      },
-    ],
-  },
-  {
-    title: 'Dicas avançadas',
-    icon: Lightbulb,
-    accent: '#f59e0b',
-    items: [
-      {
-        title: 'Gastos compartilhados com terceiros',
-        duration: 'Em breve',
-        description: 'Comprou pra outra pessoa? Marque como "a receber" e acompanhe quem deve.',
-        videoUrl: null,
-      },
-      {
-        title: 'Recuperando acesso (esqueci a senha)',
-        duration: 'Em breve',
-        description: 'Como entrar usando CPF ou celular quando esquecer o email/senha.',
-        videoUrl: null,
-      },
+      { title: 'Como cadastrar compromissos', description: 'O básico pra anotar e organizar seus compromissos.', videoUrl: `${VIDEO_BASE}/agenda-aula-1.mp4` },
+      { title: 'Cronograma semanal e mensal', description: 'Visões de semana e mês pra enxergar tudo de uma vez.', videoUrl: `${VIDEO_BASE}/agenda-aula-2.mp4` },
+      { title: 'Tarefas, projetos e configurações', description: 'Organize tarefas e projetos, e ajuste a agenda do seu jeito.', videoUrl: `${VIDEO_BASE}/agenda-aula-3.mp4` },
+      { title: 'Como usar o Alfred', description: 'Marque compromissos e receba lembretes pelo WhatsApp com o Alfred.', videoUrl: `${VIDEO_BASE}/agenda-aula-4.mp4` },
     ],
   },
 ]
 
 export default function Tutorial() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [openVideo, setOpenVideo] = useState(null)
+
+  // Cada app abre só o SEU tutorial via ?app=financas | agenda. Sem param, mostra tudo.
+  const appFilter = searchParams.get('app')
+  const sections = appFilter ? TUTORIAL_SECTIONS.filter((s) => s.app === appFilter) : TUTORIAL_SECTIONS
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -200,11 +67,11 @@ export default function Tutorial() {
 
         {/* Voltar */}
         <button
-          onClick={() => navigate('/app')}
+          onClick={() => navigate(appFilter === 'agenda' ? '/agenda' : '/app')}
           className="flex items-center gap-2 text-sm mb-6 transition hover:opacity-80"
           style={{ color: 'var(--text-tertiary)' }}
         >
-          <ArrowLeft size={16} /> Voltar pro painel
+          <ArrowLeft size={16} /> Voltar{appFilter === 'agenda' ? ' pra agenda' : ' pro painel'}
         </button>
 
         {/* Header */}
@@ -224,20 +91,14 @@ export default function Tutorial() {
           </p>
         </div>
 
-        {/* Aviso de "em produção" enquanto não tem vídeos */}
-        <div className="rounded-2xl p-4 mb-8 flex items-start gap-3"
-          style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)' }}>
-          <Sparkles size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--accent-gold)' }} />
-          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Tutoriais em produção.</strong>
-            {' '}Estamos gravando os vídeos com calma pra entregar conteúdo de qualidade. Em breve cada item abaixo terá um vídeo curto e direto pra você.
-          </div>
-        </div>
-
         {/* Seções */}
         <div className="space-y-8">
-          {TUTORIAL_SECTIONS.map((section, sIdx) => {
+          {sections.map((section, sIdx) => {
             const SectionIcon = section.icon
+            // Só mostra itens COM vídeo — e some com a seção inteira se não tiver
+            // nenhum (sem cards "Em breve"/placeholder).
+            const items = section.items.filter((i) => i.videoUrl)
+            if (items.length === 0) return null
             return (
               <section key={sIdx}>
                 {/* Título da seção */}
@@ -253,14 +114,14 @@ export default function Tutorial() {
                       {section.title}
                     </h2>
                     <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {section.items.length} {section.items.length === 1 ? 'vídeo' : 'vídeos'}
+                      {items.length} {items.length === 1 ? 'vídeo' : 'vídeos'}
                     </div>
                   </div>
                 </div>
 
                 {/* Cards dos vídeos */}
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {section.items.map((item, iIdx) => {
+                  {items.map((item, iIdx) => {
                     const hasVideo = !!item.videoUrl
                     return (
                       <button
@@ -348,6 +209,13 @@ export default function Tutorial() {
 
 // ---------- VideoModal ----------
 function VideoModal({ video, onClose }) {
+  const videoRef = useRef(null)
+  const [rate, setRate] = useState(1)
+  const SPEEDS = [1, 1.5, 2]
+  const changeSpeed = (r) => {
+    setRate(r)
+    if (videoRef.current) videoRef.current.playbackRate = r
+  }
   return (
     <div
       onClick={onClose}
@@ -356,7 +224,7 @@ function VideoModal({ video, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="rounded-2xl overflow-hidden w-full max-w-3xl"
+        className="rounded-2xl overflow-hidden w-full max-w-[380px]"
         style={{ background: 'var(--bg-app-soft)', border: '1px solid var(--border-medium)' }}
       >
         {/* Header */}
@@ -378,15 +246,43 @@ function VideoModal({ video, onClose }) {
           </button>
         </div>
 
-        {/* Vídeo embed */}
-        <div className="aspect-video bg-black">
-          <iframe
+        {/* Vídeo vertical (9:16) — nativo, sem marca de terceiro */}
+        <div className="bg-black w-full" style={{ aspectRatio: '9 / 16' }}>
+          <video
+            ref={videoRef}
             src={video.videoUrl}
             title={video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            style={{ width: '100%', height: '100%', border: 0 }}
+            controls
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={() => { if (videoRef.current) videoRef.current.playbackRate = rate }}
+            className="w-full h-full"
+            style={{ objectFit: 'cover' }}
           />
+        </div>
+
+        {/* Velocidade — fácil de achar, um toque */}
+        <div className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Velocidade</span>
+          <div className="flex gap-1.5">
+            {SPEEDS.map((s) => {
+              const active = rate === s
+              return (
+                <button
+                  key={s}
+                  onClick={() => changeSpeed(s)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold transition"
+                  style={{
+                    background: active ? 'var(--accent-gold)' : 'var(--bg-elev2)',
+                    color: active ? '#070912' : 'var(--text-secondary)',
+                    border: `1px solid ${active ? 'var(--accent-gold)' : 'var(--border-soft)'}`,
+                  }}
+                >
+                  {String(s).replace('.', ',')}x
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {video.description && (

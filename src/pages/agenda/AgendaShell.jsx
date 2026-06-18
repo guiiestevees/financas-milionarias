@@ -4,7 +4,7 @@ import {
   CalendarDays, CalendarRange, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight,
   LayoutGrid, Loader2, AlertCircle, MapPin, Repeat, Clock, ArrowLeft,
   ListChecks, Settings, Sun, Moon, Sparkles, Check, Trash2, Star, CalendarPlus,
-  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X,
+  Folder, FolderPlus, FolderOpen, ChevronDown, MoreVertical, Archive, X, MessageCircle, PlayCircle, ArrowRight,
 } from 'lucide-react'
 import { useAgenda } from '../../hooks/useAgenda'
 import { useAgendaTasks } from '../../hooks/useAgendaTasks'
@@ -12,6 +12,7 @@ import { useAgendaProjects } from '../../hooks/useAgendaProjects'
 import { useAgendaTags } from '../../hooks/useAgendaTags'
 import { useAgendaCompletions } from '../../hooks/useAgendaCompletions'
 import { useTheme } from '../../hooks/useTheme'
+import { supabase } from '../../lib/supabase'
 import AppSwitcher from '../../components/AppSwitcher'
 import EventForm from './EventForm'
 import {
@@ -54,9 +55,8 @@ export default function AgendaShell() {
   const tagsHook = useAgendaTags()
   const completionsHook = useAgendaCompletions()
 
-  // Aplica o tema específico da Agenda (lê 'domus:theme:agenda' do localStorage)
-  // Quando o user troca em Ajustes, vale só pra Agenda; Finanças mantém o seu tema.
-  useTheme('agenda')
+  // Aplica o tema do app (tema único — vale pra Finanças e Agenda).
+  useTheme()
 
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
@@ -1095,7 +1095,7 @@ function CompletionBurst({ colorVar }) {
           fontSize: 12,
           fontWeight: 800,
           color: colorVar,
-          textShadow: `0 2px 8px ${colorVar}, 0 0 20px ${colorVar}66`,
+          textShadow: `0 2px 8px ${colorVar}, 0 0 20px color-mix(in srgb, ${colorVar} 40%, transparent)`,
           animation: 'floatUp 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
           fontFamily: 'JetBrains Mono, monospace',
           letterSpacing: '-0.02em',
@@ -2458,7 +2458,7 @@ function DragGhost({ dragging, pxPerHour, colWidth, colGap, weekDates }) {
         height: height - 2,
         background: getColorTint(colorKey, 'bg'),
         border: `2px solid ${colorVar}`,
-        boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+        boxShadow: `0 8px 24px color-mix(in srgb, ${colorVar} 40%, transparent), 0 0 0 4px rgba(6,182,212,0.15)`,
         animation: 'dragGhostPulse 1.2s ease-in-out infinite',
       }}
     >
@@ -2505,7 +2505,7 @@ function DayDragGuide({ dragging, startHour, pxPerHour, hoursColWidth }) {
           height: height - 2,
           background: getColorTint(event.color || 'cyan', 'bg'),
           border: `2px solid ${colorVar}`,
-          boxShadow: `0 8px 24px ${colorVar}66, 0 0 0 4px rgba(6,182,212,0.15)`,
+          boxShadow: `0 8px 24px color-mix(in srgb, ${colorVar} 40%, transparent), 0 0 0 4px rgba(6,182,212,0.15)`,
           animation: 'dragGhostPulse 1.2s ease-in-out infinite',
         }}
       >
@@ -2631,7 +2631,7 @@ function DragFloatingIndicator({ dragging }) {
           background: 'rgba(15, 23, 42, 0.92)',
           backdropFilter: 'blur(16px)',
           border: `2px solid ${colorVar}`,
-          boxShadow: `0 12px 40px rgba(0,0,0,0.5), 0 0 0 4px ${colorVar}33`,
+          boxShadow: `0 12px 40px rgba(0,0,0,0.5), 0 0 0 4px color-mix(in srgb, ${colorVar} 20%, transparent)`,
           minWidth: 240,
           maxWidth: 'calc(100vw - 32px)',
         }}
@@ -3687,8 +3687,8 @@ function ProjectCard({
               onClick={() => setPrioritizing(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition hover:opacity-90 text-left"
               style={{
-                background: `${colorVar}15`,
-                border: `1px dashed ${colorVar}50`,
+                background: `color-mix(in srgb, ${colorVar} 8%, transparent)`,
+                border: `1px dashed color-mix(in srgb, ${colorVar} 31%, transparent)`,
                 color: colorVar,
               }}
             >
@@ -4649,10 +4649,28 @@ function ProjectForm({ project, onSave, onDelete, onClose }) {
 // ============================================================
 function SettingsView() {
   const navigate = useNavigate()
-  const { theme, setTheme } = useTheme('agenda')
+  const { theme, setTheme } = useTheme()
 
   return (
     <div className="space-y-4">
+      {/* Como usar a Agenda */}
+      <button
+        onClick={() => navigate('/tutorial?app=agenda')}
+        className="w-full flex items-center justify-between gap-3 rounded-2xl p-4 sm:p-5 transition hover:opacity-90"
+        style={{ background: 'rgba(6,182,212,0.1)', border: `1px solid color-mix(in srgb, ${AGENDA_ACCENT} 30%, transparent)` }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl" style={{ background: 'rgba(6,182,212,0.15)', color: AGENDA_ACCENT }}>
+            <PlayCircle size={18} />
+          </div>
+          <div className="text-left">
+            <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Como usar a Agenda</div>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Vídeos curtos pra dominar a agenda</div>
+          </div>
+        </div>
+        <ArrowRight size={16} style={{ color: AGENDA_ACCENT }} />
+      </button>
+
       {/* Tema */}
       <div className="rounded-2xl p-4 sm:p-5"
         style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
@@ -4660,7 +4678,7 @@ function SettingsView() {
           Aparência
         </div>
         <div className="text-[11px] mb-3" style={{ color: 'var(--text-tertiary)' }}>
-          🎩 Tema específico da Agenda — pode ser diferente do app de Finanças.
+          🎩 Tema do app — vale para a Agenda e o Finanças.
         </div>
         <div className="flex gap-3">
           <ThemeOption current={theme} value="light" icon={Sun} label="Claro" onSelect={() => setTheme('light')} />
@@ -4668,31 +4686,151 @@ function SettingsView() {
         </div>
       </div>
 
-      {/* Info */}
-      <div className="rounded-2xl p-4 sm:p-5"
-        style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
-        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
-          Em breve
-        </div>
-        <ul className="space-y-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Lembrete via WhatsApp pelo Alfred no dia/hora do compromisso
-          </li>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Sincronização com Google Calendar
-          </li>
-          <li className="flex items-start gap-2">
-            <span style={{ color: AGENDA_ACCENT }}>•</span>
-            Editar uma ocorrência específica de evento recorrente
-          </li>
-        </ul>
-      </div>
+      {/* Alfred no WhatsApp */}
+      <AgendaWhatsAppCard />
 
       <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
         Tem sugestão? Mande pra <strong>alquimiadigital08@gmail.com</strong>
       </div>
+    </div>
+  )
+}
+
+// Cadastro do número do WhatsApp pra falar com o Alfred — auto-contido
+// (lê/grava user_profiles.whatsapp_phone direto, mesmo campo do app de Finanças,
+// então fica sincronizado entre os dois).
+function AgendaWhatsAppCard() {
+  const BOT_PHONE = '5519997472896'
+  const waLink = `https://wa.me/${BOT_PHONE}?text=${encodeURIComponent('Oi, quero começar')}`
+
+  const [phone, setPhone] = useState(null)
+  const [draft, setDraft] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savedJustNow, setSavedJustNow] = useState(false)
+
+  const normalize = (input) => {
+    const digits = (input || '').replace(/\D/g, '')
+    if (!digits) return null
+    if (digits.startsWith('55') && digits.length >= 12) return digits
+    if (digits.length === 10 || digits.length === 11) return '55' + digits
+    if (digits.length >= 10) return digits
+    return null
+  }
+  const formatBR = (digits) => {
+    if (!digits) return ''
+    const d = digits.replace(/\D/g, '')
+    if (d.length === 13 && d.startsWith('55')) return `+55 (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`
+    if (d.length === 12 && d.startsWith('55')) return `+55 (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`
+    return '+' + d
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('whatsapp_phone')
+            .eq('user_id', user.id)
+            .maybeSingle()
+          if (!cancelled) {
+            const v = data?.whatsapp_phone || null
+            setPhone(v)
+            setDraft(v ? formatBR(v) : '')
+          }
+        }
+      } catch (e) { console.warn('load whatsapp (agenda):', e) }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const persist = async (value) => {
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase
+          .from('user_profiles')
+          .upsert({ user_id: user.id, whatsapp_phone: value }, { onConflict: 'user_id' })
+        setPhone(value)
+      }
+    } catch (e) { console.warn('save whatsapp (agenda):', e) }
+    setSaving(false)
+  }
+
+  const save = async () => {
+    await persist(normalize(draft))
+    setSavedJustNow(true)
+    setTimeout(() => setSavedJustNow(false), 2500)
+  }
+  const remove = async () => { setDraft(''); await persist(null) }
+
+  return (
+    <div className="rounded-2xl p-4 sm:p-5" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-soft)' }}>
+      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+        Alfred no WhatsApp
+      </div>
+      <div className="flex items-center gap-3 mb-3">
+        <img
+          src="/alfred.png"
+          alt="Alfred"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+          style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(37,211,102,0.35)' }}
+        />
+        <div className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          Cadastre seu número pra falar com o <strong style={{ color: '#25D366' }}>Alfred</strong> 🎩 — ele anota compromissos e gastos por mensagem ou áudio.
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+      ) : phone ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-soft)' }}>
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{formatBR(phone)}</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>vinculado a essa conta</div>
+            </div>
+            <button onClick={remove} disabled={saving} className="text-xs transition shrink-0 disabled:opacity-50" style={{ color: 'var(--text-muted)' }}>Desvincular</button>
+          </div>
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition w-full"
+            style={{ background: '#25D366', color: 'white', boxShadow: '0 4px 14px rgba(37,211,102,0.25)' }}
+          >
+            <MessageCircle size={16} /> Abrir conversa com Alfred
+          </a>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            type="tel"
+            inputMode="numeric"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Seu número com DDD (ex: 11 99999-8888)"
+            className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+          />
+          <button
+            onClick={save}
+            disabled={saving || !draft.trim()}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition w-full disabled:opacity-50"
+            style={{ background: AGENDA_ACCENT, color: '#06121a' }}
+          >
+            {saving ? 'Salvando…' : savedJustNow ? 'Salvo!' : 'Salvar número'}
+          </button>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Depois de salvar, é só mandar mensagem pro Alfred desse número.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
