@@ -15,6 +15,7 @@ import Comecar from './pages/auth/Comecar'
 import AdminPage from './pages/admin/AdminPage'
 import Tutorial from './pages/app/Tutorial'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import DeleteAccount from './pages/DeleteAccount'
 import TermsOfUse from './pages/TermsOfUse'
 import Landing from './pages/Landing'
 import Launcher from './pages/launcher/Launcher'
@@ -107,6 +108,7 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="/tutorial" element={<ProtectedRoute><Tutorial /></ProtectedRoute>} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
+        <Route path="/excluir-conta" element={<DeleteAccount />} />
         <Route path="/termos" element={<TermsOfUse />} />
 
         {/* /comecar — signup + checkout no web, ou redireciona pro login no nativo */}
