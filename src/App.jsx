@@ -21,6 +21,7 @@ import Landing from './pages/Landing'
 import Launcher from './pages/launcher/Launcher'
 import AgendaShell from './pages/agenda/AgendaShell'
 import NativeCheckoutBlock from './pages/NativeCheckoutBlock'
+import NativePaywall from './components/NativePaywall'
 import MobileAppBanner from './components/MobileAppBanner'
 import { isNativeApp } from './lib/platform'
 
@@ -101,7 +102,7 @@ export default function App() {
         {/* /assinar — checkout completo no web, ou mensagem neutra no app nativo (Reader App) */}
         <Route path="/assinar" element={
           <ProtectedRoute>
-            {isNativeApp() ? <NativeCheckoutBlock variant="manage" /> : <Assinar />}
+            {isNativeApp() ? <NativePaywall reason="manage" /> : <Assinar />}
           </ProtectedRoute>
         } />
 

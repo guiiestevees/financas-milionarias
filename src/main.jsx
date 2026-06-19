@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { AuthProvider } from './hooks/useAuth'
+import { RevenueCatProvider } from './hooks/useRevenueCat'
 import { bootstrapTheme } from './hooks/useTheme'
 import { initNativeApp } from './lib/nativeInit'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -19,7 +20,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        <App />
+        <RevenueCatProvider>
+          <App />
+        </RevenueCatProvider>
       </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>

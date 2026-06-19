@@ -20,6 +20,7 @@ import SubscriptionBlocked from '../../components/SubscriptionBlocked'
 import QuickAddExpense from '../../components/QuickAddExpense'
 // import WelcomeTour from '../../components/WelcomeTour'  // removido — agora usamos a página /tutorial acessível pelo painel
 import { useSubscription } from '../../hooks/useSubscription'
+import { useRevenueCat } from '../../hooks/useRevenueCat'
 import { useTheme } from '../../hooks/useTheme'
 
 // Chave do localStorage pra marcar que o tour foi dispensado
@@ -33,6 +34,7 @@ export default function AppShell() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const subscription = useSubscription()
+  const rc = useRevenueCat()  // assinatura In-App (Apple/Google) no app nativo
 
   // Aplica o tema específico do app de Finanças (separado da Agenda)
   useTheme('financas')
@@ -918,7 +920,10 @@ export default function AppShell() {
   // Só bloqueia quando o acesso REALMENTE acabou (trial expirou / cancelada já passou
   // do prazo / overdue mais que 3 dias / status expired). Cancelamento com dias
   // restantes mostra só um banner — não bloqueia.
-  if (!subscription.loading && subscription.isBlocked) {
+  // Quem assinou pelo pagamento In-App (Apple/Google) tem o direito "premium"
+  // ativo no RevenueCat — nesse caso não bloqueia, mesmo que o user_profiles
+  // ainda não reflita (a sincronização do servidor pode levar alguns segundos).
+  if (!subscription.loading && subscription.isBlocked && !rc.isEntitled) {
     const reason = subscription.isCancelled
       ? 'cancelled'
       : subscription.isTrial

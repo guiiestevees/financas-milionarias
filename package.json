@@ -24,6 +24,7 @@
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@revenuecat/purchases-capacitor": "^13.2.0",
     "@supabase/supabase-js": "^2.45.4",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
