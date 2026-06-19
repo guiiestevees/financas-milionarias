@@ -12,6 +12,9 @@ import { useAgendaProjects } from '../../hooks/useAgendaProjects'
 import { useAgendaTags } from '../../hooks/useAgendaTags'
 import { useAgendaCompletions } from '../../hooks/useAgendaCompletions'
 import { useTheme } from '../../hooks/useTheme'
+import { useSubscription } from '../../hooks/useSubscription'
+import { useRevenueCat } from '../../hooks/useRevenueCat'
+import SubscriptionBlocked from '../../components/SubscriptionBlocked'
 import { supabase } from '../../lib/supabase'
 import AppSwitcher from '../../components/AppSwitcher'
 import EventForm from './EventForm'
@@ -57,6 +60,10 @@ export default function AgendaShell() {
 
   // Aplica o tema do app (tema único — vale pra Finanças e Agenda).
   useTheme()
+
+  // Assinatura: a Agenda também exige plano ativo (igual ao Finanças).
+  const subscription = useSubscription()
+  const rc = useRevenueCat()
 
   // Eventos do dia atual (memoized)
   const dayEvents = useMemo(() => getEventsForDate(events, refDate), [events, refDate])
@@ -136,6 +143,19 @@ export default function AgendaShell() {
       reminder_minutes_before: event.reminder_minutes_before,
     })
     setEditing(null)
+  }
+
+  // Bloqueio de assinatura — sem plano ativo (e sem entitlement do IAP),
+  // mostra a tela de assinatura, igual ao app de Finanças.
+  if (!subscription.loading && subscription.isBlocked && !rc.isEntitled) {
+    const reason = subscription.isCancelled
+      ? 'cancelled'
+      : subscription.isTrial
+      ? 'trial_expired'
+      : subscription.isOverdue
+      ? 'overdue'
+      : 'expired'
+    return <SubscriptionBlocked reason={reason} />
   }
 
   return (
