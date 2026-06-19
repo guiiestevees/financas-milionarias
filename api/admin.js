@@ -275,6 +275,7 @@ async function handleUser(req, res) {
   switch (action) {
     case 'update': return await actionUpdate(req, res, userId)
     case 'cancel-subscription': return await actionCancel(res, userId)
+    case 'expire-access': return await actionExpire(res, userId)
     case 'grant-access': return await actionGrant(req, res, userId)
     case 'mark-verified': return await actionMarkVerified(res, userId)
     case 'delete': return await actionDelete(res, userId)
@@ -352,6 +353,18 @@ async function actionCancel(res, userId) {
   }
   await a.from('user_profiles').update({
     subscription_status: 'cancelled',
+    updated_at: new Date().toISOString(),
+  }).eq('user_id', userId)
+  return res.status(200).json({ ok: true })
+}
+
+async function actionExpire(res, userId) {
+  // Expira o acesso imediatamente (data no passado) — usado p/ deixar a conta
+  // de teste do revisor da Apple SEM assinatura, fazendo o paywall aparecer.
+  const a = admin()
+  await a.from('user_profiles').update({
+    subscription_status: 'expired',
+    subscription_until: new Date(0).toISOString(),  // 1970 = passado
     updated_at: new Date().toISOString(),
   }).eq('user_id', userId)
   return res.status(200).json({ ok: true })

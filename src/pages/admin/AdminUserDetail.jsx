@@ -242,6 +242,14 @@ export default function AdminUserDetail({ userId, onClose, onChange }) {
                     : data.profile?.subscription_status === 'expired' ? 'Já expirada'
                     : 'Cancelar acesso'}
                 </ActionBtn>
+                <ActionBtn
+                  onClick={() => callAction('expire-access')}
+                  icon={XCircle}
+                  color="#a855f7"
+                  disabled={data.profile?.subscription_status === 'expired'}
+                >
+                  {data.profile?.subscription_status === 'expired' ? 'Já expirada' : 'Expirar acesso agora'}
+                </ActionBtn>
                 <ActionBtn onClick={() => setPendingAction('delete')} icon={Trash2} color="#f43f5e">Excluir usuário</ActionBtn>
               </div>
 
