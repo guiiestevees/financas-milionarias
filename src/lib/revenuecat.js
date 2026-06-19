@@ -26,6 +26,15 @@ async function getPlugin() {
   return mod.Purchases
 }
 
+// Garante que uma chamada nunca trave a UI pra sempre: se passar do tempo,
+// resolve com um fallback (ex.: lista vazia) em vez de ficar girando.
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ])
+}
+
 // Configura o SDK uma única vez, amarrando a compra ao usuário do Supabase
 // (appUserID = user.id) pra a assinatura seguir a conta entre aparelhos.
 export async function initPurchases(appUserID) {
@@ -62,7 +71,7 @@ export async function getCustomerInfo() {
   if (!isNativeApp()) return null
   try {
     const Purchases = await getPlugin()
-    const { customerInfo } = await Purchases.getCustomerInfo()
+    const { customerInfo } = await withTimeout(Purchases.getCustomerInfo(), 12000, { customerInfo: null })
     return customerInfo
   } catch (e) {
     console.error('RevenueCat getCustomerInfo error:', e)
@@ -75,7 +84,7 @@ export async function getSubscriptionProducts() {
   if (!isNativeApp()) return []
   try {
     const Purchases = await getPlugin()
-    const { products } = await Purchases.getProducts({ productIdentifiers: PRODUCT_IDS })
+    const { products } = await withTimeout(Purchases.getProducts({ productIdentifiers: PRODUCT_IDS }), 12000, { products: [] })
     // Ordena anual primeiro (igual à ordem de PRODUCT_IDS)
     return (products || []).slice().sort(
       (a, b) => PRODUCT_IDS.indexOf(a.identifier) - PRODUCT_IDS.indexOf(b.identifier)
