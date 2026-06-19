@@ -4,8 +4,8 @@ import { isNativeApp } from '../lib/platform'
 import {
   initPurchases,
   getCustomerInfo,
-  getCurrentOffering,
-  purchasePackage as rcPurchase,
+  getSubscriptionProducts,
+  purchaseProduct as rcPurchase,
   restorePurchases as rcRestore,
   addCustomerInfoListener,
   isEntitled as rcIsEntitled,
@@ -19,16 +19,16 @@ export function RevenueCatProvider({ children }) {
   const { user } = useAuth()
   const native = isNativeApp()
   const [loading, setLoading] = useState(native)
-  const [offering, setOffering] = useState(null)
+  const [products, setProducts] = useState([])
   const [customerInfo, setCustomerInfo] = useState(null)
   const [error, setError] = useState(null)
   const listenerAdded = useRef(false)
 
   const refresh = useCallback(async () => {
     if (!native) { setLoading(false); return }
-    const [info, off] = await Promise.all([getCustomerInfo(), getCurrentOffering()])
+    const [info, prods] = await Promise.all([getCustomerInfo(), getSubscriptionProducts()])
     setCustomerInfo(info)
-    setOffering(off)
+    setProducts(prods)
     setLoading(false)
   }, [native])
 
@@ -49,9 +49,9 @@ export function RevenueCatProvider({ children }) {
     return () => { cancelled = true }
   }, [native, user, refresh])
 
-  const purchase = useCallback(async (pkg) => {
+  const purchase = useCallback(async (product) => {
     setError(null)
-    const res = await rcPurchase(pkg)
+    const res = await rcPurchase(product)
     if (res?.customerInfo) setCustomerInfo(res.customerInfo)
     return res
   }, [])
@@ -66,7 +66,7 @@ export function RevenueCatProvider({ children }) {
   const value = {
     native,
     loading,
-    offering,
+    products,
     customerInfo,
     isEntitled: rcIsEntitled(customerInfo),
     error,
@@ -84,7 +84,7 @@ export function useRevenueCat() {
   // Fallback inerte caso usado fora do provider (ex.: web puro)
   if (!ctx) {
     return {
-      native: false, loading: false, offering: null, customerInfo: null,
+      native: false, loading: false, products: [], customerInfo: null,
       isEntitled: false, error: null, setError: () => {},
       purchase: async () => ({}), restore: async () => null, refresh: async () => {},
     }

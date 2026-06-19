@@ -3,9 +3,10 @@
 // SÓ roda no app nativo (Capacitor). No web/PWA todas as funções são no-op
 // — o site continua usando o checkout do Asaas normalmente.
 //
-// O identificador do "direito" (entitlement) configurado no RevenueCat é
-// `premium`. Os produtos (mensal/anual) vêm da "offering" atual, então não
-// precisamos cravar os IDs aqui — o painel do RevenueCat manda.
+// Buscamos os produtos DIRETO pelo ID (domus_mensal/domus_anual) em vez de
+// depender de uma "offering". O direito (entitlement) configurado no
+// RevenueCat é `premium`, com os dois produtos anexados — é o que destrava
+// o app após a compra.
 
 import { isNativeApp } from './platform'
 
@@ -13,6 +14,9 @@ import { isNativeApp } from './platform'
 const RC_APPLE_API_KEY = 'appl_oQWICeGcisbzpYAqYWHGZOmwRqK'
 
 export const ENTITLEMENT_ID = 'premium'
+
+// IDs dos produtos no App Store Connect (anual primeiro = destaque "melhor valor")
+export const PRODUCT_IDS = ['domus_anual', 'domus_mensal']
 
 let configured = false
 
@@ -27,7 +31,6 @@ async function getPlugin() {
 export async function initPurchases(appUserID) {
   if (!isNativeApp()) return false
   if (configured) {
-    // Já configurado: só garante que o usuário logado está correto.
     if (appUserID) {
       try {
         const Purchases = await getPlugin()
@@ -67,25 +70,28 @@ export async function getCustomerInfo() {
   }
 }
 
-// Retorna a "offering" atual (os planos visíveis na tela de assinatura).
-export async function getCurrentOffering() {
-  if (!isNativeApp()) return null
+// Busca os produtos de assinatura direto pelos IDs. Retorna [] no web/erro.
+export async function getSubscriptionProducts() {
+  if (!isNativeApp()) return []
   try {
     const Purchases = await getPlugin()
-    const offerings = await Purchases.getOfferings()
-    return offerings?.current || null
+    const { products } = await Purchases.getProducts({ productIdentifiers: PRODUCT_IDS })
+    // Ordena anual primeiro (igual à ordem de PRODUCT_IDS)
+    return (products || []).slice().sort(
+      (a, b) => PRODUCT_IDS.indexOf(a.identifier) - PRODUCT_IDS.indexOf(b.identifier)
+    )
   } catch (e) {
-    console.error('RevenueCat getOfferings error:', e)
-    return null
+    console.error('RevenueCat getProducts error:', e)
+    return []
   }
 }
 
-// Compra um pacote. Retorna { customerInfo } em caso de sucesso,
+// Compra um produto. Retorna { customerInfo } em sucesso,
 // { cancelled: true } se o usuário desistiu, ou lança em erro real.
-export async function purchasePackage(pkg) {
+export async function purchaseProduct(product) {
   const Purchases = await getPlugin()
   try {
-    const res = await Purchases.purchasePackage({ aPackage: pkg })
+    const res = await Purchases.purchaseStoreProduct({ product })
     return { customerInfo: res?.customerInfo }
   } catch (e) {
     if (e?.code === 'PURCHASE_CANCELLED' || e?.userCancelled) {

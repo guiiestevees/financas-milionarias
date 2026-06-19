@@ -6,31 +6,28 @@ import { useRevenueCat } from '../hooks/useRevenueCat'
 import { WEB_APP_URL_FULL } from '../lib/platform'
 
 // Tela de assinatura NATIVA (pagamento In-App da Apple, via RevenueCat).
-// Mostra os planos da "offering" atual, botão de assinar, restaurar compras
+// Mostra os produtos (Mensal/Anual), botão de assinar, restaurar compras
 // e os links obrigatórios (Termos + Privacidade) exigidos pela Apple.
 //
 // Usada (1) como tela de bloqueio quando a assinatura expira e (2) na rota
 // /assinar no app nativo.
 
-function labelFor(pkg) {
-  const t = pkg?.packageType
-  if (t === 'ANNUAL') return { name: 'Anual', period: 'por ano' }
-  if (t === 'MONTHLY') return { name: 'Mensal', period: 'por mês' }
-  if (t === 'WEEKLY') return { name: 'Semanal', period: 'por semana' }
-  // fallback: usa o título do produto
-  return { name: pkg?.product?.title || 'Plano', period: '' }
+function labelFor(product) {
+  const id = product?.identifier || ''
+  if (id === 'domus_anual') return { name: 'Anual', period: 'por ano', annual: true }
+  if (id === 'domus_mensal') return { name: 'Mensal', period: 'por mês', annual: false }
+  return { name: product?.title || 'Plano', period: '', annual: false }
 }
 
 export default function NativePaywall({ reason = 'expired', showSignOut = true, onSuccess }) {
   const navigate = useNavigate()
   const { signOut } = useAuth()
-  const { loading, offering, purchase, restore, refresh, setError, error } = useRevenueCat()
+  const { loading, products, purchase, restore, refresh, setError, error } = useRevenueCat()
 
-  const packages = offering?.availablePackages || []
-  // Pré-seleciona o anual se existir (melhor custo-benefício), senão o 1º
-  const annual = packages.find((p) => p.packageType === 'ANNUAL')
+  // Pré-seleciona o anual (melhor custo-benefício), senão o 1º
+  const annual = products.find((p) => p.identifier === 'domus_anual')
   const [selected, setSelected] = useState(null)
-  const chosen = selected || annual || packages[0] || null
+  const chosen = selected || annual || products[0] || null
 
   const [busy, setBusy] = useState(false)
   const [restoring, setRestoring] = useState(false)
@@ -61,7 +58,6 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
     setError(null)
     try {
       await restore()
-      // Se restaurou um plano ativo, o app destrava sozinho.
       if (onSuccess) onSuccess()
     } catch (e) {
       setError(e?.message || 'Nada para restaurar nesta conta.')
@@ -102,7 +98,7 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
         {/* Lista de planos */}
         {loading ? (
           <div className="py-10"><Loader2 size={26} className="animate-spin mx-auto" style={{ color: '#c9a961' }} /></div>
-        ) : packages.length === 0 ? (
+        ) : products.length === 0 ? (
           <div className="rounded-xl p-5 mb-4 text-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', color: 'var(--text-secondary)' }}>
             <p className="mb-3">No momento os planos não estão disponíveis. Tente novamente em instantes.</p>
             <button onClick={() => refresh()} className="inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: '#c9a961' }}>
@@ -111,14 +107,13 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
           </div>
         ) : (
           <div className="space-y-2.5 mb-4 text-left">
-            {packages.map((pkg) => {
-              const { name, period } = labelFor(pkg)
-              const isSel = chosen?.identifier === pkg.identifier
-              const isAnnual = pkg.packageType === 'ANNUAL'
+            {products.map((product) => {
+              const { name, period, annual: isAnnual } = labelFor(product)
+              const isSel = chosen?.identifier === product.identifier
               return (
                 <button
-                  key={pkg.identifier}
-                  onClick={() => setSelected(pkg)}
+                  key={product.identifier}
+                  onClick={() => setSelected(product)}
                   className="w-full rounded-xl p-4 transition flex items-center justify-between gap-3"
                   style={{
                     background: isSel ? 'rgba(201,169,97,0.12)' : 'rgba(255,255,255,0.04)',
@@ -134,7 +129,7 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-white/55 mt-0.5">{pkg.product?.priceString} {period}</div>
+                    <div className="text-xs text-white/55 mt-0.5">{product.priceString} {period}</div>
                   </div>
                   <div className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ border: `1.5px solid ${isSel ? '#c9a961' : 'var(--border-medium)'}`, background: isSel ? '#c9a961' : 'transparent' }}>
                     {isSel && <Check size={12} style={{ color: '#070912' }} />}
@@ -150,7 +145,7 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
         )}
 
         {/* CTA assinar */}
-        {packages.length > 0 && (
+        {products.length > 0 && (
           <button
             onClick={handleBuy}
             disabled={busy || !chosen}
