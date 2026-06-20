@@ -3,11 +3,11 @@
 // SÓ roda no app nativo (Capacitor). No web/PWA todas as funções são no-op
 // — o site continua usando o checkout do Asaas normalmente.
 //
-// Buscamos os produtos DIRETO pelo ID (domus_mensal/domus_anual) em vez de
-// depender de uma "offering". O direito (entitlement) configurado no
-// RevenueCat é `premium`, com os dois produtos anexados — é o que destrava
-// o app após a compra.
+// IMPORTA o plugin de forma ESTÁTICA (não dinâmica) pra evitar que o carregar
+// de um "chunk" sob demanda trave dentro do app. E TODAS as chamadas têm
+// timeout, pra a tela de assinatura nunca ficar carregando pra sempre.
 
+import { Purchases } from '@revenuecat/purchases-capacitor'
 import { isNativeApp } from './platform'
 
 // Chave PÚBLICA do RevenueCat (Apple) — pode ficar no código, não é segredo.
@@ -20,14 +20,8 @@ export const PRODUCT_IDS = ['domus_anual', 'domus_mensal']
 
 let configured = false
 
-// Importa o plugin só quando estamos no nativo (evita carregar no bundle web).
-async function getPlugin() {
-  const mod = await import('@revenuecat/purchases-capacitor')
-  return mod.Purchases
-}
-
 // Garante que uma chamada nunca trave a UI pra sempre: se passar do tempo,
-// resolve com um fallback (ex.: lista vazia) em vez de ficar girando.
+// resolve com um fallback em vez de ficar pendurada.
 function withTimeout(promise, ms, fallback) {
   return Promise.race([
     promise,
@@ -35,25 +29,19 @@ function withTimeout(promise, ms, fallback) {
   ])
 }
 
-// Configura o SDK uma única vez, amarrando a compra ao usuário do Supabase
-// (appUserID = user.id) pra a assinatura seguir a conta entre aparelhos.
+// Configura o SDK (uma vez), amarrando a compra ao usuário do Supabase.
 export async function initPurchases(appUserID) {
   if (!isNativeApp()) return false
-  if (configured) {
-    if (appUserID) {
-      try {
-        const Purchases = await getPlugin()
-        await Purchases.logIn({ appUserID })
-      } catch (e) { /* ignore */ }
-    }
-    return true
-  }
   try {
-    const Purchases = await getPlugin()
-    await Purchases.configure({
-      apiKey: RC_APPLE_API_KEY,
-      appUserID: appUserID || undefined,
-    })
+    if (configured) {
+      if (appUserID) { try { await Purchases.logIn({ appUserID }) } catch (e) { /* ignore */ } }
+      return true
+    }
+    await withTimeout(
+      Purchases.configure({ apiKey: RC_APPLE_API_KEY, appUserID: appUserID || undefined }),
+      10000,
+      undefined,
+    )
     configured = true
     return true
   } catch (e) {
@@ -70,24 +58,26 @@ export function isEntitled(customerInfo) {
 export async function getCustomerInfo() {
   if (!isNativeApp()) return null
   try {
-    const Purchases = await getPlugin()
-    const { customerInfo } = await withTimeout(Purchases.getCustomerInfo(), 12000, { customerInfo: null })
-    return customerInfo
+    const res = await withTimeout(Purchases.getCustomerInfo(), 12000, { customerInfo: null })
+    return res?.customerInfo || null
   } catch (e) {
     console.error('RevenueCat getCustomerInfo error:', e)
     return null
   }
 }
 
-// Busca os produtos de assinatura direto pelos IDs. Retorna [] no web/erro.
+// Busca os produtos de assinatura direto pelos IDs. Retorna [] no web/erro/timeout.
 export async function getSubscriptionProducts() {
   if (!isNativeApp()) return []
   try {
-    const Purchases = await getPlugin()
-    const { products } = await withTimeout(Purchases.getProducts({ productIdentifiers: PRODUCT_IDS }), 12000, { products: [] })
-    // Ordena anual primeiro (igual à ordem de PRODUCT_IDS)
-    return (products || []).slice().sort(
-      (a, b) => PRODUCT_IDS.indexOf(a.identifier) - PRODUCT_IDS.indexOf(b.identifier)
+    const res = await withTimeout(
+      Purchases.getProducts({ productIdentifiers: PRODUCT_IDS }),
+      12000,
+      { products: [] },
+    )
+    const products = res?.products || []
+    return products.slice().sort(
+      (a, b) => PRODUCT_IDS.indexOf(a.identifier) - PRODUCT_IDS.indexOf(b.identifier),
     )
   } catch (e) {
     console.error('RevenueCat getProducts error:', e)
@@ -98,7 +88,6 @@ export async function getSubscriptionProducts() {
 // Compra um produto. Retorna { customerInfo } em sucesso,
 // { cancelled: true } se o usuário desistiu, ou lança em erro real.
 export async function purchaseProduct(product) {
-  const Purchases = await getPlugin()
   try {
     const res = await Purchases.purchaseStoreProduct({ product })
     return { customerInfo: res?.customerInfo }
@@ -112,7 +101,6 @@ export async function purchaseProduct(product) {
 
 // Restaura compras anteriores (Apple exige esse botão na tela de assinatura).
 export async function restorePurchases() {
-  const Purchases = await getPlugin()
   const { customerInfo } = await Purchases.restorePurchases()
   return customerInfo
 }
@@ -121,7 +109,6 @@ export async function restorePurchases() {
 export async function addCustomerInfoListener(cb) {
   if (!isNativeApp()) return
   try {
-    const Purchases = await getPlugin()
     await Purchases.addCustomerInfoUpdateListener(cb)
   } catch (e) { /* ignore */ }
 }

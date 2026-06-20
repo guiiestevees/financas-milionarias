@@ -24,18 +24,24 @@ export function RevenueCatProvider({ children }) {
   const [error, setError] = useState(null)
   const listenerAdded = useRef(false)
 
+  // Carrega os produtos PRIMEIRO (libera a tela) e o customerInfo em paralelo,
+  // sem deixar o customerInfo travar a exibição dos planos.
   const refresh = useCallback(async () => {
     if (!native) { setLoading(false); return }
-    const [info, prods] = await Promise.all([getCustomerInfo(), getSubscriptionProducts()])
-    setCustomerInfo(info)
+    const prods = await getSubscriptionProducts()
     setProducts(prods)
     setLoading(false)
+    getCustomerInfo().then((info) => setCustomerInfo(info))
   }, [native])
 
   useEffect(() => {
     let cancelled = false
     if (!native) { setLoading(false); return }
     if (!user) return  // espera o login pra amarrar a compra à conta
+
+    // Trava de segurança: a tela NUNCA fica carregando mais de 15s.
+    const hardStop = setTimeout(() => { if (!cancelled) setLoading(false) }, 15000)
+
     ;(async () => {
       setLoading(true)
       await initPurchases(user.id)
@@ -46,7 +52,8 @@ export function RevenueCatProvider({ children }) {
       }
       await refresh()
     })()
-    return () => { cancelled = true }
+
+    return () => { cancelled = true; clearTimeout(hardStop) }
   }, [native, user, refresh])
 
   const purchase = useCallback(async (product) => {
