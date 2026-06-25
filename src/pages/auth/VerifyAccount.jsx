@@ -79,6 +79,9 @@ export default function VerifyAccount() {
   const [phoneMasked, setPhoneMasked] = useState(saved?.phoneMasked || '')
   const [cooldown, setCooldown] = useState(saved?.cooldown || 0)
   const [pasteHint, setPasteHint] = useState('')  // mensagem quando colar dá erro
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [newPhone, setNewPhone] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
   const codeInputRef = useRef(null)
 
   const phoneFromMeta = user?.user_metadata?.phone || ''
@@ -155,6 +158,33 @@ export default function VerifyAccount() {
       console.error('sendCode error:', e)
       setError('Erro de rede. Tente novamente.')
       setState('idle')
+    }
+  }
+
+  // Atualiza o número de celular e já dispara o código no WhatsApp novo.
+  const savePhoneAndSend = async () => {
+    let digits = String(newPhone).replace(/\D/g, '')
+    if (digits.length === 10 || digits.length === 11) digits = '55' + digits  // DDD+número → +55
+    if (digits.length < 12 || digits.length > 13) {
+      setError('Número inválido. Coloque DDD + número (ex: 11 99999-9999).')
+      return
+    }
+    setSavingPhone(true)
+    setError('')
+    try {
+      const { error: upErr } = await supabase
+        .from('user_profiles')
+        .update({ whatsapp_phone: digits })
+        .eq('user_id', user.id)
+      if (upErr) throw upErr
+      try { await supabase.auth.updateUser({ data: { phone: digits } }) } catch (_) { /* ignore */ }
+      setEditingPhone(false)
+      setSavingPhone(false)
+      sendCode('whatsapp')
+    } catch (e) {
+      console.error('savePhone error:', e)
+      setError('Não consegui salvar o número. Tente novamente.')
+      setSavingPhone(false)
     }
   }
 
@@ -336,6 +366,37 @@ export default function VerifyAccount() {
               </div>
             </div>
           </button>
+
+          {/* Trocar número de celular */}
+          {!editingPhone ? (
+            <button
+              type="button"
+              onClick={() => { setEditingPhone(true); setNewPhone(''); setError('') }}
+              className="w-full text-xs text-center pt-1 hover:underline"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Não é esse número? Trocar celular
+            </button>
+          ) : (
+            <div className="space-y-2 p-3 rounded-xl" style={{ background: 'var(--bg-elev2)', border: '1px solid var(--border-medium)' }}>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Novo celular (com DDD):</div>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="(11) 99999-9999"
+                style={{ background: 'var(--bg-elev1)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', outline: 'none', width: '100%', borderRadius: 10, padding: '12px 14px', fontSize: 16, boxSizing: 'border-box' }}
+              />
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => { setEditingPhone(false); setError('') }} className="text-xs px-3 py-2 rounded-lg" style={{ color: 'var(--text-tertiary)' }}>Cancelar</button>
+                <button type="button" onClick={savePhoneAndSend} disabled={savingPhone} className="text-xs px-3 py-2 rounded-lg font-medium inline-flex items-center gap-1.5 disabled:opacity-50" style={{ background: '#25D366', color: 'white' }}>
+                  {savingPhone ? <Loader2 size={12} className="animate-spin" /> : <MessageCircle size={12} />}
+                  Salvar e enviar
+                </button>
+              </div>
+            </div>
+          )}
 
           <p className="text-xs text-center pt-2" style={{ color: 'var(--text-muted)' }}>
             🎩 Permita-me apenas um instante. É só pra confirmar.

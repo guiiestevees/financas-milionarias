@@ -60,7 +60,6 @@ const PLANS = [
     perMonthLabel: 'R$ 13,92',  // R$ 167 / 12
     period: 'por ano',
     accent: 'gold',
-    badge: '⭐ Mais escolhido',
     description: 'Pague uma vez e fique 12 meses ao seu dispor.',
     savings: 'Economize R$ 61 (~27% off)',
     features: [

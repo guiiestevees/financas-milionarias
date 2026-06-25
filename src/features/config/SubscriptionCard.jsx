@@ -6,6 +6,7 @@ import { accents } from '../../lib/constants'
 import { supabase } from '../../lib/supabase'
 import { isNativeApp } from '../../lib/platform'
 import NativeReaderNotice from '../../components/NativeReaderNotice'
+import { useRevenueCat } from '../../hooks/useRevenueCat'
 
 // Formata "27 de junho de 2026"
 function formatDateLongPT(iso) {
@@ -42,6 +43,7 @@ const PAYMENT_STATUS_LABEL = {
 export default function SubscriptionCard() {
   const navigate = useNavigate()
   const native = isNativeApp()
+  const rc = useRevenueCat()  // status da assinatura In-App (Apple)
   const [info, setInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -219,15 +221,31 @@ export default function SubscriptionCard() {
 
           {/* Ações */}
           {native ? (
-            // MODO NATIVO (Reader App): toda gestão de pagamento via site
-            <NativeReaderNotice
-              action={
-                isTrial ? 'contratar um plano' :
-                isCancelled ? 'reativar sua assinatura' :
-                'alterar plano, forma de pagamento ou cancelar'
-              }
-              compact
-            />
+            rc.isEntitled ? (
+              // Assinante via Apple (IAP): botão que abre a tela de assinaturas
+              // do iPhone (onde a Apple deixa trocar plano ou cancelar).
+              <button
+                onClick={() => {
+                  const url = rc.customerInfo?.managementURL || 'https://apps.apple.com/account/subscriptions'
+                  window.open(url, '_blank')
+                }}
+                className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-lg text-sm transition"
+                style={{ background: 'rgba(201,169,97,0.08)', border: '1px solid rgba(201,169,97,0.25)', color: '#c9a961' }}
+              >
+                <span className="font-medium">Gerenciar assinatura</span>
+                <ArrowRight size={14} />
+              </button>
+            ) : (
+              // Sem assinatura da Apple (trial/web): aviso neutro, sem CTA externo.
+              <NativeReaderNotice
+                action={
+                  isTrial ? 'contratar um plano' :
+                  isCancelled ? 'reativar sua assinatura' :
+                  'alterar plano, forma de pagamento ou cancelar'
+                }
+                compact
+              />
+            )
           ) : (
             <div className="grid sm:grid-cols-2 gap-2">
               {canChangePlan && (

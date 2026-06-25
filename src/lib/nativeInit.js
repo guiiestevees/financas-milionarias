@@ -33,11 +33,14 @@ export async function initNativeApp() {
 
   try {
     // ===== STATUS BAR =====
-    // Cor sólida combinando com o background do app (dark)
+    // Segue o tema do app (padrão claro). bootstrapTheme() já rodou antes daqui,
+    // então o data-theme no <html> reflete o tema salvo (light por padrão).
     const { StatusBar, Style } = await import('@capacitor/status-bar')
     try {
-      await StatusBar.setStyle({ style: Style.Dark })
-      await StatusBar.setBackgroundColor({ color: '#0a0e1a' })
+      const isLight = document.documentElement.getAttribute('data-theme') !== 'dark'
+      // Style.Light = ícones escuros (pra fundo claro); Style.Dark = ícones claros (fundo escuro)
+      await StatusBar.setStyle({ style: isLight ? Style.Light : Style.Dark })
+      await StatusBar.setBackgroundColor({ color: isLight ? '#f5f4ef' : '#0a0e1a' })
       await StatusBar.setOverlaysWebView({ overlay: false })
     } catch (e) { /* ignore se não suportar */ }
 

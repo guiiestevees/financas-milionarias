@@ -108,7 +108,7 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
         ) : (
           <div className="space-y-2.5 mb-4 text-left">
             {products.map((product) => {
-              const { name, period, annual: isAnnual } = labelFor(product)
+              const { name, period } = labelFor(product)
               const isSel = chosen?.identifier === product.identifier
               return (
                 <button
@@ -123,11 +123,6 @@ export default function NativePaywall({ reason = 'expired', showSignOut = true, 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{name}</span>
-                      {isAnnual && (
-                        <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(201,169,97,0.2)', color: '#c9a961' }}>
-                          melhor valor
-                        </span>
-                      )}
                     </div>
                     <div className="text-xs text-white/55 mt-0.5">{product.priceString} {period}</div>
                   </div>

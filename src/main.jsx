@@ -16,6 +16,21 @@ bootstrapTheme()
 // Em web puro, faz nada — early return interno.
 initNativeApp()
 
+// Quando um campo recebe foco (ex.: no cadastro), rola pra ele ficar VISÍVEL
+// acima do teclado. Sem isso, em telas com vários campos a pessoa não enxerga
+// o que está digitando. O delay espera o teclado terminar de abrir.
+if (typeof window !== 'undefined') {
+  window.addEventListener('focusin', (e) => {
+    const el = e.target
+    const tag = el?.tagName?.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      setTimeout(() => {
+        try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch (_) { /* ignore */ }
+      }, 350)
+    }
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
