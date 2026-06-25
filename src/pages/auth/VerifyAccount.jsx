@@ -346,27 +346,6 @@ export default function VerifyAccount() {
             </div>
           </button>
 
-          <button
-            onClick={() => sendCode('email')}
-            className="w-full flex items-center gap-3 p-4 rounded-xl transition text-left"
-            style={{
-              background: 'var(--bg-elev2)',
-              border: '1px solid var(--border-medium)',
-            }}
-          >
-            <div className="p-2 rounded-lg shrink-0" style={{ background: 'rgba(212,175,55,0.15)', color: '#d4af37' }}>
-              <Mail size={18} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
-                Receber link no email
-              </div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                Mais demorado, use se não tiver WhatsApp.
-              </div>
-            </div>
-          </button>
-
           {/* Trocar número de celular */}
           {!editingPhone ? (
             <button
@@ -486,7 +465,7 @@ export default function VerifyAccount() {
             ) : 'Confirmar'}
           </button>
 
-          <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="flex items-center justify-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
             <button
               onClick={() => sendCode('whatsapp')}
               disabled={cooldown > 0 || state === 'verifying'}
@@ -494,13 +473,6 @@ export default function VerifyAccount() {
             >
               <RotateCcw size={11} />
               {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
-            </button>
-            <button
-              onClick={() => sendCode('email')}
-              disabled={state === 'verifying'}
-              className="inline-flex items-center gap-1 hover:underline disabled:opacity-50"
-            >
-              <Mail size={11} /> Receber por email
             </button>
           </div>
         </div>
