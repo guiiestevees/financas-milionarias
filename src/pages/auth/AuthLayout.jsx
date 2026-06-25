@@ -15,52 +15,57 @@ export default function AuthLayout() {
   const h = HEADINGS[pathname] || HEADINGS['/login']
 
   return (
+    // items-center centraliza na horizontal; o miolo usa my-auto pra centralizar
+    // na vertical QUANDO cabe e ROLAR livremente quando não cabe (teclado aberto).
+    // (justify-center "prende" a rolagem pro topo — por isso não usamos aqui.)
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative"
+      className="min-h-screen flex flex-col items-center px-4 py-12 relative overflow-y-auto"
       style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
     >
       {/* Botão pra voltar pra landing */}
       {h.back && (
         <Link
           to="/"
-          className="absolute top-5 left-5 text-xs text-white/45 hover:text-white/85 transition flex items-center gap-1.5"
+          className="absolute top-5 left-5 text-xs text-white/45 hover:text-white/85 transition flex items-center gap-1.5 z-10"
         >
           <ArrowLeft size={13} /> Voltar
         </Link>
       )}
 
-      <div className="mb-8 text-center">
-        <img
-          src="/domus-logo-512.png"
-          alt="Domus"
-          style={{ width: 120, height: 120, objectFit: 'contain', display: 'block', margin: '0 auto 16px' }}
-        />
-        <h1
-          style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-          className="text-4xl text-white"
-        >
-          {h.lead}{' '}
-          <em
-            style={{
-              fontStyle: 'italic',
-              background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-            }}
+      <div className="my-auto w-full flex flex-col items-center">
+        <div className="mb-8 text-center">
+          <img
+            src="/domus-logo-512.png"
+            alt="Domus"
+            style={{ width: 120, height: 120, objectFit: 'contain', display: 'block', margin: '0 auto 16px' }}
+          />
+          <h1
+            style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
+            className="text-4xl text-white"
           >
-            {h.accent}
-          </em>
-        </h1>
-      </div>
+            {h.lead}{' '}
+            <em
+              style={{
+                fontStyle: 'italic',
+                background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)',
+                WebkitBackgroundClip: 'text',
+                color: 'transparent',
+              }}
+            >
+              {h.accent}
+            </em>
+          </h1>
+        </div>
 
-      <div
-        className="w-full max-w-sm rounded-2xl p-8"
-        style={{
-          background: 'var(--card-bg)',
-          border: '1px solid var(--card-border)',
-        }}
-      >
-        <Outlet />
+        <div
+          className="w-full max-w-sm rounded-2xl p-8"
+          style={{
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
+          }}
+        >
+          <Outlet />
+        </div>
       </div>
     </div>
   )
