@@ -307,7 +307,7 @@ export default function VerifyAccount() {
           Confirme sua conta
         </h2>
         <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-          Vou te mandar um código pra confirmar que você é você.
+          Confirme seu WhatsApp pra ativar o Alfred (Finanças e Agenda) e proteger sua conta. Pode fazer isso depois, se preferir.
         </p>
       </div>
 
@@ -380,6 +380,15 @@ export default function VerifyAccount() {
           <p className="text-xs text-center pt-2" style={{ color: 'var(--text-muted)' }}>
             🎩 Permita-me apenas um instante. É só pra confirmar.
           </p>
+
+          <button
+            type="button"
+            onClick={() => navigate('/app', { replace: true })}
+            className="w-full text-xs text-center pt-1 hover:underline"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            Fazer isso depois
+          </button>
         </div>
       )}
 
