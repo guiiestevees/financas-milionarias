@@ -98,6 +98,12 @@ html, body {
   min-height: 100vh;
 }
 
+/* Espaço extra embaixo quando o teclado nativo (iOS) está aberto — ver
+   nativeInit.js. Dá pra rolar e enxergar os campos acima do teclado. */
+body {
+  padding-bottom: var(--kb-height, 0px);
+}
+
 /* ============================================================
    Sobrescrita de utilities Tailwind no light mode
    (cobre ~80% das telas sem precisar editar cada JSX)

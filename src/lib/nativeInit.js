@@ -52,13 +52,29 @@ export async function initNativeApp() {
     } catch (e) { /* ignore */ }
 
     // ===== KEYBOARD =====
-    // Em iOS o teclado pode cobrir inputs — escutamos eventos pra rolar a view
+    // No iOS o teclado cobre os inputs. Em vez de depender do "resize" (que é
+    // furado no WebView), fazemos na mão: quando o teclado abre, sabemos a
+    // altura dele → (1) abrimos um espaço embaixo (--kb-height, usado no CSS do
+    // body) pra ter onde rolar, e (2) rolamos o campo focado pra ACIMA do teclado.
     const { Keyboard } = await import('@capacitor/keyboard')
     try {
-      Keyboard.addListener('keyboardWillShow', () => {
+      Keyboard.addListener('keyboardWillShow', (info) => {
+        const kb = (info && info.keyboardHeight) || 0
+        document.documentElement.style.setProperty('--kb-height', kb + 'px')
         document.body.classList.add('keyboard-open')
+        // Rola o campo focado pra ficar visível acima do teclado
+        setTimeout(() => {
+          const el = document.activeElement
+          if (!el || el === document.body) return
+          const rect = el.getBoundingClientRect()
+          const visibleBottom = window.innerHeight - kb
+          if (rect.bottom > visibleBottom - 16) {
+            window.scrollBy({ top: rect.bottom - visibleBottom + 40, behavior: 'smooth' })
+          }
+        }, 80)
       })
       Keyboard.addListener('keyboardWillHide', () => {
+        document.documentElement.style.setProperty('--kb-height', '0px')
         document.body.classList.remove('keyboard-open')
       })
     } catch (e) { /* ignore */ }
