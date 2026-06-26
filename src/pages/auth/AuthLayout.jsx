@@ -20,7 +20,7 @@ export default function AuthLayout() {
     // pra rolar com o teclado aberto no iPhone. Centralizar/trapear a rolagem
     // num container interno quebra isso no WebView do iOS.
     <div
-      className="min-h-screen flex flex-col items-center px-4 py-10 relative"
+      className="min-h-screen flex flex-col items-center px-4 py-6 relative"
       style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
     >
       {/* Botão pra voltar pra landing */}
@@ -33,15 +33,15 @@ export default function AuthLayout() {
         </Link>
       )}
 
-      <div className="mt-6 mb-8 text-center">
+      <div className="mt-2 mb-5 text-center">
         <img
           src="/domus-logo-512.png"
           alt="Domus"
-          style={{ width: 110, height: 110, objectFit: 'contain', display: 'block', margin: '0 auto 14px' }}
+          style={{ width: 76, height: 76, objectFit: 'contain', display: 'block', margin: '0 auto 8px' }}
         />
         <h1
           style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-          className="text-4xl text-white"
+          className="text-3xl text-white"
         >
           {h.lead}{' '}
           <em

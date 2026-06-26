@@ -22,11 +22,11 @@
       "overlaysWebView": false
     },
     "Keyboard": {
-      "resize": "none"
+      "resize": "native"
     }
   },
   "ios": {
-    "contentInset": "always",
+    "contentInset": "automatic",
     "scrollEnabled": true,
     "backgroundColor": "#f5f4ef"
   },
