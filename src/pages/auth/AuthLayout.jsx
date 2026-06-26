@@ -1,5 +1,5 @@
 import { Outlet, useLocation, Link } from 'react-router-dom'
-import { Sparkles, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 
 // Mensagens contextuais por rota
 const HEADINGS = {
@@ -15,11 +15,12 @@ export default function AuthLayout() {
   const h = HEADINGS[pathname] || HEADINGS['/login']
 
   return (
-    // items-center centraliza na horizontal; o miolo usa my-auto pra centralizar
-    // na vertical QUANDO cabe e ROLAR livremente quando não cabe (teclado aberto).
-    // (justify-center "prende" a rolagem pro topo — por isso não usamos aqui.)
+    // FLUXO NATURAL (top→baixo, sem justify-center nem overflow interno):
+    // assim a PÁGINA rola sozinha quando o conteúdo passa da tela — essencial
+    // pra rolar com o teclado aberto no iPhone. Centralizar/trapear a rolagem
+    // num container interno quebra isso no WebView do iOS.
     <div
-      className="min-h-screen flex flex-col items-center px-4 py-12 relative overflow-y-auto"
+      className="min-h-screen flex flex-col items-center px-4 py-10 relative"
       style={{ background: 'var(--bg-app)', color: 'var(--text-primary)' }}
     >
       {/* Botão pra voltar pra landing */}
@@ -32,40 +33,38 @@ export default function AuthLayout() {
         </Link>
       )}
 
-      <div className="my-auto w-full flex flex-col items-center">
-        <div className="mb-8 text-center">
-          <img
-            src="/domus-logo-512.png"
-            alt="Domus"
-            style={{ width: 120, height: 120, objectFit: 'contain', display: 'block', margin: '0 auto 16px' }}
-          />
-          <h1
-            style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
-            className="text-4xl text-white"
-          >
-            {h.lead}{' '}
-            <em
-              style={{
-                fontStyle: 'italic',
-                background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-              }}
-            >
-              {h.accent}
-            </em>
-          </h1>
-        </div>
-
-        <div
-          className="w-full max-w-sm rounded-2xl p-8"
-          style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--card-border)',
-          }}
+      <div className="mt-6 mb-8 text-center">
+        <img
+          src="/domus-logo-512.png"
+          alt="Domus"
+          style={{ width: 110, height: 110, objectFit: 'contain', display: 'block', margin: '0 auto 14px' }}
+        />
+        <h1
+          style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, letterSpacing: '-0.02em' }}
+          className="text-4xl text-white"
         >
-          <Outlet />
-        </div>
+          {h.lead}{' '}
+          <em
+            style={{
+              fontStyle: 'italic',
+              background: 'linear-gradient(90deg,#f4d676,#d4af37,#a87f1f)',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
+            {h.accent}
+          </em>
+        </h1>
+      </div>
+
+      <div
+        className="w-full max-w-sm rounded-2xl p-8 mb-10"
+        style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+        }}
+      >
+        <Outlet />
       </div>
     </div>
   )
