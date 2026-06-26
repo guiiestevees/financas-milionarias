@@ -61,6 +61,16 @@ export async function initNativeApp() {
       Keyboard.addListener('keyboardWillShow', () => {
         document.body.classList.add('keyboard-open')
       })
+      // keyboardDidShow: o teclado JÁ terminou de abrir e a tela JÁ encolheu
+      // (resize native). SÓ AGORA a área visível tem o tamanho certo, então
+      // rolamos o campo focado pro centro dela (acima do teclado). Vale pra
+      // TODAS as telas — cadastro, lançar gasto, agenda, etc.
+      Keyboard.addListener('keyboardDidShow', () => {
+        const el = document.activeElement
+        if (el && el !== document.body && typeof el.scrollIntoView === 'function') {
+          try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch (e) { /* ignore */ }
+        }
+      })
       Keyboard.addListener('keyboardWillHide', () => {
         document.body.classList.remove('keyboard-open')
       })

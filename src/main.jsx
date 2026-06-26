@@ -21,6 +21,9 @@ initNativeApp()
 // o que está digitando. O delay espera o teclado terminar de abrir.
 if (typeof window !== 'undefined') {
   window.addEventListener('focusin', (e) => {
+    // No app nativo, a rolagem é feita no evento keyboardDidShow (nativeInit),
+    // que dispara DEPOIS da tela encolher — timing certo. Aqui é só pro web/PWA.
+    if (window.Capacitor?.isNativePlatform?.()) return
     const el = e.target
     const tag = el?.tagName?.toLowerCase()
     if (tag === 'input' || tag === 'textarea' || tag === 'select') {
